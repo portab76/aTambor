@@ -23,6 +23,11 @@ aTambor es una máquina de ritmos profesional que:
 - Performance en vivo con control automatizado
 - Exploración de ritmos complejos y polyrritmia
 
+### 🚀 Demo en Línea
+**Prueba aTambor ahora sin instalación**: https://elper.es/aTambor/
+
+Acceso inmediato a la interfaz web completa. Nota: La demo online incluye síntesis de sonido virtual; para controlar hardware físico necesitas un ESP32 conectado.
+
 ---
 
 ## 🎹 Software: Características
