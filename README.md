@@ -102,7 +102,7 @@ Piano sintetizado con 14 instrumentos y selección de octavas:
                │ Golpean
                ▼
     ┌──────────────────────┐
-    │  Teclado MIDI        │
+    │  Piano - Teclado     │
     │  (Genera Audio Real) │
     └──────────────────────┘
 ```
@@ -132,7 +132,7 @@ Piano sintetizado con 14 instrumentos y selección de octavas:
 
 ### Video 1 - Secuenciador y Hardware en Acción
 
-<video width="100%" controls>
+<video width="640" height="480" controls>
   <source src="demos/Video1.mp4" type="video/mp4">
   Tu navegador no soporta videos HTML5
 </video>
@@ -141,7 +141,7 @@ Piano sintetizado con 14 instrumentos y selección de octavas:
 
 ### Video 2 - Sistema Completo en Funcionamiento
 
-<video width="100%" controls>
+<video width="640" height="480" controls>
   <source src="demos/Video2.mp4" type="video/mp4">
   Tu navegador no soporta videos HTML5
 </video>
