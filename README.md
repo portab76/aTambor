@@ -128,6 +128,28 @@ Piano sintetizado con 14 instrumentos y selección de octavas:
 
 ---
 
+## 🎥 Demostración en Video
+
+### Video 1 - Secuenciador y Hardware en Acción
+
+<video width="100%" controls>
+  <source src="demos/Video1.mp4" type="video/mp4">
+  Tu navegador no soporta videos HTML5
+</video>
+
+[📥 Descargar Video 1](demos/Video1.mp4)
+
+### Video 2 - Sistema Completo en Funcionamiento
+
+<video width="100%" controls>
+  <source src="demos/Video2.mp4" type="video/mp4">
+  Tu navegador no soporta videos HTML5
+</video>
+
+[📥 Descargar Video 2](demos/Video2.mp4)
+
+---
+
 ## 🔄 Cómo Funciona el Sistema
 
 ### Flujo de Datos
