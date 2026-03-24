@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>aTambor — Drum Machine</title>
+
+<style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+
+  font-family: 'Courier New', monospace;
+
+  background: #f0e8d8;
+
+  color: #2c1e12;
+
+  min-height: 100vh;
+
+  padding: 14px;
+
+}
+
+h1 {
+
+  text-align: center;
+
+  color: #8b3a1a;
+
+  font-size: 20px;
+
+  letter-spacing: 4px;
+
+  margin-bottom: 12px;
+
+  text-transform: uppercase;
+
+}
+
+/* TOP CONTROLS */
+
+.top-controls {
+
+  background: #e8dac8;
+
+  border-radius: 10px;
+
+  padding: 10px 14px;
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 10px;
+
+  align-items: center;
+
+  justify-content: center;
+
+  margin-bottom: 10px;
+
+  border: 1px solid #c8a882;
+
+}
+
+.bar-divider {
+
+  width: 1px;
+
+  height: 32px;
+
+  background: #c0a070;
+
+  flex-shrink: 0;
+
+  margin: 0 2px;
+
+}
+
+.ctrl-group {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  background: #ddd0b8;
+
+  padding: 5px 10px;
+
+  border-radius: 8px;
+
+  border: 1px solid #c8a882;
+
+}
+
+.ctrl-group label { font-size: 11px; color: #8a6848; text-transform: uppercase; letter-spacing: 1px; }
+
+input[type="number"] {
+
+  background: #ede0ce;
+
+  color: #2c1e12;
+
+  border: 1px solid #c0a080;
+
+  border-radius: 4px;
+
+  padding: 3px 5px;
+
+  font-size: 16px;
+
+  font-family: 'Courier New', monospace;
+
+  text-align: center;
+
+}
+
+#bpmValue { width: 62px; }
+
+#hitDur, #retractDur { width: 52px; }
+
+input[type="range"] { width: 100px; accent-color: #a04020; cursor: pointer; }
+
+.btn {
+
+  background: #e0d0b8;
+
+  color: #4a3428;
+
+  border: 1px solid #b09070;
+
+  border-radius: 6px;
+
+  padding: 7px 13px;
+
+  font-family: 'Courier New', monospace;
+
+  font-size: 13px;
+
+  cursor: pointer;
+
+  transition: all 0.12s;
+
+  letter-spacing: 1px;
+
+}
+
+.btn:hover { background: #c8b898; border-color: #8a6848; }
+
+.btn-play  { background: #d8ead0; border-color: #3a7850; color: #3a7850; font-weight: bold; font-size: 15px; }
+
+.btn-play:hover  { background: #3a7850; color: #fff; }
+
+.btn-pause { background: #f0e8c8; border-color: #9a7820; color: #9a7820; font-weight: bold; font-size: 15px; }
+.btn-pause:hover:not(:disabled) { background: #9a7820; color: #fff; }
+
+.btn-stop  { background: #f0d8d0; border-color: #a03828; color: #a03828; font-weight: bold; font-size: 15px; }
+.btn-stop:hover:not(:disabled)  { background: #a03828; color: #fff; }
+
+.btn-play:disabled, .btn-pause:disabled, .btn-stop:disabled { opacity: 0.35; cursor: not-allowed; }
+
+
+/* SECTIONS */
+
+.section-card {
+
+  background: #e8dac8;
+
+  border-radius: 10px;
+
+  border: 1px solid #c8a882;
+
+  margin-bottom: 10px;
+
+  overflow: hidden;
+
+}
+
+.section-header {
+
+  background: #ddd0b8;
+
+  border-bottom: 1px solid #c8a882;
+
+  padding: 9px 14px;
+
+  color: #8b3a1a;
+
+  font-family: 'Courier New', monospace;
+
+  font-size: 12px;
+
+  letter-spacing: 2px;
+
+  text-transform: uppercase;
+
+  font-weight: bold;
+
+}
+
+.tab-panel { padding: 12px 14px; }
+
+.tab-toolbar {
+
+  display: flex;
+
+  gap: 6px;
+
+  margin-bottom: 10px;
+
+}
+
+/* SEQUENCER */
+
+.sequencer-wrap { overflow-x: auto; padding-bottom: 6px; }
+
+.ch-info-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: #e8dac8;
+  padding: 2px 4px;
+}
+
+.ch-info-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.seq-header-info {
+  position: sticky;
+  left: 0;
+  z-index: 11;
+  background: #ddd0b8;
+}
+
+.ch-opt-btn {
+  background: transparent;
+  border: 1px solid #c8a882;
+  color: #a08060;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+  font-family: 'Courier New', monospace;
+}
+
+.ch-opt-btn:hover, .ch-opt-btn.open { border-color: #8b3a1a; color: #8b3a1a; }
+
+.ch-opt-panel {
+  display: none;
+  position: fixed;
+  background: #e8dac8;
+  border: 1px solid #c0a070;
+  border-radius: 8px;
+  padding: 10px 12px;
+  z-index: 9999;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 210px;
+  box-shadow: 0 6px 20px rgba(80,40,10,0.2);
+}
+
+.ch-opt-panel.open { display: flex; }
+
+.ch-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.sequencer-table { border-collapse: separate; border-spacing: 2px; margin: 0 auto; }
+
+.step-header-cell {
+
+  text-align: center;
+
+  font-size: 10px;
+
+  color: #a08060;
+
+  padding: 2px 3px;
+
+  font-family: 'Courier New', monospace;
+
+  user-select: none;
+
+}
+
+.step-header-cell.beat { font-weight: bold; font-size: 12px; position: relative; }
+
+.beat-play-btn {
+  display: none;
+  position: absolute;
+  top: 0; left: 0;
+  background: transparent;
+  border: none;
+  color: #3a7850;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 2px;
+  cursor: pointer;
+}
+.step-header-cell.beat:hover .beat-play-btn { display: block; }
+
+.beat-del-btn {
+  display: none;
+  position: absolute;
+  top: 0; right: 0;
+  background: transparent;
+  border: none;
+  color: #a03828;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 2px;
+  cursor: pointer;
+}
+.step-header-cell.beat:hover .beat-del-btn { display: block; }
+
+.beat-gap    { width: 4px; min-width: 4px; }
+
+.measure-gap { width: 10px; min-width: 10px; border-left: 1px solid #c8a882; }
+
+/* Colores por compás (ciclan cada 4) */
+
+.mc0 { color: #a03828; }
+
+.mc1 { color: #9a6020; }
+
+.mc2 { color: #3a6a9a; }
+
+.mc3 { color: #3a7850; }
+
+/* Fila de etiqueta de compás */
+
+.measure-label {
+
+  text-align: center;
+
+  font-size: 9px;
+
+  font-weight: bold;
+
+  letter-spacing: 2px;
+
+  padding: 2px 0 2px;
+
+  text-transform: uppercase;
+
+  border-radius: 3px 3px 0 0;
+
+  user-select: none;
+
+}
+
+.measure-label.mc0 { background: #f5ddd8; color: #a03828; border-bottom: 1px solid #a03828; }
+
+.measure-label.mc1 { background: #f5ead8; color: #9a6020; border-bottom: 1px solid #9a6020; }
+
+.measure-label.mc2 { background: #d8e8f5; color: #3a6a9a; border-bottom: 1px solid #3a6a9a; }
+
+.measure-label.mc3 { background: #d8f0e4; color: #3a7850; border-bottom: 1px solid #3a7850; }
+
+.measure-label { cursor: pointer; }
+.measure-label.sel { outline: 2px solid #9a7820; outline-offset: -2px; filter: brightness(0.9); }
+
+#measureSelBar {
+  display: none;
+  position: sticky; left: 0;
+  background: #f5ead0; border: 1px solid #9a7820; border-radius: 6px;
+  padding: 5px 10px; gap: 8px; align-items: center;
+  font-size: 11px; color: #7a5a10; font-family: "Courier New", monospace;
+  z-index: 20; margin: 4px 0;
+}
+#measureSelBar.visible { display: flex; }
+#measureSelBar button {
+  background: transparent; border: 1px solid #9a7820; color: #7a5a10;
+  border-radius: 4px; padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 11px;
+}
+#measureSelBar button:hover { background: #9a7820; color: #fff; }
+#measureSelBar .sel-clear { border-color: #b09070; color: #906848; }
+#measureSelBar .sel-clear:hover { background: #b09070; color: #fff; }
+
+.ch-cell  { padding: 2px 3px; vertical-align: middle; }
+
+.ch-name-input {
+
+  background: #ede0ce;
+
+  color: #8b3a1a;
+
+  border: 1px solid #c8a882;
+
+  border-radius: 4px;
+
+  padding: 3px 5px;
+
+  font-size: 12px;
+
+  font-family: 'Courier New', monospace;
+
+  font-weight: bold;
+
+  width: 100px;
+
+}
+
+.ch-motor-sel {
+
+  background: #ede0ce;
+
+  color: #2c1e12;
+
+  border: 1px solid #c8a882;
+
+  border-radius: 4px;
+
+  padding: 2px 3px;
+
+  font-size: 12px;
+
+  width: 45px;
+
+}
+
+.ch-vel-input {
+
+  background: #ede0ce;
+
+  color: #2c1e12;
+
+  border: 1px solid #c8a882;
+
+  border-radius: 4px;
+
+  padding: 2px 4px;
+
+  font-size: 12px;
+
+  width: 62px;
+
+  text-align: center;
+
+}
+
+.ch-del-btn {
+
+  background: transparent;
+
+  border: 1px solid #c8a882;
+
+  color: #a08060;
+
+  border-radius: 4px;
+
+  padding: 2px 6px;
+
+  cursor: pointer;
+
+  font-size: 13px;
+
+}
+
+.ch-del-btn:hover { border-color: #a03828; color: #a03828; background: #f0ddd8; }
+
+.ch-label-mini { font-size: 10px; color: #9a7860; margin-right: 2px; }
+
+.step-btn {
+
+  width: 34px;
+
+  height: 34px;
+
+  border-radius: 5px;
+
+  border: 1px solid #c8a882;
+
+  cursor: pointer;
+
+  transition: all 0.07s;
+
+  background: #d8c8a8;
+
+  outline: none;
+
+  padding: 0;
+
+}
+
+.step-btn.on        { background: #c0522d; box-shadow: 0 0 7px #c0522d88; border-color: #d06040; }
+
+.step-btn.on.current  { background: #5c1a08; box-shadow: 0 0 14px #a03828, 0 0 6px #c0522d; border-color: #5c1a08; }
+
+.step-btn.off.current { }
+
+/* SUSTAIN BLOCKS — consecutive active steps visualized as a single bar */
+
+.step-btn.sus-start.on {
+
+  border-radius: 5px 1px 1px 5px;
+
+  background: #cc5c35;
+
+  box-shadow: 3px 0 10px #c0522d88, 0 0 7px #c0522d88;
+
+  border-color: #d46040; border-right-color: #a04028;
+
+}
+
+.step-btn.sus-mid.on {
+
+  border-radius: 1px;
+
+  background: #b84830;
+
+  box-shadow: 3px 0 10px #a0402888, -3px 0 10px #a0402888;
+
+  border-color: #a04028;
+
+}
+
+.step-btn.sus-end.on {
+
+  border-radius: 1px 5px 5px 1px;
+
+  background: #a03820;
+
+  box-shadow: -3px 0 10px #a0402888, 0 0 6px #a0402888;
+
+  border-color: #a04028; border-left-color: #a04028;
+
+}
+
+.step-btn.sus-start.on.current,
+
+.step-btn.sus-mid.on.current,
+
+.step-btn.sus-end.on.current,
+
+.step-btn.sus-solo.on.current {
+
+  background: #3c0e04;
+
+  box-shadow: 0 0 14px #a03828, 0 0 6px #c0522d;
+
+  border-color: #5c1a08;
+
+}
+
+/* Duration picker popup */
+
+#durPicker button:focus { outline: none; }
+
+.btn-calib { font-size: 11px; padding: 3px 8px; letter-spacing: 0; }
+
+.btn-test-hit  { border-color: #a03828; color: #a03828; }
+
+.btn-test-hit:hover  { background: #a03828; color: #fff; }
+
+/* MUTE */
+
+.ch-muted .step-btn { opacity: 0.3; }
+
+.ch-muted .ch-name-input { color: #a08060; border-color: #d0b898; }
+
+/* SONG */
+
+.song-panel-header {
+
+  display: flex; align-items: center; gap: 8px;
+
+  flex-wrap: wrap; margin-bottom: 8px;
+
+}
+
+.song-total-dur { font-size: 11px; color: #9a7860; margin-left: auto; }
+
+.song-queue { display: flex; flex-direction: column; gap: 3px; min-height: 28px; }
+
+.song-empty { font-size: 11px; color: #a08060; text-align: center; padding: 10px; }
+
+.song-row {
+
+  display: flex; align-items: center; gap: 7px;
+
+  background: #ddd0b8; border: 1px solid #c8a882; border-radius: 6px;
+
+  padding: 5px 8px; font-size: 12px; font-family: 'Courier New', monospace;
+
+  transition: border-color 0.2s, background 0.2s;
+
+}
+
+.song-row-active  { border-color: #3a7850 !important; background: #d8f0e0; }
+
+.song-row-pending { border-color: #9a6020 !important; }
+
+.song-indicator { width: 22px; text-align: center; color: #3a7850; font-size: 13px; font-weight: bold; flex-shrink: 0; }
+
+.song-name { flex: 1; color: #8b3a1a; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 60px; }
+
+.song-info { font-size: 10px; color: #8a6848; min-width: 100px; flex-shrink: 0; }
+
+.song-rep-wrap { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #9a7860; flex-shrink: 0; }
+
+.song-rep-input { width: 75px; background: #ede0ce; color: #2c1e12; border: 1px solid #c8a882; border-radius: 4px; padding: 2px 4px; font-size: 12px; font-family: 'Courier New', monospace; text-align: center; }
+
+.song-seq-wrap { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #9a7860; flex-shrink: 0; }
+
+.song-seq-input { width: 152px; background: #ede0ce; color: #3a5a7a; border: 1px solid #c8a882; border-radius: 4px; padding: 2px 4px; font-size: 11px; font-family: 'Courier New', monospace; text-align: center; }
+
+.song-seq-input:focus { border-color: #3a6a9a; outline: none; }
+
+.song-dur { font-size: 10px; color: #9a7860; min-width: 38px; text-align: right; flex-shrink: 0; }
+
+.song-cycle-prog { font-size: 10px; color: #3a7850; min-width: 46px; text-align: center; flex-shrink: 0; }
+
+.song-btn { font-size: 10px; padding: 2px 5px; border-color: #c8a882; color: #8a6848; min-width: 24px; flex-shrink: 0; letter-spacing: 0; }
+
+.song-btn-rm { border-color: #d0b898; color: #9a7860; }
+
+.song-btn-rm:hover { border-color: #a03828; color: #a03828; background: #f0ddd8; }
+
+.song-btn-prev { border-color: #9a6020; color: #9a6020; }
+
+.song-btn-prev:hover { background: #9a6020; color: #fff; }
+
+.song-row-loaded { border-color: #3a6a9a !important; background: #dde8f5; }
+
+.song-row-loaded .song-name { color: #3a6a9a; }
+
+.song-row-dragging { opacity: 0.3; }
+
+.song-row-dragover { border-color: #9a6020 !important; background: #f5ead8; }
+
+.song-grip { cursor: grab; color: #c8a882; font-size: 14px; padding: 0 5px 0 0; flex-shrink: 0; user-select: none; line-height: 1; }
+
+.song-grip:hover { color: #8a6848; }
+
+.song-modified-badge { font-size: 9px; color: #9a6020; border: 1px solid #9a6020; border-radius: 3px; padding: 1px 4px; flex-shrink: 0; }
+
+.song-progress-bar { height: 3px; background: #ddd0b8; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+
+.song-progress-fill { height: 100%; background: #3a7850; border-radius: 2px; transition: width 0.4s; }
+
+.ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #c8a882; display: inline-block; margin-left: 4px; flex-shrink: 0; transition: background 0.3s; }
+
+.ws-dot.on  { background: #3a7850; box-shadow: 0 0 5px #3a785088; }
+
+.ws-dot.off { background: #a03828; }
+
+.add-ch-row { text-align: center; padding: 10px 0; }
+
+.btn-add-ch { background: #d8e8f5; border-color: #3a6a9a; color: #3a6a9a; font-size: 13px; padding: 6px 16px; }
+
+.btn-add-ch:hover { background: #3a6a9a; color: #fff; }
+
+/* CMD */
+
+.cmd-section label { font-size: 11px; color: #9a7860; display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+textarea#cmdOutput {
+
+  width: 100%;
+
+  height: 70px;
+
+  background: #d8c8a8;
+
+  color: #3a6a40;
+
+  border: 1px solid #c8a882;
+
+  border-radius: 4px;
+
+  padding: 7px;
+
+  font-family: 'Courier New', monospace;
+
+  font-size: 11px;
+
+  resize: vertical;
+
+  line-height: 1.4;
+
+}
+
+.status-bar { text-align: center; font-size: 12px; color: #9a7860; margin-top: 8px; min-height: 18px; }
+
+.status-bar.playing { color: #3a7850; }
+
+.status-bar.error   { color: #a03828; }
+
+.status-bar.pending { color: #9a6020; }
+
+/* RHYTHM STATE PANEL */
+
+.rhythm-state-panel {
+
+  display: none;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 14px;
+
+  padding: 10px 24px;
+
+  border-radius: 10px;
+
+  margin-bottom: 10px;
+
+  font-family: 'Courier New', monospace;
+
+  letter-spacing: 2px;
+
+  font-weight: bold;
+
+  font-size: 14px;
+
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
+
+}
+
+.rhythm-state-panel.pending {
+
+  display: flex;
+
+  background: #f5ead8;
+
+  border: 1px solid #9a6020;
+
+  color: #9a6020;
+
+  animation: rspulse 0.7s infinite alternate;
+
+}
+
+.rhythm-state-panel.playing {
+
+  display: flex;
+
+  background: #d8f0e4;
+
+  border: 1px solid #3a7850;
+
+  color: #3a7850;
+
+}
+
+.rhythm-state-icon { font-size: 26px; line-height: 1; }
+
+@keyframes rspulse { from { opacity: 1; } to { opacity: 0.4; } }
+
+/* DROPDOWN DE CONTROLES */
+
+.ctrl-dropdown {
+
+  position: relative;
+
+}
+
+.ctrl-dropdown-toggle {
+
+  background: #e0d0b8;
+
+  border-color: #b09070;
+
+  color: #6b4c3b;
+
+  font-size: 13px;
+
+  padding: 7px 13px;
+
+  letter-spacing: 1px;
+
+}
+
+.ctrl-dropdown-toggle.open {
+
+  border-color: #8b3a1a;
+
+  color: #8b3a1a;
+
+  background: #f5ddd8;
+
+}
+
+.ctrl-dropdown-panel {
+
+  display: none;
+
+  position: absolute;
+
+  top: calc(100% + 8px);
+
+  left: 0;
+
+  background: #e8dac8;
+
+  border: 1px solid #c0a070;
+
+  border-radius: 10px;
+
+  padding: 12px 14px;
+
+  z-index: 200;
+
+  flex-direction: column;
+
+  gap: 8px;
+
+  min-width: 320px;
+
+  box-shadow: 0 8px 24px rgba(80,40,10,0.2);
+
+}
+
+.ctrl-dropdown-panel.open { display: flex; }
+
+select { background: #ede0ce; color: #2c1e12; }
+select option { background: #ede0ce; color: #2c1e12; }
+select:disabled option { background: #e0d5c0; color: #a08060; }
+
+/* Drag-select highlight */
+.step-btn.sel-drag {
+  outline: 2px solid #3a6a9a;
+  box-shadow: inset 0 0 6px rgba(58, 106, 154, 0.4);
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+
+<!-- ===== BARRA GLOBAL ===== -->
+
+<div class="top-controls">
+
+  <div class="ctrl-dropdown" id="ctrlDropdown">
+
+    <button class="btn ctrl-dropdown-toggle" id="ctrlDropdownBtn" title="Tempo and duration settings">⚙ Settings ▾</button>
+
+    <div class="ctrl-dropdown-panel" id="ctrlDropdownPanel">
+
+      <div class="ctrl-group">
+
+        <label>ESP32 IP</label>
+
+        <input type="text" id="esp32IpInput" value="192.168.1.128" style="width:140px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>BPM</label>
+
+        <input type="range" id="bpmSlider" min="40" max="220" value="60">
+
+        <input type="number" id="bpmValue" min="40" max="220" value="60">
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>Hit</label>
+
+        <input type="number" id="hitDur" min="20" max="300" value="80" style="min-width: 60px;">
+
+        <label>ms &nbsp;</label>
+
+        <input type="number" id="retractDur" min="20" max="500" value="150" style="min-width: 60px;display:none;">
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>Measures</label>
+
+        <input type="number" id="measuresInput" min="1" max="8" value="1" style="width:60px">
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <input type="checkbox" id="audioToggle" title="Enable virtual piano audio" style="width:18px;height:18px;cursor:pointer;accent-color:#3498db;" checked>
+
+        <label>Virtual Piano 🎹</label>
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>Octave</label>
+
+        <select id="pianoOctave" style="width:70px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+
+          <option value="1">C1</option>
+          <option value="2">C2</option>
+          <option value="3" selected>C3</option>
+          <option value="4">C4</option>
+          <option value="5">C5</option>
+
+        </select>
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>Instrument</label>
+
+        <select id="pianoInstrument" style="width:100px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+
+          <option value="piano" selected>Piano</option>
+          <option value="piano2">Piano 2</option>
+          <option value="harp">Harp</option>
+          <option value="guitar">Guitar</option>
+          <option value="strings">Strings</option>
+          <option value="xylophone">Xylophone</option>
+          <option value="marimba">Marimba</option>
+          <option value="bell">Bell</option>
+          <option value="tubbell">Tub. Bell</option>
+          <option value="organ">Organ</option>
+          <option value="organ2">Organ 2</option>
+          <option value="oboe">Oboe</option>
+          <option value="clarinet">Clarinet</option>
+          <option value="flute">Flute</option>
+
+        </select>
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <label>Wave</label>
+
+        <select id="pianoWaveform" style="width:90px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+
+          <option value="sine">Sine</option>
+          <option value="triangle" selected>Triangle</option>
+          <option value="square">Square</option>
+          <option value="sawtooth">Sawtooth</option>
+
+        </select>
+
+      </div>
+
+      <div class="ctrl-group">
+
+        <button class="btn btn-add-ch" id="btnAddCh">+ Channel</button>
+
+        <button class="btn" id="btnLogs" title="View ESP32 logs">📝 Logs</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="bar-divider"></div>
+
+  <button class="btn" id="btnSnap" title="Merge consecutive 1/16 notes to the nearest standard value">⚡ Merge</button>
+
+  <button class="btn" id="btnSave" title="Save rhythm as JSON">💾 Save Measures</button>
+
+  <div class="ctrl-dropdown" id="loadDropdown">
+
+    <button class="btn ctrl-dropdown-toggle" id="loadDropdownBtn">📂 Import Measures ▾</button>
+
+    <div class="ctrl-dropdown-panel" id="loadDropdownPanel" style="min-width:140px;gap:4px;">
+      
+      <button class="btn" id="btnMidi" style="text-align:left">🎹 From MIDI</button>
+      <button class="btn" id="btnLoad" style="text-align:left">📄 From JSON</button>
+
+
+    </div>
+
+  </div>
+
+  <button class="btn btn-play" id="btnPlay">▶ PLAY</button>
+  <button class="btn btn-pause" id="btnPause" disabled>⏸ PAUSE</button>
+  <button class="btn btn-stop"  id="btnStop" >■ STOP</button>
+
+</div>
+
+
+
+<!-- Estado ESP32 — visible en todos los tabs -->
+
+<div id="rhythmStatePanel" class="rhythm-state-panel">
+
+  <span class="rhythm-state-icon" id="rhythmStateIcon">⏳</span>
+
+  <span id="rhythmStateTxt">Waiting for end of cycle...</span>
+
+</div>
+
+
+
+<!-- ===== SECCIÓN RITMO ===== -->
+
+<div class="section-card">
+
+  <div class="tab-panel" id="tab-ritmo">
+
+    <div id="measureSelBar">
+      <span id="measureSelLabel">0 measures selected</span>
+      <button id="btnMeasureSelAdd">➕ Add to queue</button>
+      <button class="sel-clear" id="btnMeasureSelClear">✕ Clear</button>
+    </div>
+
+    <div id="measureJumpBar" style="display:none;align-items:center;gap:8px;padding:5px 10px;margin-bottom:6px;background:#dde8f5;border:1px solid #3a6a9a;border-radius:6px;font-size:11px;color:#3a6a9a;font-family:'Courier New',monospace;">
+      <label style="flex-shrink:0;">Go to measure:</label>
+      <input type="number" id="jumpMeasureInput" min="1" placeholder="1" style="width:60px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:11px;font-family:'Courier New',monospace;text-align:center;">
+      <button class="btn" id="btnMeasureJump" style="font-size:11px;padding:3px 10px;border-color:#3498db;color:#3498db;flex-shrink:0;">→ Go</button>
+    </div>
+
+    <div class="sequencer-wrap">
+
+      <table class="sequencer-table">
+
+        <thead id="stepHeaders"></thead>
+
+        <tbody id="channelRows"></tbody>
+
+        <tfoot></tfoot>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+<!-- ===== SECCIÓN CANCIÓN ===== -->
+
+<div class="section-card">
+
+  <div class="section-header">🎵 Fragments</div>
+
+  <div class="tab-panel" id="tab-cancion">
+
+    <div class="song-panel-header">
+
+      <button class="btn" id="btnSongAdd"
+
+        title="Add one or more rhythm JSON files to the queue"
+
+        style="font-size:11px;padding:4px 10px;border-color:#3a6a9a;color:#3a6a9a">Open Measures</button>
+
+<button class="btn" id="btnSongSave"
+        title="Save current song to song.json"
+        style="font-size:11px;padding:4px 10px;border-color:#3a7850;color:#3a7850">💾 Save</button>
+
+      <button class="btn" id="btnSongLoad"
+        title="Load song from song.json"
+        style="font-size:11px;padding:4px 10px;border-color:#7a4a8a;color:#7a4a8a">📂 Import Fragments</button>
+
+      <span class="song-total-dur" id="songTotalDur"></span>
+
+    </div>
+
+    <div id="songMergeBar" style="display:none;align-items:center;gap:8px;padding:5px 10px;margin-bottom:6px;background:#f5ead0;border:1px solid #9a7820;border-radius:6px;font-size:11px;color:#7a5a10;font-family:'Courier New',monospace;">
+      <span id="songMergeLabel">0 selected</span>
+      <button class="btn" id="btnSongMerge" style="font-size:11px;padding:3px 10px;border-color:#9a7820;color:#7a5a10;">🔗 Merge</button>
+      <button class="btn" id="btnSongMergeClear" style="font-size:11px;padding:3px 8px;border-color:#b09070;color:#906848;">✕ Clear</button>
+    </div>
+
+    <div class="song-queue" id="songQueueList">
+
+      <div class="song-empty">No patterns. Use "+ Pattern" to load JSON files.</div>
+
+    </div>
+
+    <div class="song-progress-bar">
+
+      <div class="song-progress-fill" id="songProgressFill" style="width:0%"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+
+
+
+<div class="status-bar" id="statusBar">Ready</div>
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+<script src="./script.js"></script>
+
+</body>
+
+</html>
+
