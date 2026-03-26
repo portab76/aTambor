@@ -122,9 +122,9 @@ Retract = 150ms → Pausa antes siguiente golpe
 
 | Formato | Función |
 |---------|---------|
-| **JSON** | Guardar/cargar patrones personalizados |
+| **JSON MEASURE** |  . Guardar/cargar patrones personalizados |
 | **MIDI** | Importar archivos .mid estándar |
-| **Song JSON** | Guardar composición completa con fragmentos |
+| **JSON FRAGMENT** | Guardar composición completa con fragmentos |
 
 ## 📝 Información Técnica
 
