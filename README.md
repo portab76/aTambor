@@ -1,5 +1,5 @@
 # aTambor 🥁
-## Drum Machine Automática Controlada por ESP32
+## Piano Machine Music Robot
 
 **aTambor** es un sistema híbrido de **drum machine automática** que combina software web con hardware de solenoides para golpear las teclas de un piano en tiempo real. Un proyecto innovador que integra secuenciación digital con percusión mecánica auténtica.
 
@@ -105,6 +105,27 @@ Retract = 150ms → Pausa antes siguiente golpe
 - **Precisión**: Control en milisegundos del timing de golpe
 - **Independencia**: Cada solenoide actúa de forma autónoma
 - **Sincronización**: Múltiples solenoides pueden activarse simultáneamente
+
+---
+
+## 🎥 Demostración en YouTube
+
+### Copla Española - Progresión Flamenco en Fa Mayor
+
+🎬 **[Ver en YouTube Shorts](https://www.youtube.com/shorts/YCQLXMqEDCY)**
+
+Demostración del hardware tocando una copla española tradicional. El archivo utilizado es [`01_Copla.json`](https://github.com/portab76/aTambor/blob/main/Measures/01_Copla.json).
+
+**Análisis Musical:**
+- **Tonalidad**: Fa Mayor (modo flamenco)
+- **Progresión Armónica**: F → Bb → Eb → Cm (con cromatismos)
+- **Estilo**: Copla española tradicional
+- **Tempo**: 120 BPM
+- **Duración**: 19 compases
+
+Esta progresión es característica del flamenco español y la música de copla, donde el movimiento armónico desciende por cuartas justas (F→Bb→Eb) y luego resuelve en el relativo menor (Cm), creando la melancolía y dramatismo típico de este género.
+
+---
 
 ### Exportación e Importación
 
