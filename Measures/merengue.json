@@ -1,0 +1,39 @@
+{
+  "bpm": 160,
+  "hitDur": 55,
+  "numMeasures": 1,
+  "channels": [
+    {
+      "name": "Kick",
+      "motor": 0,
+      "vel": 82,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]
+    },
+    {
+      "name": "Tambora",
+      "motor": 1,
+      "vel": 70,
+      "homePwm": 375,
+      "rebound": true,
+      "steps": [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]
+    },
+    {
+      "name": "HiHat",
+      "motor": 2,
+      "vel": 35,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+    },
+    {
+      "name": "Guira",
+      "motor": 3,
+      "vel": 55,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,1,0,1, 1,0,1,1, 0,1,1,0, 1,1,0,1]
+    }
+  ]
+}

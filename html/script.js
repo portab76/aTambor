@@ -61,6 +61,130 @@ const instrumentEnvelopes = {
   flute: { attack: 0.05, decay: 0.1, sustain: 0.7, release: 0.5 }
 };
 
+// ---- ACORDES POR TONALIDAD Y ESCALA ----
+const CHORD_SCALES = {
+  'Mayor': {
+    chords: [
+      { numeral: 'I',    type: 'major',      offset: 0 },
+      { numeral: 'ii',   type: 'minor',      offset: 2 },
+      { numeral: 'iii',  type: 'minor',      offset: 4 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'vi',   type: 'minor',      offset: 9 },
+      { numeral: 'vii°', type: 'diminished', offset: 11 }
+    ]
+  },
+  'Menor Natural': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'ii°',  type: 'diminished', offset: 2 },
+      { numeral: 'III',  type: 'major',      offset: 3 },
+      { numeral: 'iv',   type: 'minor',      offset: 5 },
+      { numeral: 'v',    type: 'minor',      offset: 7 },
+      { numeral: 'VI',   type: 'major',      offset: 8 },
+      { numeral: 'VII',  type: 'major',      offset: 10 }
+    ]
+  },
+  'Menor Armónica': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'ii°',  type: 'diminished', offset: 2 },
+      { numeral: 'III+', type: 'major',      offset: 3 },
+      { numeral: 'iv',   type: 'minor',      offset: 5 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'VI',   type: 'major',      offset: 8 },
+      { numeral: 'vii°', type: 'diminished', offset: 11 }
+    ]
+  },
+  'Menor Melódica': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'ii',   type: 'minor',      offset: 2 },
+      { numeral: 'III+', type: 'major',      offset: 3 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'vi°',  type: 'diminished', offset: 9 },
+      { numeral: 'vii°', type: 'diminished', offset: 11 }
+    ]
+  },
+  'Dórica': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'ii',   type: 'minor',      offset: 2 },
+      { numeral: 'III',  type: 'major',      offset: 3 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'v',    type: 'minor',      offset: 7 },
+      { numeral: 'vi°',  type: 'diminished', offset: 9 },
+      { numeral: 'VII',  type: 'major',      offset: 10 }
+    ]
+  },
+  'Frigia': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'II',   type: 'major',      offset: 1 },
+      { numeral: 'III',  type: 'major',      offset: 3 },
+      { numeral: 'iv',   type: 'minor',      offset: 5 },
+      { numeral: 'v°',   type: 'diminished', offset: 7 },
+      { numeral: 'VI',   type: 'major',      offset: 8 },
+      { numeral: 'vii',  type: 'minor',      offset: 10 }
+    ]
+  },
+  'Lidia': {
+    chords: [
+      { numeral: 'I',    type: 'major',      offset: 0 },
+      { numeral: 'II',   type: 'major',      offset: 2 },
+      { numeral: 'iii',  type: 'minor',      offset: 4 },
+      { numeral: 'iv°',  type: 'diminished', offset: 6 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'vi',   type: 'minor',      offset: 9 },
+      { numeral: 'vii',  type: 'minor',      offset: 11 }
+    ]
+  },
+  'Mixolidia': {
+    chords: [
+      { numeral: 'I',    type: 'major',      offset: 0 },
+      { numeral: 'ii',   type: 'minor',      offset: 2 },
+      { numeral: 'iii°', type: 'diminished', offset: 4 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'v',    type: 'minor',      offset: 7 },
+      { numeral: 'vi',   type: 'minor',      offset: 9 },
+      { numeral: 'VII',  type: 'major',      offset: 10 }
+    ]
+  },
+  'Pentatónica Mayor': {
+    chords: [
+      { numeral: 'I',    type: 'major',      offset: 0 },
+      { numeral: 'II',   type: 'major',      offset: 2 },
+      { numeral: 'iii',  type: 'minor',      offset: 4 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'vi',   type: 'minor',      offset: 9 }
+    ]
+  },
+  'Pentatónica Menor': {
+    chords: [
+      { numeral: 'i',    type: 'minor',      offset: 0 },
+      { numeral: 'III',  type: 'major',      offset: 3 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'v',    type: 'minor',      offset: 7 },
+      { numeral: 'VII',  type: 'major',      offset: 10 }
+    ]
+  },
+  'Blues': {
+    chords: [
+      { numeral: 'I',    type: 'major',      offset: 0 },
+      { numeral: 'I7',   type: 'major',      offset: 0 },
+      { numeral: 'IV',   type: 'major',      offset: 5 },
+      { numeral: 'IV7',  type: 'major',      offset: 5 },
+      { numeral: 'V',    type: 'major',      offset: 7 },
+      { numeral: 'V7',   type: 'major',      offset: 7 }
+    ]
+  }
+};
+
+// Notas cromáticas (semitonos desde C)
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
 // ---- Canal vacío --------------------------------------------
 function emptyChannel(index) {
   return { name: `Drum ${index + 1}`, motor: index, vel: 60, homePwm: 375, muted: false, sustain: false, steps: new Array(numSteps).fill(0) };
@@ -1149,8 +1273,6 @@ function stopMetronome(keepPosition = false) {
   if (!keepPosition) {
     currentStep = -1;
     updateHighlight();
-    const wrap = document.querySelector('.sequencer-wrap');
-    if (wrap) wrap.scrollLeft = 0;
   }
 }
 
@@ -2309,6 +2431,96 @@ function _pasteFromClipboard(toCi, toS) {
   if (isPlaying && cmd) sendLive(cmd);
 }
 
+// ---- FUNCIONES DE ACORDES ----
+function getChordNotes(key, scaleType, chordNumeral) {
+  const scaleData = CHORD_SCALES[scaleType];
+  if (!scaleData) return [];
+
+  const chordDef = scaleData.chords.find(c => c.numeral === chordNumeral);
+  if (!chordDef) return [];
+
+  // Encontrar índice de la tonalidad (0-11)
+  const keyIdx = NOTE_NAMES.indexOf(key) >= 0 ? NOTE_NAMES.indexOf(key) : FLAT_NAMES.indexOf(key);
+  if (keyIdx < 0) return [];
+
+  // Obtener las 3 notas del acorde (triada)
+  const intervals = [0, 4, 7]; // Mayor: tónica, tercera, quinta
+  if (chordDef.type === 'minor') intervals[1] = 3; // Menor: tónica, tercera menor, quinta
+  if (chordDef.type === 'diminished') { intervals[1] = 3; intervals[2] = 6; } // Disminuido
+
+  return intervals.map(int => {
+    const noteIdx = (keyIdx + chordDef.offset + int) % 12;
+    return NOTE_NAMES[noteIdx];
+  });
+}
+
+function getScaleChords(key, scaleType) {
+  // Retorna los 7 acordes (cada uno con sus 3 notas)
+  const scaleData = CHORD_SCALES[scaleType];
+  if (!scaleData) return [];
+
+  return scaleData.chords.map(chord => ({
+    numeral: chord.numeral,
+    type: chord.type,
+    notes: getChordNotes(key, scaleType, chord.numeral)
+  }));
+}
+
+function updateScaleDescription() {
+  const key = document.getElementById('chordKey').value;
+  const scaleType = document.getElementById('chordScale').value;
+  const chords = getScaleChords(key, scaleType);
+
+  if (!chords.length) return;
+
+  let description = `<strong>${key} ${scaleType}</strong><br>`;
+  description += `Acordes: `;
+
+  chords.forEach((chord, idx) => {
+    const typeSymbol = chord.type === 'major' ? '' : chord.type === 'minor' ? 'm' : '°';
+    const notesStr = chord.notes.join('-');
+    const chordColor = chord.type === 'major' ? '#3a7850' : chord.type === 'minor' ? '#3a6a9a' : '#a03828';
+    description += `<span style="color:${chordColor}">${chord.numeral}(${notesStr}${typeSymbol})</span>`;
+    if (idx < chords.length - 1) description += ` | `;
+  });
+
+  document.getElementById('scaleDescription').innerHTML = description;
+}
+
+function viewScale() {
+  const key = document.getElementById('chordKey').value;
+  const scaleType = document.getElementById('chordScale').value;
+  const chords = getScaleChords(key, scaleType);
+
+  if (!chords.length) {
+    setStatus('❌ Escala no válida', 'error');
+    return;
+  }
+
+  // Limpiar canales
+  channels.forEach(ch => ch.steps.fill(0));
+
+  // Cargar los 7 acordes: cada acorde ocupa 3 canales, en 7 posiciones horizontales
+  for (let chordIdx = 0; chordIdx < chords.length; chordIdx++) {
+    const chord = chords[chordIdx];
+    const stepPos = chordIdx * 4; // Cada acorde comienza cada 4 pasos (1/4 de compás)
+
+    // Cargar las 3 notas del acorde en 3 canales diferentes
+    for (let noteIdx = 0; noteIdx < chord.notes.length && noteIdx < channels.length; noteIdx++) {
+      const note = chord.notes[noteIdx];
+      const motorIdx = NOTE_NAMES.indexOf(note);
+
+      if (motorIdx >= 0 && motorIdx < channels.length) {
+        // Colocar la nota con duración 4 (1/4)
+        channels[motorIdx].steps[stepPos] = 4;
+      }
+    }
+  }
+
+  renderChannels();
+  setStatus(`🎵 Acordes de ${key} ${scaleType} cargados en el secuenciador`);
+}
+
 // ============================================================
 // INIT
 // ============================================================
@@ -2397,17 +2609,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cmd) return;
 
     if (numMeasures > 1 && !(wsConnected && ws && ws.readyState === WebSocket.OPEN)) {
-      setStatus('Error: WebSocket no conectado — con varios compases solo sonará el primero', 'error');
-      return;
+      setStatus('⚠ ESP32 no conectado — reproduciendo solo audio', 'pending');
     }
 
-    checkESP32(() => {
-      drumStreamStart();
-      isPlaying = true;
-      startMetronome();
-      setRhythmState('playing');
-      _setTransport('playing');
-    });
+    drumStreamStart();
+    isPlaying = true;
+    startMetronome();
+    setRhythmState('playing');
+    _setTransport('playing');
   };
 
   // ---- PAUSE / RESUME ---- el mismo botón alterna entre pausar y reanudar
@@ -2627,6 +2836,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('〰️ Onda: ' + currentWaveform);
   };
 
+  // Acordes
+  document.getElementById('chordKey').onchange = updateScaleDescription;
+  document.getElementById('chordScale').onchange = updateScaleDescription;
+  document.getElementById('btnViewScale').onclick = viewScale;
+
+  // Actualizar descripción inicial
+  updateScaleDescription();
+
   // Logs
   document.getElementById('btnLogs').onclick = () => {
     const w = window.open('', 'Logs', 'width=700,height=600,resizable=yes,scrollbars=yes');
@@ -2756,21 +2973,23 @@ function parseMidi(arrayBuffer) {
   const numTracks = u16(10);
   const division  = u16(12);
   let   tempo     = 500000;
-  const events      = [];
-  const chanInfo    = {};   // { ch: { program, instrName, noteStats } }
-  const pendingNotes = {};  // { "ch_note": [event, ...] } para emparejar NoteOff
-  let   maxTick     = 0;
+  const events       = [];
+  const chanInfo     = {};
+  const trackInfo    = {};  // { t: { name, noteStats, minNote, maxNote } }
+  const pendingNotes = {};
+  let   maxTick      = 0;
 
   const ensureChan = ch => {
     if (!chanInfo[ch]) {
       const prog = (ch === 9) ? -1 : 0;
-      chanInfo[ch] = {
-        program:   prog,
-        instrName: (ch === 9) ? 'GM Drums' : (GM_INSTRUMENTS[0] || 'Instrumento'),
-        noteStats: {}
-      };
+      chanInfo[ch] = { program: prog, instrName: (ch === 9) ? 'GM Drums' : (GM_INSTRUMENTS[0] || 'Instrumento'), noteStats: {} };
     }
     return chanInfo[ch];
+  };
+
+  const ensureTrack = t => {
+    if (!trackInfo[t]) trackInfo[t] = { name: `Track ${t}`, noteStats: {}, minNote: 127, maxNote: 0, hits: 0 };
+    return trackInfo[t];
   };
 
   let trkStart = 14;
@@ -2800,6 +3019,11 @@ function parseMidi(arrayBuffer) {
         const ml = midiVlq(b, pos); pos += ml.n;
         if (mt === 0x51 && ml.val >= 3)
           tempo = (b[pos] << 16) | (b[pos+1] << 8) | b[pos+2];
+        // Meta 0x03 = Track Name
+        if (mt === 0x03 && ml.val > 0) {
+          const name = String.fromCharCode(...b.slice(pos, pos + ml.val)).trim();
+          if (name) ensureTrack(t).name = name;
+        }
         if (mt === 0x2F) { pos += ml.val; break; }
         pos += ml.val;
 
@@ -2807,46 +3031,40 @@ function parseMidi(arrayBuffer) {
         const sl = midiVlq(b, pos); pos += sl.n + sl.val;
 
       } else if (cmd === 0x90) {
-        // Note On — todos los canales
         const note = b[pos++], vel = b[pos++];
         if (vel > 0) {
           const ci = ensureChan(ch);
           ci.noteStats[note] = (ci.noteStats[note] || 0) + 1;
-          const evt = { note, tick, vel, ch, durationTicks: 0 };
+          // Guardar track en el evento
+          const ti = ensureTrack(t);
+          ti.noteStats[note] = (ti.noteStats[note] || 0) + 1;
+          ti.hits++;
+          if (note < ti.minNote) ti.minNote = note;
+          if (note > ti.maxNote) ti.maxNote = note;
+
+          const evt = { note, tick, vel, ch, track: t, durationTicks: 0 };
           events.push(evt);
           if (tick > maxTick) maxTick = tick;
-          // Registrar para emparejar con NoteOff
-          const pkey = `${ch}_${note}`;
+          const pkey = `${t}_${ch}_${note}`;
           if (!pendingNotes[pkey]) pendingNotes[pkey] = [];
           pendingNotes[pkey].push(evt);
         } else {
-          // NoteOn con vel=0 equivale a NoteOff
-          const pkey = `${ch}_${note}`;
+          const pkey = `${t}_${ch}_${note}`;
           const q = pendingNotes[pkey];
-          if (q && q.length) {
-            const evt = q.shift();
-            evt.durationTicks = tick - evt.tick;
-            if (tick > maxTick) maxTick = tick;
-          }
+          if (q && q.length) { const evt = q.shift(); evt.durationTicks = tick - evt.tick; if (tick > maxTick) maxTick = tick; }
         }
 
       } else if (cmd === 0x80) {
-        // Note Off
-        const note = b[pos++]; pos++; // ignorar velocidad NoteOff
-        const pkey = `${ch}_${note}`;
+        const note = b[pos++]; pos++;
+        const pkey = `${t}_${ch}_${note}`;
         const q = pendingNotes[pkey];
-        if (q && q.length) {
-          const evt = q.shift();
-          evt.durationTicks = tick - evt.tick;
-          if (tick > maxTick) maxTick = tick;
-        }
+        if (q && q.length) { const evt = q.shift(); evt.durationTicks = tick - evt.tick; if (tick > maxTick) maxTick = tick; }
 
       } else if (cmd === 0xC0) {
-        // Program Change — guarda el instrumento del canal
         const program = b[pos++];
         if (ch !== 9) {
           const ci = ensureChan(ch);
-          ci.program   = program;
+          ci.program = program;
           ci.instrName = GM_INSTRUMENTS[program] || ('Programa ' + program);
         }
 
@@ -2876,50 +3094,12 @@ function parseMidi(arrayBuffer) {
     maxTick,
     durationMs: tickToMs(maxTick),
     chanInfo,
+    trackInfo,
     noteStats,
     tickToMs
   };
 }
 
-/*/ ---- Convertir MIDI → channels (cuantizado a 1/16) ---------
-// noteMap: { "ch_note": motor }  (motor === -1 → no asignar)
-// Usa durationTicks para activar pasos consecutivos (notas sostenidas).
-// Canales melódicos → sustain=false (modo sostenido).
-// Canal de batería (ch 9) → sustain=true (modo percusivo).
-function midiToRhythm(md, noteMap, htDur) {
-  const tps    = md.division / 4;  // ticks por semicorchea (1/16)
-  const nMeas  = Math.max(1, Math.ceil(Math.ceil((md.maxTick + tps) / tps) / 16));
-  const nSteps = nMeas * 16;
-
-  // Agrupar por clave ch_note
-  const byKey = {};
-  md.events.forEach(e => {
-    const key   = `${e.ch}_${e.note}`;
-    const motor = (noteMap[key] != null) ? parseInt(noteMap[key]) : -1;
-    if (motor < 0 || motor >= MAX_CH) return;
-    if (!byKey[key]) byKey[key] = { motor, ch: e.ch, note: e.note, steps: new Array(nSteps).fill(0) };
-    const si = Math.round(e.tick / tps);
-    if (si < 0 || si >= nSteps) return;
-    // Cuántos pasos ocupa esta nota (mínimo 1)
-    const durSteps = e.durationTicks > 0
-      ? Math.max(1, Math.round(e.durationTicks / tps))
-      : 1;
-    const siEnd = Math.min(si + durSteps, nSteps);
-    for (let i = si; i < siEnd; i++) byKey[key].steps[i] = 1;
-  });
-
-  const chs = Object.values(byKey).sort((a, b) => a.motor - b.motor).map(k => ({
-    name:    noteDisplayName(k.ch, k.note),
-    motor:   k.motor,
-    vel:     70,
-    homePwm: 375,
-    muted:   false,
-    sustain: k.ch === 9,   // batería=percusivo, melódico=sostenido
-    steps:   k.steps
-  }));
-
-  return { bpm: md.bpm, hitDur: htDur || 80, numMeasures: nMeas, channels: chs };
-}*/
 function midiToRhythm(md, noteMap, htDur) {
   const tps    = md.division / 4;  // ticks por semicorchea
   const nMeas  = Math.max(1, Math.ceil(Math.ceil((md.maxTick + tps) / tps) / 16));
@@ -3126,7 +3306,6 @@ function showMidiModal(md) {
   box.appendChild(_mkModalHeader('📥 PASO 1 — SELECCIONAR INSTRUMENTOS'));
   box.appendChild(_mkFileInfo(md, chanNums));
 
-  // — Lista de instrumentos con checkbox —
   const listDiv = document.createElement('div');
   listDiv.style.cssText = 'display:flex;flex-direction:column;gap:4px';
   chanNums.forEach(ch => {
@@ -3138,9 +3317,7 @@ function showMidiModal(md) {
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #3498db;border-radius:8px;cursor:pointer;transition:border-color .15s,opacity .15s;user-select:none';
 
     const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = true;
-    chk.dataset.ch = ch;
+    chk.type = 'checkbox'; chk.checked = true; chk.dataset.ch = ch;
     chk.style.cssText = 'accent-color:#3498db;width:15px;height:15px;flex-shrink:0;cursor:pointer';
     chk.addEventListener('change', () => {
       row.style.borderColor = chk.checked ? '#3498db' : '#2a2a44';
@@ -3159,7 +3336,6 @@ function showMidiModal(md) {
   });
   box.appendChild(listDiv);
 
-  // — Botones —
   const btnRow = _mkModalFooter();
   btnRow.appendChild(_mkModalBtn('✕ Cancelar', '#445', closeMidiModal));
   btnRow.appendChild(_mkModalBtn('Siguiente →', '#3498db', () => {
@@ -3260,31 +3436,30 @@ function showMidiAutoTranspose(md, selChs) {
   closeMidiModal();
 
   const REPR = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71];
+  const enabledMotors = new Set(Array.from({length: 12}, (_, i) => i));
 
-  // Colapsar notas de todos los canales seleccionados a su octava representativa
-  const newEvents = md.events.map(e => {
-    if (!selChs.includes(e.ch)) return e;
-    return { ...e, note: REPR[e.note % 12] };
-  });
+  function buildEvents() {
+    return md.events.map(e => {
+      if (!selChs.includes(e.ch)) return e;
+      const motor = e.note % 12;
+      if (!enabledMotors.has(motor)) return null;
+      return { ...e, note: REPR[motor] };
+    }).filter(Boolean);
+  }
 
-  // Hits por motor (sumando todos los canales seleccionados)
-  const motorHits = new Array(12).fill(0);
-  newEvents.forEach(e => { if (selChs.includes(e.ch)) motorHits[e.note - 60]++; });
+  function updateDisplay() {
+    const newEvents = buildEvents();
+    const motorHits = new Array(12).fill(0);
+    newEvents.forEach(e => { if (selChs.includes(e.ch)) motorHits[e.note - 60]++; });
 
-  // noteMap: para cada canal seleccionado, mapear sus notas colapsadas al motor
-  const noteMap = {};
-  selChs.forEach(ch => {
-    REPR.forEach((note, motor) => { noteMap[`${ch}_${note}`] = motor; });
-  });
-
-  // mdQ con eventos y chanInfo actualizados para los canales seleccionados
-  const newChanInfo = { ...md.chanInfo };
-  selChs.forEach(ch => {
-    const ns = {};
-    newEvents.forEach(e => { if (e.ch === ch) ns[e.note] = (ns[e.note] || 0) + 1; });
-    newChanInfo[ch] = { ...md.chanInfo[ch], noteStats: ns };
-  });
-  const mdQ = { ...md, events: newEvents, chanInfo: newChanInfo };
+    tbl.querySelectorAll('tbody tr').forEach((row, motor) => {
+      const hits = motorHits[motor];
+      row.style.opacity = enabledMotors.has(motor) ? '1' : '0.3';
+      const hitsCell = row.querySelector('td:last-child');
+      hitsCell.textContent = hits > 0 ? hits : '—';
+      hitsCell.style.color = hits > 0 ? '#fff' : '#445';
+    });
+  }
 
   const col = '#2ecc71';
   const ov  = _mkModalOverlay();
@@ -3295,38 +3470,69 @@ function showMidiAutoTranspose(md, selChs) {
   resDiv.style.cssText = 'background:#0d0d22;border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.9';
   resDiv.innerHTML =
     `<div style="color:#ff8800;font-weight:bold;margin-bottom:4px">Escala: <span style="color:#fff">C · C# · D · D# · E · F · F# · G · G# · A · A# · B</span></div>` +
-    `<div style="color:#888">Cada nota MIDI se asigna a su motor cromático (nota % 12). Notas del mismo nombre en distintas octavas comparten motor.</div>` +
-    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrumento${selChs.length>1?'s':''} · motores 0 – 11</div>`;
+    `<div style="color:#888">Cada nota MIDI se asigna a su motor cromático (nota % 12).</div>` +
+    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrumento${selChs.length>1?'s':''} · motores 0–11</div>`;
   box.appendChild(resDiv);
 
-  // Tabla de los 12 motores con hits combinados
+  // Tabla con checkboxes
   const tblWrap = document.createElement('div');
-  tblWrap.style.cssText = 'border:1px solid #2a2a44;border-radius:8px;overflow:hidden;max-height:300px;overflow-y:auto';
+  tblWrap.style.cssText = 'border:1px solid #2a2a44;border-radius:8px;overflow:hidden;max-height:320px;overflow-y:auto';
   const tbl = document.createElement('table');
   tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:12px';
   tbl.innerHTML = `
-    <tr style="color:#445;font-size:10px;text-transform:uppercase;letter-spacing:1px;background:#0d0d22;position:sticky;top:0">
-      <th style="text-align:center;padding:4px 8px">Motor</th>
-      <th style="text-align:left;padding:4px 10px">Nota</th>
-      <th style="text-align:center;padding:4px 10px">Hits</th>
-    </tr>`;
-  motorHits.forEach((hits, motor) => {
+    <thead style="color:#445;font-size:10px;text-transform:uppercase;letter-spacing:1px;background:#0d0d22;position:sticky;top:0">
+      <tr>
+        <th style="padding:4px 6px;width:30px">✓</th>
+        <th style="text-align:center;padding:4px 8px">Motor</th>
+        <th style="text-align:left;padding:4px 10px">Nota</th>
+        <th style="text-align:center;padding:4px 10px">Hits</th>
+      </tr>
+    </thead><tbody></tbody>`;
+
+  const tbody = tbl.querySelector('tbody');
+  for (let motor = 0; motor < 12; motor++) {
     const isSharp = [1,3,6,8,10].includes(motor);
     const tr = document.createElement('tr');
-    tr.style.cssText = 'border-top:1px solid #1e1e36' + (hits === 0 ? ';opacity:0.3' : '') + (isSharp ? ';background:#0a0a1e' : '');
-    tr.innerHTML = `
+    tr.style.cssText = 'border-top:1px solid #1e1e36' + (isSharp ? ';background:#0a0a1e' : '');
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.checked = true;
+    chk.style.cssText = 'cursor:pointer;accent-color:#3498db';
+    chk.onchange = () => {
+      if (chk.checked) enabledMotors.add(motor); else enabledMotors.delete(motor);
+      updateDisplay();
+    };
+    const chkCell = document.createElement('td');
+    chkCell.style.cssText = 'padding:5px 6px;text-align:center';
+    chkCell.appendChild(chk);
+
+    tr.appendChild(chkCell);
+    tr.innerHTML += `
       <td style="padding:5px 8px;text-align:center;font-weight:bold;color:#fff">${motor}</td>
-      <td style="padding:5px 10px;color:${isSharp ? '#ff8800' : '#2ecc71'};font-weight:bold;font-size:13px">${_MOTOR_NOTE_NAME[motor]}</td>
-      <td style="padding:5px 10px;text-align:center;color:${hits>0?'#fff':'#445'}">${hits > 0 ? hits : '—'}</td>`;
-    tbl.appendChild(tr);
-  });
+      <td style="padding:5px 10px;color:${isSharp?'#ff8800':'#2ecc71'};font-weight:bold;font-size:13px">${_MOTOR_NOTE_NAME[motor]}</td>
+      <td style="padding:5px 10px;text-align:center;color:#445">—</td>`;
+    tbody.appendChild(tr);
+  }
   tblWrap.appendChild(tbl);
   box.appendChild(tblWrap);
 
+  updateDisplay();
+
   const btnRow = _mkModalFooter();
-  btnRow.style.flexWrap = 'wrap';
   btnRow.appendChild(_mkModalBtn('← Volver', '#445', () => showMidiStep2Instrument(md, selChs)));
   btnRow.appendChild(_mkModalBtn('✔ Cargar en secuenciador', col, () => {
+    const newEvents = buildEvents();
+    const noteMap = {};
+    selChs.forEach(ch => REPR.forEach((note, motor) => {
+      if (enabledMotors.has(motor)) noteMap[`${ch}_${note}`] = motor;
+    }));
+    const newChanInfo = { ...md.chanInfo };
+    selChs.forEach(ch => {
+      const ns = {};
+      newEvents.forEach(e => { if (e.ch === ch) ns[e.note] = (ns[e.note] || 0) + 1; });
+      newChanInfo[ch] = { ...md.chanInfo[ch], noteStats: ns };
+    });
+    const mdQ = { ...md, events: newEvents, chanInfo: newChanInfo };
     if (_loadRhythmFromNoteMap(mdQ, noteMap)) {
       closeMidiModal();
       setStatus('MIDI → secuenciador (cromático): ' + md._name + ' — ' + mdQ.bpm + ' BPM');

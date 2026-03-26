@@ -1,0 +1,39 @@
+{
+  "bpm": 115,
+  "hitDur": 75,
+  "numMeasures": 1,
+  "channels": [
+    {
+      "name": "Kick",
+      "motor": 0,
+      "vel": 78,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0]
+    },
+    {
+      "name": "Tambora",
+      "motor": 1,
+      "vel": 65,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0]
+    },
+    {
+      "name": "HiHat",
+      "motor": 2,
+      "vel": 40,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+    },
+    {
+      "name": "Conga",
+      "motor": 3,
+      "vel": 68,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [0,0,1,0, 1,0,0,1, 0,0,1,0, 1,0,0,1]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "bpm": 128,
+  "hitDur": 60,
+  "numMeasures": 1,
+  "channels": [
+    {
+      "name": "Kick",
+      "motor": 0,
+      "vel": 92,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]
+    },
+    {
+      "name": "Clap",
+      "motor": 1,
+      "vel": 80,
+      "homePwm": 375,
+      "rebound": true,
+      "steps": [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0]
+    },
+    {
+      "name": "HiHat",
+      "motor": 2,
+      "vel": 38,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0]
+    },
+    {
+      "name": "HH Abierto",
+      "motor": 3,
+      "vel": 60,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [0,0,0,0, 0,1,0,0, 0,0,0,0, 0,1,0,0]
+    },
+    {
+      "name": "Crash",
+      "motor": 4,
+      "vel": 55,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]
+    }
+  ]
+}

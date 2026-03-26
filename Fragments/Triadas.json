@@ -1,0 +1,5618 @@
+[
+  {
+    "name": "C Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C# Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C# Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C# Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "C# Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D# Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D# Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D# Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "D# Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "E Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "E Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "E Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "E Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F# Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F# Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F# Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "F# Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G# Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G# Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G# Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "G# Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A# Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A# Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A# Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "A# Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "B Mayor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "B Menor",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "B Disminuido",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  },
+  {
+    "name": "B Aumentado",
+    "channels": [
+      {
+        "name": "C",
+        "motor": 0,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "C#",
+        "motor": 1,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D",
+        "motor": 2,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "D#",
+        "motor": 3,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "E",
+        "motor": 4,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F",
+        "motor": 5,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "F#",
+        "motor": 6,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "G",
+        "motor": 7,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      },
+      {
+        "name": "G#",
+        "motor": 8,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A",
+        "motor": 9,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "A#",
+        "motor": 10,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      {
+        "name": "B",
+        "motor": 11,
+        "vel": 60,
+        "hitDur": 80,
+        "retractDur": 150,
+        "muted": false,
+        "steps": [4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0]
+      }
+    ],
+    "bpm": 120,
+    "hitDur": 80,
+    "numMeasures": 1,
+    "measureSeq": ""
+  }
+]

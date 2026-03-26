@@ -1103,6 +1103,62 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
 </div>
 
+<!-- ===== SECCIÓN ACORDES ===== -->
+
+<div class="section-card">
+
+  <div class="section-header">🎼 Acordes</div>
+
+  <div class="tab-panel" id="tab-acordes">
+
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+
+      <div class="ctrl-group">
+        <label>Tonalidad</label>
+        <select id="chordKey" style="width:70px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+          <option value="C">C</option>
+          <option value="Db">Db</option>
+          <option value="D">D</option>
+          <option value="Eb">Eb</option>
+          <option value="E">E</option>
+          <option value="F">F</option>
+          <option value="Gb">Gb</option>
+          <option value="G">G</option>
+          <option value="Ab">Ab</option>
+          <option value="A">A</option>
+          <option value="Bb">Bb</option>
+          <option value="B">B</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <label>Escala</label>
+        <select id="chordScale" style="width:140px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+          <option value="Mayor">Mayor</option>
+          <option value="Menor Natural">Menor Natural</option>
+          <option value="Menor Armónica">Menor Armónica</option>
+          <option value="Menor Melódica">Menor Melódica</option>
+          <option value="Dórica">Dórica</option>
+          <option value="Frigia">Frigia</option>
+          <option value="Lidia">Lidia</option>
+          <option value="Mixolidia">Mixolidia</option>
+          <option value="Pentatónica Mayor">Pentatónica Mayor</option>
+          <option value="Pentatónica Menor">Pentatónica Menor</option>
+          <option value="Blues">Blues</option>
+        </select>
+      </div>
+
+      <button class="btn" id="btnViewScale" style="font-size:11px;padding:4px 10px;border-color:#3a6a9a;color:#3a6a9a">👁 View Scale</button>
+
+    </div>
+
+    <div id="scaleDescription" style="background:#ddd0b8;border:1px solid #c8a882;border-radius:6px;padding:10px;margin-bottom:12px;font-size:11px;color:#2c1e12;font-family:'Courier New',monospace;line-height:1.6;">
+    </div>
+
+  </div>
+
+</div>
+
 
 
 
