@@ -3802,7 +3802,8 @@ function parseChordName(text) {
   }
 
   const chordType =
-    suffix === '' || suffix === 'maj'           ? 'major'  :
+    suffix === ''                               ? 'single' : // nota sola → punteo individual
+    suffix === 'maj'                            ? 'major'  : // Gmaj explícito → acorde mayor
     suffix === 'm' || suffix === 'min'          ? 'minor'  :
     suffix === '7'                              ? '7'      :
     suffix === 'maj7'                           ? 'maj7'   :
@@ -3811,8 +3812,8 @@ function parseChordName(text) {
     suffix === 'sus4'                           ? 'sus4'   :
     suffix === 'dim' || suffix === '°'          ? 'dim'    :
     suffix === 'aug' || suffix === '+'          ? 'aug'    :
-    /^\d+$/.test(suffix)                        ? 'single' : // octava multi-dígito
-    'major'; // sufijo desconocido → mayor por defecto
+    /^\d+$/.test(suffix)                        ? 'single' : // número de octava → individual
+    'single'; // sufijo desconocido → nota individual por seguridad
 
   return { note, chordType };
 }
