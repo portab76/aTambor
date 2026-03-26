@@ -14,7 +14,26 @@ aTambor es una máquina de ritmos profesional que:
 - 🎵 **Encadena fragmentos** para crear composiciones completas
 - 📱 **Opera desde navegador web** conectado a ESP32 vía WebSocket IP
 
+## 🎥 Demostración en YouTube
+
+### Copla Española - Progresión Flamenco en Fa Mayor
+
+🎬 **[Ver en YouTube Shorts](https://www.youtube.com/shorts/YCQLXMqEDCY)**
+
+Demostración del hardware tocando una copla española tradicional. El archivo utilizado es [`01_Copla.json`](https://github.com/portab76/aTambor/blob/main/Measures/01_Copla.json).
+
+**Análisis Musical:**
+- **Tonalidad**: Fa Mayor (modo flamenco)
+- **Progresión Armónica**: F → Bb → Eb → Cm (con cromatismos)
+- **Estilo**: Copla española tradicional
+- **Tempo**: 120 BPM
+- **Duración**: 19 compases
+
+Esta progresión es característica del flamenco español y la música de copla, donde el movimiento armónico desciende por cuartas justas (F→Bb→Eb) y luego resuelve en el relativo menor (Cm), creando la melancolía y dramatismo típico de este género.
+
+---
 ## 🎹 Software: Características
+
 **Prueba aTambor ahora sin instalación**: https://elper.es/aTambor/ 
 
 Por defecto la interfaz genera sonidos sintetizados directamente en el navegador. El firmware del robot (ESP32 + control de servos) no está publicado. Si te interesa el proyecto completo para uso comercial o personal, contacta conmigo.
@@ -26,14 +45,6 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
 - **Repetición**: Control de repeticiones por fragmento
 - **Merge**: Fusiona notas consecutivas a valores estándar
 
-### Funcionalidades Avanzadas
-- ✅ Selección múltiple de compases
-- ✅ Arrastrar y soltar en cola de reproducción
-- ✅ Indicadores visuales de reproducción en tiempo real
-- ✅ Muting por canal
-- ✅ Control de velocidad (volumen) por nota
-- ✅ Barra de progreso de canción
-- ✅ Sincronización con estado del ESP32
 
 ## ⚙️ Hardware: Componentes
 
@@ -105,25 +116,6 @@ Retract = 150ms → Pausa antes siguiente golpe
 - **Precisión**: Control en milisegundos del timing de golpe
 - **Independencia**: Cada solenoide actúa de forma autónoma
 - **Sincronización**: Múltiples solenoides pueden activarse simultáneamente
-
----
-
-## 🎥 Demostración en YouTube
-
-### Copla Española - Progresión Flamenco en Fa Mayor
-
-🎬 **[Ver en YouTube Shorts](https://www.youtube.com/shorts/YCQLXMqEDCY)**
-
-Demostración del hardware tocando una copla española tradicional. El archivo utilizado es [`01_Copla.json`](https://github.com/portab76/aTambor/blob/main/Measures/01_Copla.json).
-
-**Análisis Musical:**
-- **Tonalidad**: Fa Mayor (modo flamenco)
-- **Progresión Armónica**: F → Bb → Eb → Cm (con cromatismos)
-- **Estilo**: Copla española tradicional
-- **Tempo**: 120 BPM
-- **Duración**: 19 compases
-
-Esta progresión es característica del flamenco español y la música de copla, donde el movimiento armónico desciende por cuartas justas (F→Bb→Eb) y luego resuelve en el relativo menor (Cm), creando la melancolía y dramatismo típico de este género.
 
 ---
 
