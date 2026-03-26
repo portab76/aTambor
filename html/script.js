@@ -3763,59 +3763,19 @@ function parseChordName(text) {
   return { note, chordType };
 }
 
-// Obtener notas MIDI de un acorde
-function getChordNotes(chordName, octave) {
+// Devuelve los semitonos (0-11) que componen un acorde
+function getChordSemitones(chordName) {
   const chord = parseChordName(chordName);
   if (!chord) return [];
-
-  const rootSemitone = NOTE_TO_SEMITONE[chord.note];
+  const root = NOTE_TO_SEMITONE[chord.note];
   const intervals = CHORD_INTERVALS[chord.chordType] || CHORD_INTERVALS['major'];
-
-  return intervals.map(interval => {
-    const midiNote = (octave * 12) + rootSemitone + interval;
-    return midiNote;
-  });
-}
-
-// Convertir lista de acordes (string) en array de arrays de notas MIDI
-function parseChords(text, octave) {
-  octave = parseInt(octave) || 3;
-  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
-
-  const result = [];
-  for (const name of chordNames) {
-    const notes = getChordNotes(name, octave);
-    if (notes.length > 0) {
-      result.push({ name: name.toUpperCase(), notes });
-    }
-  }
-
-  return result;
-}
-
-// Generar array de pasos para un compás específico con velocidad constante
-function generateChordSteps(measureIndex, durationMeasures, totalSteps) {
-  const steps = new Array(totalSteps).fill(0);
-  const velocity = 100; // Velocidad fija para acordes
-
-  // Calcular rango de pasos para este acorde
-  const startStep = measureIndex * 16;
-  const endStep = startStep + (durationMeasures * 16);
-
-  // Llenar pasos: golpe en beats fuertes (cada 4 pasos)
-  for (let i = startStep; i < Math.min(endStep, totalSteps); i += 4) {
-    steps[i] = velocity;
-  }
-
-  return steps;
+  return intervals.map(i => (root + i) % 12);
 }
 
 // Actualizar preview de acordes
 function updateChordPreview() {
   const text = document.getElementById('chordInputText').value;
-  const octave = document.getElementById('chordOctave').value;
   const duration = document.getElementById('chordDuration').value;
-
   const preview = document.getElementById('chordParsePreview');
 
   if (!text.trim()) {
@@ -3823,92 +3783,79 @@ function updateChordPreview() {
     return;
   }
 
-  const chords = parseChords(text, octave);
+  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
+  const parsed = chordNames.map(name => {
+    const semitones = getChordSemitones(name);
+    return { name, semitones };
+  }).filter(c => c.semitones.length > 0);
 
-  if (chords.length === 0) {
+  if (parsed.length === 0) {
     preview.textContent = 'No se reconocieron acordes válidos.';
     return;
   }
 
-  // Convertir duración a número de compases
-  let durationMeasures;
-  switch(duration) {
-    case 'whole': durationMeasures = 4; break;
-    case 'half': durationMeasures = 2; break;
-    case 'quarter': durationMeasures = 1; break;
-    case 'eighth': durationMeasures = 0.5; break;
-    default: durationMeasures = 1;
-  }
+  const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-  const totalMeasuresNeeded = chords.length * durationMeasures;
-
-  let output = `Acordes reconocidos (${chords.length}):\n\n`;
-  chords.forEach((chord, i) => {
-    const noteNames = chord.notes.map(midi => {
-      const octaveNum = Math.floor(midi / 12);
-      const noteIdx = midi % 12;
-      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      return notes[noteIdx] + octaveNum;
-    }).join(', ');
-    output += `${i + 1}. ${chord.name} → [${noteNames}]\n`;
+  let output = `Acordes reconocidos (${parsed.length}):\n\n`;
+  parsed.forEach((chord, i) => {
+    const notes = chord.semitones.map(s => noteNames[s]).join(', ');
+    output += `${i + 1}. ${chord.name.toUpperCase()} → [${notes}]\n`;
   });
 
-  output += `\nDuración por acorde: ${duration === 'whole' ? '4 compases' : duration === 'half' ? '2 compases' : duration === 'quarter' ? '1 compás' : '1/2 compás'}`;
-  output += `\nOctava base: ${octave}`;
-  output += `\nCompases necesarios: ${Math.ceil(totalMeasuresNeeded)}`;
-  output += `\nCompases actuales: ${numMeasures}`;
-  output += `\nCanales a crear: ${chords.length}`;
+  const durLabel = { whole: '4 compases', half: '2 compases', quarter: '1 compás', eighth: '½ compás' };
+  output += `\nDuración por acorde: ${durLabel[duration] || '1 compás'}`;
+  output += `\nTotal compases: ${parsed.length}`;
 
   preview.textContent = output;
 }
 
-// Agregar acordes como nuevo Fragment (entrada en songQueue)
+// Agregar acordes como nuevo Fragment usando los 12 canales de DEFAULT_KEYS
 function addChordsToSequencer() {
   const text = document.getElementById('chordInputText').value;
-  const octave = document.getElementById('chordOctave').value;
   const duration = document.getElementById('chordDuration').value;
 
-  const chords = parseChords(text, octave);
+  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
+  const chords = chordNames.map(name => {
+    const semitones = getChordSemitones(name);
+    return { name: name.toUpperCase(), semitones };
+  }).filter(c => c.semitones.length > 0);
 
   if (chords.length === 0) {
     alert('No se reconocieron acordes válidos.');
     return;
   }
 
-  // Convertir duración a número de compases
-  let durationMeasures;
-  switch(duration) {
-    case 'whole': durationMeasures = 4; break;
-    case 'half': durationMeasures = 2; break;
-    case 'quarter': durationMeasures = 1; break;
-    case 'eighth': durationMeasures = 0.5; break;
-    default: durationMeasures = 1;
-  }
+  // Pasos por acorde según duración (1 compás = 16 pasos)
+  const stepsPerChord = { whole: 64, half: 32, quarter: 16, eighth: 8 }[duration] || 16;
+  const totalSteps = chords.length * stepsPerChord;
+  const totalMeasures = totalSteps / 16;
 
-  const totalMeasuresNeeded = Math.ceil(chords.length * durationMeasures);
+  // Valor de velocidad del primer paso (igual que el sistema usa: 4 para negra 1/4)
+  // En 1/4 el primer paso lleva el valor de duración en pasos (4 = negra, 2 = corchea, etc.)
+  const stepValue = stepsPerChord / 4;  // negra=4, blanca=8, redonda=16, corchea=2
 
-  // Crear arrays de canales para el fragment
-  const fragmentChannels = [];
+  // Crear 12 canales fijos (uno por semitono, motor 0-11 = C...B)
+  const fragmentChannels = DEFAULT_KEYS.map(key => ({
+    name: key.name,
+    motor: key.motor,
+    vel: 60,
+    homePwm: 375,
+    muted: false,
+    sustain: false,
+    steps: new Array(totalSteps).fill(0)
+  }));
 
+  // Para cada acorde, activar los motores correspondientes en el primer paso del compás
   chords.forEach((chord, idx) => {
-    const measureIndex = Math.floor(idx * durationMeasures);
-
-    const newChannel = {
-      name: `Acorde: ${chord.name}`,
-      motor: idx % 12,  // Mapear acordes a motores disponibles
-      vel: 100,
-      homePwm: 375,
-      muted: false,
-      sustain: false,
-      steps: generateChordSteps(measureIndex, durationMeasures, totalMeasuresNeeded * 16)
-    };
-
-    fragmentChannels.push(newChannel);
+    const startStep = idx * stepsPerChord;
+    chord.semitones.forEach(semitone => {
+      // motor = semitone (motor 0=C, 1=C#, etc.)
+      fragmentChannels[semitone].steps[startStep] = stepValue;
+    });
   });
 
-  // Crear nombre del fragment
-  const chordNames = chords.map(c => c.name).join(' • ');
-  const fragmentName = `Acordes: ${chordNames}`;
+  // Nombre del fragment
+  const fragmentName = `Acordes: ${chords.map(c => c.name).join(' ')}`;
 
   // Agregar a songQueue
   songQueue.push({
@@ -3917,20 +3864,17 @@ function addChordsToSequencer() {
     bpm: bpm,
     hitDur: hitDur,
     retractDur: retractDur,
-    numMeasures: totalMeasuresNeeded,
+    numMeasures: totalMeasures,
     repeats: 1
   });
 
-  // Actualizar UI de fragments
   renderSongQueue();
+  setStatus(`✓ Fragment: "${fragmentName}" — ${chords.length} acordes, ${totalMeasures} compases`);
 
-  setStatus(`✓ Fragment agregado: "${fragmentName}" (${totalMeasuresNeeded} compases)`);
-
-  // Cambiar al tab de canciones para ver el resultado
+  // Cambiar al tab de Fragments para ver el resultado
   const tabCancion = document.querySelector('[data-tab="tab-cancion"]');
   if (tabCancion) tabCancion.click();
 
-  // Limpiar textarea
   document.getElementById('chordInputText').value = '';
   updateChordPreview();
 }
@@ -3960,18 +3904,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const chordInputText = document.getElementById('chordInputText');
-  const chordOctave = document.getElementById('chordOctave');
   const chordDuration = document.getElementById('chordDuration');
 
-  if (chordInputText) {
-    chordInputText.oninput = updateChordPreview;
-  }
-  if (chordOctave) {
-    chordOctave.onchange = updateChordPreview;
-  }
-  if (chordDuration) {
-    chordDuration.onchange = updateChordPreview;
-  }
+  if (chordInputText) chordInputText.oninput = updateChordPreview;
+  if (chordDuration) chordDuration.onchange = updateChordPreview;
 
   // Inicializar preview
   updateChordPreview();
