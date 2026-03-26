@@ -3827,6 +3827,39 @@ function getChordSemitones(chordName) {
   return intervals.map(i => (root + i) % 12);
 }
 
+// Armoniza una nota con el acorde diatónico de la escala que empieza en ella.
+// Devuelve array de semitonos (1 nota si no hay match, 3 si hay acorde).
+function harmonizeNote(noteSemitone, key, scaleType) {
+  const keyIdx = NOTE_NAMES.indexOf(key) >= 0 ? NOTE_NAMES.indexOf(key) : FLAT_NAMES.indexOf(key);
+  if (keyIdx < 0) return [noteSemitone];
+
+  const scaleData = CHORD_SCALES[scaleType];
+  if (!scaleData) return [noteSemitone];
+
+  // Offset de la nota desde la tónica
+  const offset = (noteSemitone - keyIdx + 12) % 12;
+
+  // Buscar el grado de la escala que tiene ese offset
+  const chordDef = scaleData.chords.find(c => c.offset === offset);
+  if (!chordDef) return [noteSemitone]; // nota cromática → nota sola
+
+  // Triada correspondiente al tipo de ese grado
+  const intervals = chordDef.type === 'major'      ? [0, 4, 7] :
+                    chordDef.type === 'minor'      ? [0, 3, 7] :
+                    /* diminished */                 [0, 3, 6];
+
+  return intervals.map(i => (noteSemitone + i) % 12);
+}
+
+// Lee la tonalidad y escala del popup conversor (si está activada la armonización)
+function getConverterHarmonySettings() {
+  const chk = document.getElementById('chkHarmonize');
+  if (!chk || !chk.checked) return null;
+  const key   = document.getElementById('convKey')   ? document.getElementById('convKey').value   : null;
+  const scale = document.getElementById('convScale') ? document.getElementById('convScale').value : null;
+  return key && scale ? { key, scale } : null;
+}
+
 // Actualizar preview de acordes
 function updateChordPreview() {
   const text = document.getElementById('chordInputText').value;
@@ -3838,20 +3871,26 @@ function updateChordPreview() {
     return;
   }
 
+  const harmony = getConverterHarmonySettings();
   const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
   const parsed = chordNames.map(name => {
-    const semitones = getChordSemitones(name);
+    let semitones = getChordSemitones(name);
+    // Si la armonización está activa Y es una nota individual → buscar acorde diatónico
+    if (harmony && semitones.length === 1) {
+      semitones = harmonizeNote(semitones[0], harmony.key, harmony.scale);
+    }
     return { name, semitones };
   }).filter(c => c.semitones.length > 0);
 
   if (parsed.length === 0) {
-    preview.textContent = 'No se reconocieron acordes válidos.';
+    preview.textContent = 'No se reconocieron notas válidas.';
     return;
   }
 
   const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-  let output = `Reconocidos (${parsed.length}):\n\n`;
+  const headerKey = harmony ? ` [Armonizando en ${harmony.key} ${harmony.scale}]` : '';
+  let output = `Reconocidos (${parsed.length})${headerKey}:\n\n`;
   parsed.forEach((chord, i) => {
     const notes  = chord.semitones.map(s => noteNames[s]).join(', ');
     const tipo   = chord.semitones.length === 1 ? '♩ nota' : '🎵 acorde';
@@ -3874,9 +3913,13 @@ function addChordsToSequencer() {
   const text = document.getElementById('chordInputText').value;
   const duration = document.getElementById('chordDuration').value;
 
+  const harmony = getConverterHarmonySettings();
   const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
   const chords = chordNames.map(name => {
-    const semitones = getChordSemitones(name);
+    let semitones = getChordSemitones(name);
+    if (harmony && semitones.length === 1) {
+      semitones = harmonizeNote(semitones[0], harmony.key, harmony.scale);
+    }
     return { name: name.toUpperCase(), semitones };
   }).filter(c => c.semitones.length > 0);
 
@@ -3974,15 +4017,54 @@ function openChordConverterModal() {
     </select>`;
   box.appendChild(durRow);
 
+  // Sección de armonización
+  const harmBox = document.createElement('div');
+  harmBox.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px;';
+
+  const harmToggle = document.createElement('label');
+  harmToggle.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:#aaa;';
+  harmToggle.innerHTML = `
+    <input type="checkbox" id="chkHarmonize" style="accent-color:#27ae60;width:14px;height:14px;cursor:pointer;">
+    <span>🎼 Armonizar notas con escala <span style="color:#666;font-size:10px">(convierte cada nota en su acorde diatónico)</span></span>`;
+  harmBox.appendChild(harmToggle);
+
+  const selStyle = 'background:#111;color:#ddd;border:1px solid #27ae60;border-radius:4px;padding:4px 7px;font-size:11px;font-family:"Courier New",monospace;cursor:pointer;';
+  const harmSelects = document.createElement('div');
+  harmSelects.id = 'harmSelects';
+  harmSelects.style.cssText = 'display:none;gap:10px;flex-wrap:wrap;align-items:center;';
+  harmSelects.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:1px">Tonalidad</label>
+      <select id="convKey" style="${selStyle}width:70px">
+        ${['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'].map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <label style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:1px">Escala</label>
+      <select id="convScale" style="${selStyle}width:160px">
+        ${['Mayor','Menor Natural','Menor Armónica','Menor Melódica','Dórica','Frigia','Lidia','Mixolidia','Pentatónica Mayor','Pentatónica Menor','Blues'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>`;
+  harmBox.appendChild(harmSelects);
+  box.appendChild(harmBox);
+
+  // Mostrar/ocultar selects al marcar el checkbox
+  document.createElement('script'); // dummy - la lógica va en el evento
+  harmToggle.querySelector('#chkHarmonize').addEventListener('change', e => {
+    harmSelects.style.display = e.target.checked ? 'flex' : 'none';
+    updateChordPreview();
+  });
+  harmSelects.querySelectorAll('select').forEach(s => s.addEventListener('change', updateChordPreview));
+
   // Label + textarea
   const lbl = document.createElement('div');
   lbl.style.cssText = 'font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px';
-  lbl.textContent = 'Acordes (ej: G B C Cm G)';
+  lbl.textContent = 'Notas o acordes (ej: E4 E4 F4 G4 ó Am G C F)';
   box.appendChild(lbl);
 
   const ta = document.createElement('textarea');
   ta.id = 'chordInputText';
-  ta.placeholder = 'Ej: G B C Cm G\nSoporta: C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B\nSufijos: m, 7, maj7, sus2, sus4, dim, aug';
+  ta.placeholder = 'Notas con octava: E4 F4 G4 D4  → notas individuales\nNombres de acorde: Am G C F   → triadas\nCon armonización: E4 F4 G4   → acorde diatónico automático';
   ta.style.cssText = 'width:100%;min-height:70px;background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:8px;font-size:12px;font-family:"Courier New",monospace;resize:vertical;';
   ta.oninput = updateChordPreview;
   box.appendChild(ta);
