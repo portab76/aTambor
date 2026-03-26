@@ -13,6 +13,7 @@ aTambor es una máquina de ritmos profesional que:
 - ⚙️ **Genera sonido auténtico**, no sintetizado (es un instrumento mecánico-digital)
 - 🎵 **Encadena fragmentos** para crear composiciones completas
 - 📱 **Opera desde navegador web** conectado a ESP32 vía WebSocket IP
+- 💰 **Componentes de bajo costo** disponibles en AliExpress - DIY accesible
 
 ## 🎥 Demostración en YouTube
 
@@ -43,6 +44,8 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
 
 
 ## ⚙️ Hardware: Componentes
+
+**💰 Proyecto de bajo costo**: Todos los componentes son económicos y fácil de encontrar en plataformas como **AliExpress**, lo que lo hace accesible para makers, estudiantes y entusiastas de la robótica.
 
 ### Arquitectura del Sistema
 
