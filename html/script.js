@@ -3772,63 +3772,57 @@ const CHORD_INTERVALS = {
   'aug': [0, 4, 8]         // C, E, G#
 };
 
-// Parsear nombre de acorde (ej: "Cm", "G#maj7", "F")
+// Parsear nombre de nota/acorde
+// Reglas:
+//   "E4", "F#3", "Bb2" → sufijo solo dígito ≠ 7  → nota individual (octava ignorada)
+//   "E", "G", "C#"     → sin sufijo              → acorde mayor (3 notas)
+//   "Em", "G7", "Cmaj7"→ sufijo de acorde        → acorde completo
 function parseChordName(text) {
-  text = text.trim().toUpperCase();
+  text = text.trim();
   if (!text) return null;
 
-  // Extraer nota (C, C#, Db, D, etc.)
-  let note = null;
-  let chordType = 'major'; // por defecto
-  let suffix = '';
+  const upper = text.toUpperCase();
 
-  // Probar notas con # o b
-  if (text.startsWith('C#') || text.startsWith('DB')) {
-    note = text.substring(0, 2);
-    suffix = text.substring(2);
-  } else if (text.length > 0) {
-    note = text[0];
-    suffix = text.substring(1);
+  // Extraer nota (2 chars si hay # o b, sino 1 char)
+  let note, suffix;
+  if (upper.length >= 2 && (upper[1] === '#' || upper[1] === 'B') &&
+      NOTE_TO_SEMITONE.hasOwnProperty(upper.substring(0, 2))) {
+    note   = upper.substring(0, 2);
+    suffix = text.substring(2).toLowerCase();
+  } else {
+    note   = upper[0];
+    suffix = text.substring(1).toLowerCase();
   }
 
-  // Normalizar nota (convertir Db → Db, etc.)
-  note = note.toUpperCase();
+  if (!NOTE_TO_SEMITONE.hasOwnProperty(note)) return null;
 
-  if (!NOTE_TO_SEMITONE.hasOwnProperty(note)) {
-    console.warn(`Nota desconocida: ${note}`);
-    return null;
+  // Si el sufijo es solo un dígito y NO es '7' (dom7), es número de octava → nota individual
+  if (/^\d$/.test(suffix) && suffix !== '7') {
+    return { note, chordType: 'single' };
   }
 
-  // Parsear tipo de acorde
-  suffix = suffix.toLowerCase();
-  if (suffix === '' || suffix === 'maj') {
-    chordType = 'major';
-  } else if (suffix === 'm' || suffix === 'min' || suffix === '-') {
-    chordType = 'minor';
-  } else if (suffix === '7') {
-    chordType = '7';
-  } else if (suffix === 'maj7') {
-    chordType = 'maj7';
-  } else if (suffix === 'm7' || suffix === 'min7') {
-    chordType = 'min7';
-  } else if (suffix === 'sus2') {
-    chordType = 'sus2';
-  } else if (suffix === 'sus4') {
-    chordType = 'sus4';
-  } else if (suffix === 'dim' || suffix === '°') {
-    chordType = 'dim';
-  } else if (suffix === 'aug' || suffix === '+') {
-    chordType = 'aug';
-  }
+  const chordType =
+    suffix === '' || suffix === 'maj'           ? 'major'  :
+    suffix === 'm' || suffix === 'min'          ? 'minor'  :
+    suffix === '7'                              ? '7'      :
+    suffix === 'maj7'                           ? 'maj7'   :
+    suffix === 'm7' || suffix === 'min7'        ? 'min7'   :
+    suffix === 'sus2'                           ? 'sus2'   :
+    suffix === 'sus4'                           ? 'sus4'   :
+    suffix === 'dim' || suffix === '°'          ? 'dim'    :
+    suffix === 'aug' || suffix === '+'          ? 'aug'    :
+    /^\d+$/.test(suffix)                        ? 'single' : // octava multi-dígito
+    'major'; // sufijo desconocido → mayor por defecto
 
   return { note, chordType };
 }
 
-// Devuelve los semitonos (0-11) que componen un acorde
+// Devuelve los semitonos (0-11) de una nota o acorde
 function getChordSemitones(chordName) {
   const chord = parseChordName(chordName);
   if (!chord) return [];
   const root = NOTE_TO_SEMITONE[chord.note];
+  if (chord.chordType === 'single') return [root];  // nota individual
   const intervals = CHORD_INTERVALS[chord.chordType] || CHORD_INTERVALS['major'];
   return intervals.map(i => (root + i) % 12);
 }
@@ -3857,10 +3851,11 @@ function updateChordPreview() {
 
   const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-  let output = `Acordes reconocidos (${parsed.length}):\n\n`;
+  let output = `Reconocidos (${parsed.length}):\n\n`;
   parsed.forEach((chord, i) => {
-    const notes = chord.semitones.map(s => noteNames[s]).join(', ');
-    output += `${i + 1}. ${chord.name.toUpperCase()} → [${notes}]\n`;
+    const notes  = chord.semitones.map(s => noteNames[s]).join(', ');
+    const tipo   = chord.semitones.length === 1 ? '♩ nota' : '🎵 acorde';
+    output += `${i + 1}. ${chord.name.toUpperCase()} → ${tipo}: [${notes}]\n`;
   });
 
   const STEPS_MAP = { whole: 16, half: 8, quarter: 4, eighth: 2, sixteenth: 1 };
