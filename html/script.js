@@ -3863,11 +3863,13 @@ function updateChordPreview() {
     output += `${i + 1}. ${chord.name.toUpperCase()} → [${notes}]\n`;
   });
 
-  const stepsP = { whole: 16, half: 8, quarter: 4, eighth: 2 }[duration] || 4;
-  const durLabel = { whole: 'Redonda (16 pasos)', half: 'Blanca (8 pasos)', quarter: 'Negra (4 pasos)', eighth: 'Corchea (2 pasos)' };
-  const totalMeas = Math.ceil(parsed.length * stepsP / 16);
-  output += `\nDuración por acorde: ${durLabel[duration] || '4 pasos'}`;
-  output += `\nTotal compases: ${totalMeas} (${parsed.length} acordes × ${stepsP} pasos)`;
+  const STEPS_MAP = { whole: 16, half: 8, quarter: 4, eighth: 2, sixteenth: 1 };
+  const stepsP    = STEPS_MAP[duration] || 4;
+  const durLabel  = { whole: '1/1 — Redonda (16 cuadros)', half: '1/2 — Blanca (8 cuadros)', quarter: '1/4 — Negra (4 cuadros)', eighth: '1/8 — Corchea (2 cuadros)', sixteenth: '1/16 — Semicorchea (1 cuadro)' };
+  const totalCuadros = parsed.length * stepsP;
+  const totalMeas = Math.ceil(totalCuadros / 16);
+  output += `\nDuración: ${durLabel[duration] || '4 cuadros'}`;
+  output += `\nTotal: ${parsed.length} notas × ${stepsP} cuadros = ${totalCuadros} cuadros (${totalMeas} compás${totalMeas !== 1 ? 'es' : ''})`;
 
   preview.textContent = output;
 }
@@ -3888,9 +3890,9 @@ function addChordsToSequencer() {
     return;
   }
 
-  // Pasos que ocupa cada acorde según duración (1 compás = 16 pasos)
-  // negra=4, corchea=2, blanca=8, redonda=16
-  const stepsPerChord = { whole: 16, half: 8, quarter: 4, eighth: 2 }[duration] || 4;
+  // Cuadros que ocupa cada nota según duración (1 compás = 16 cuadros)
+  // 1/1=16, 1/2=8, 1/4=4, 1/8=2, 1/16=1
+  const stepsPerChord = { whole: 16, half: 8, quarter: 4, eighth: 2, sixteenth: 1 }[duration] || 4;
   const totalSteps    = chords.length * stepsPerChord;
   const totalMeasures = Math.ceil(totalSteps / 16);
 
@@ -3969,10 +3971,11 @@ function openChordConverterModal() {
   durRow.innerHTML = `
     <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;flex-shrink:0">Duración por acorde</label>
     <select id="chordDuration" style="background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:'Courier New',monospace;cursor:pointer;">
-      <option value="whole">Redonda (4 compases)</option>
-      <option value="half">Blanca (2 compases)</option>
-      <option value="quarter" selected>Negra (1 compás)</option>
-      <option value="eighth">Corchea (½ compás)</option>
+      <option value="whole">  1/1  — Redonda    (16 cuadros)</option>
+      <option value="half">   1/2  — Blanca     (8 cuadros)</option>
+      <option value="quarter" selected>1/4  — Negra      (4 cuadros)</option>
+      <option value="eighth"> 1/8  — Corchea    (2 cuadros)</option>
+      <option value="sixteenth">1/16 — Semicorchea (1 cuadro)</option>
     </select>`;
   box.appendChild(durRow);
 
