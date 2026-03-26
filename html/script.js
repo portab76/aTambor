@@ -2679,8 +2679,8 @@ document.addEventListener('DOMContentLoaded', () => {
       { sym: '♩', label: '1/4',  steps: 4  },
       { sym: '𝅗𝅥', label: '1/2',  steps: 8  },
       { sym: '𝅝',  label: '1',    steps: 16 },
-      { sym: '⇒', label: '1/16→1/8', steps: null, action: convert16to8 },
-      { sym: '◈', label: 'Únicos',   steps: null, action: deduplicateMeasures },
+      { sym: '⇒', label: '1/16→1/8', steps: null, action: () => convert16to8() },
+      { sym: '◈', label: 'Únicos',   steps: null, action: () => deduplicateMeasures() },
     ];
 
     const picker = document.createElement('div');
