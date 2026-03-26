@@ -3,7 +3,7 @@
 
 **aTambor** es un sistema híbrido de **drum machine automática** que combina software web con hardware de solenoides para golpear las teclas de un piano en tiempo real. Un proyecto innovador que integra secuenciación digital con percusión mecánica auténtica.
 
-![Hardware - Vista General](demos/IMG_20260318_131558.jpg)
+![Hardware - Vista General](images/IMG_20260318_131558.jpg)
 
 ---
 
@@ -125,33 +125,11 @@ Piano sintetizado con 14 instrumentos y selección de octavas:
 
 ### Vista Detallada del Hardware
 
-![Solenoides y Control](demos/IMG_20260318_131525.jpg)
+![Solenoides y Control](images/IMG_20260318_131525.jpg)
 
-![Mecanismo de Strikers](demos/IMG_20260318_131623.jpg)
+![Mecanismo de Strikers](images/IMG_20260318_131623.jpg)
 
-![Conexión a Teclado MIDI](demos/IMG_20260318_131606.jpg)
-
----
-
-## 🎥 Demostración en Video
-
-### Video 1 - Secuenciador y Hardware en Acción
-
-<video width="640" height="480" controls>
-  <source src="demos/Video1.mp4" type="video/mp4">
-  Tu navegador no soporta videos HTML5
-</video>
-
-[📥 Descargar Video 1](demos/Video1.mp4)
-
-### Video 2 - Sistema Completo en Funcionamiento
-
-<video width="640" height="480" controls>
-  <source src="demos/Video2.mp4" type="video/mp4">
-  Tu navegador no soporta videos HTML5
-</video>
-
-[📥 Descargar Video 2](demos/Video2.mp4)
+![Conexión a Teclado MIDI](images/IMG_20260318_131606.jpg)
 
 ---
 
