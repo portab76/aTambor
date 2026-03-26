@@ -3845,12 +3845,14 @@ function addChordsToSequencer() {
     steps: new Array(totalSteps).fill(0)
   }));
 
-  // Para cada acorde, activar los motores correspondientes en el primer paso del compás
+  // Para cada acorde, activar los motores en los 4 tiempos del compás
   chords.forEach((chord, idx) => {
     const startStep = idx * stepsPerChord;
     chord.semitones.forEach(semitone => {
-      // motor = semitone (motor 0=C, 1=C#, etc.)
-      fragmentChannels[semitone].steps[startStep] = stepValue;
+      // Poner el acorde en cada tiempo (cada 4 pasos) dentro del compás
+      for (let beat = 0; beat < stepsPerChord; beat += 4) {
+        fragmentChannels[semitone].steps[startStep + beat] = stepValue;
+      }
     });
   });
 
