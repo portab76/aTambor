@@ -1159,6 +1159,60 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
 </div>
 
+<!-- ===== CONVERSOR DE ACORDES A SECUENCIA ===== -->
+
+<div class="section-card">
+
+  <div class="section-header">🎹 Convertir Acordes → Secuencia</div>
+
+  <div class="tab-panel" id="tab-chord-converter">
+
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+
+      <div class="ctrl-group">
+        <label>Octava Base</label>
+        <select id="chordOctave" style="width:70px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+
+      <div class="ctrl-group">
+        <label>Duración</label>
+        <select id="chordDuration" style="width:70px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:12px;font-family:'Courier New',monospace;">
+          <option value="whole">Redonda (4c)</option>
+          <option value="half">Blanca (2c)</option>
+          <option value="quarter" selected>Negra (1c)</option>
+          <option value="eighth">Corchea (1/2c)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:11px;color:#8a6848;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Acordes (ej: G B C Cm G)</label>
+      <textarea id="chordInputText"
+        placeholder="Ej: G B C Cm G&#10;Soporta: C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B&#10;Sufijos: m, 7, maj7, sus2, sus4, etc."
+        style="width:100%;min-height:60px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:8px;font-size:12px;font-family:'Courier New',monospace;resize:vertical;">
+      </textarea>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn" id="btnParseChords" style="font-size:11px;padding:6px 12px;border-color:#3a6a9a;color:#3a6a9a;flex:1;">👁 Preview</button>
+      <button class="btn" id="btnAddChordsFragment" style="font-size:11px;padding:6px 12px;border-color:#3a7850;color:#3a7850;flex:1;">➕ Agregar a Secuencia</button>
+      <button class="btn" id="btnClearChords" style="font-size:11px;padding:6px 12px;border-color:#b09070;color:#906848;flex:1;">✕ Limpiar</button>
+    </div>
+
+    <div id="chordParsePreview" style="background:#ddd0b8;border:1px solid #c8a882;border-radius:6px;padding:10px;font-size:11px;color:#2c1e12;font-family:'Courier New',monospace;line-height:1.6;min-height:50px;white-space:pre-wrap;word-wrap:break-word;">
+      (preview aquí)
+    </div>
+
+  </div>
+
+</div>
+
 
 
 

@@ -3684,8 +3684,279 @@ function showMidiManualAssign(md, selChs) {
   document.body.appendChild(ov);
 }
 
+// ============================================================
+// CONVERSOR DE ACORDES → SECUENCIA
+// ============================================================
+
+// Mapeo de notas a semitono desde C
+const NOTE_TO_SEMITONE = {
+  'C': 0, 'C#': 1, 'Db': 1,
+  'D': 2, 'D#': 3, 'Eb': 3,
+  'E': 4, 'F': 5, 'F#': 6, 'Gb': 6,
+  'G': 7, 'G#': 8, 'Ab': 8,
+  'A': 9, 'A#': 10, 'Bb': 10,
+  'B': 11
+};
+
+// Triadas mayores y menores (intervalos desde root en semitonos)
+const CHORD_INTERVALS = {
+  'major': [0, 4, 7],      // C, E, G
+  'minor': [0, 3, 7],      // C, Eb, G
+  'maj7': [0, 4, 7, 11],   // C, E, G, B
+  'min7': [0, 3, 7, 10],   // C, Eb, G, Bb
+  '7': [0, 4, 7, 10],      // C, E, G, Bb (dominante)
+  'sus2': [0, 2, 7],       // C, D, G
+  'sus4': [0, 5, 7],       // C, F, G
+  'dim': [0, 3, 6],        // C, Eb, Gb
+  'aug': [0, 4, 8]         // C, E, G#
+};
+
+// Parsear nombre de acorde (ej: "Cm", "G#maj7", "F")
+function parseChordName(text) {
+  text = text.trim().toUpperCase();
+  if (!text) return null;
+
+  // Extraer nota (C, C#, Db, D, etc.)
+  let note = null;
+  let chordType = 'major'; // por defecto
+  let suffix = '';
+
+  // Probar notas con # o b
+  if (text.startsWith('C#') || text.startsWith('DB')) {
+    note = text.substring(0, 2);
+    suffix = text.substring(2);
+  } else if (text.length > 0) {
+    note = text[0];
+    suffix = text.substring(1);
+  }
+
+  // Normalizar nota (convertir Db → Db, etc.)
+  note = note.toUpperCase();
+
+  if (!NOTE_TO_SEMITONE.hasOwnProperty(note)) {
+    console.warn(`Nota desconocida: ${note}`);
+    return null;
+  }
+
+  // Parsear tipo de acorde
+  suffix = suffix.toLowerCase();
+  if (suffix === '' || suffix === 'maj') {
+    chordType = 'major';
+  } else if (suffix === 'm' || suffix === 'min' || suffix === '-') {
+    chordType = 'minor';
+  } else if (suffix === '7') {
+    chordType = '7';
+  } else if (suffix === 'maj7') {
+    chordType = 'maj7';
+  } else if (suffix === 'm7' || suffix === 'min7') {
+    chordType = 'min7';
+  } else if (suffix === 'sus2') {
+    chordType = 'sus2';
+  } else if (suffix === 'sus4') {
+    chordType = 'sus4';
+  } else if (suffix === 'dim' || suffix === '°') {
+    chordType = 'dim';
+  } else if (suffix === 'aug' || suffix === '+') {
+    chordType = 'aug';
+  }
+
+  return { note, chordType };
+}
+
+// Obtener notas MIDI de un acorde
+function getChordNotes(chordName, octave) {
+  const chord = parseChordName(chordName);
+  if (!chord) return [];
+
+  const rootSemitone = NOTE_TO_SEMITONE[chord.note];
+  const intervals = CHORD_INTERVALS[chord.chordType] || CHORD_INTERVALS['major'];
+
+  return intervals.map(interval => {
+    const midiNote = (octave * 12) + rootSemitone + interval;
+    return midiNote;
+  });
+}
+
+// Convertir lista de acordes (string) en array de arrays de notas MIDI
+function parseChords(text, octave) {
+  octave = parseInt(octave) || 3;
+  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
+
+  const result = [];
+  for (const name of chordNames) {
+    const notes = getChordNotes(name, octave);
+    if (notes.length > 0) {
+      result.push({ name: name.toUpperCase(), notes });
+    }
+  }
+
+  return result;
+}
+
+// Generar array de pasos para un compás específico con velocidad constante
+function generateChordSteps(measureIndex, durationMeasures, totalSteps) {
+  const steps = new Array(totalSteps).fill(0);
+  const velocity = 100; // Velocidad fija para acordes
+
+  // Calcular rango de pasos para este acorde
+  const startStep = measureIndex * 16;
+  const endStep = startStep + (durationMeasures * 16);
+
+  // Llenar pasos: golpe en beats fuertes (cada 4 pasos)
+  for (let i = startStep; i < Math.min(endStep, totalSteps); i += 4) {
+    steps[i] = velocity;
+  }
+
+  return steps;
+}
+
+// Actualizar preview de acordes
+function updateChordPreview() {
+  const text = document.getElementById('chordInputText').value;
+  const octave = document.getElementById('chordOctave').value;
+  const duration = document.getElementById('chordDuration').value;
+
+  const preview = document.getElementById('chordParsePreview');
+
+  if (!text.trim()) {
+    preview.textContent = '(escribe acordes para ver preview)';
+    return;
+  }
+
+  const chords = parseChords(text, octave);
+
+  if (chords.length === 0) {
+    preview.textContent = 'No se reconocieron acordes válidos.';
+    return;
+  }
+
+  // Convertir duración a número de compases
+  let durationMeasures;
+  switch(duration) {
+    case 'whole': durationMeasures = 4; break;
+    case 'half': durationMeasures = 2; break;
+    case 'quarter': durationMeasures = 1; break;
+    case 'eighth': durationMeasures = 0.5; break;
+    default: durationMeasures = 1;
+  }
+
+  const totalMeasuresNeeded = chords.length * durationMeasures;
+
+  let output = `Acordes reconocidos (${chords.length}):\n\n`;
+  chords.forEach((chord, i) => {
+    const noteNames = chord.notes.map(midi => {
+      const octaveNum = Math.floor(midi / 12);
+      const noteIdx = midi % 12;
+      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return notes[noteIdx] + octaveNum;
+    }).join(', ');
+    output += `${i + 1}. ${chord.name} → [${noteNames}]\n`;
+  });
+
+  output += `\nDuración por acorde: ${duration === 'whole' ? '4 compases' : duration === 'half' ? '2 compases' : duration === 'quarter' ? '1 compás' : '1/2 compás'}`;
+  output += `\nOctava base: ${octave}`;
+  output += `\nCompases necesarios: ${Math.ceil(totalMeasuresNeeded)}`;
+  output += `\nCompases actuales: ${numMeasures}`;
+  output += `\nCanales a crear: ${chords.length}`;
+
+  preview.textContent = output;
+}
+
+// Agregar acordes como nuevos canales
+function addChordsToSequencer() {
+  const text = document.getElementById('chordInputText').value;
+  const octave = document.getElementById('chordOctave').value;
+  const duration = document.getElementById('chordDuration').value;
+
+  const chords = parseChords(text, octave);
+
+  if (chords.length === 0) {
+    alert('No se reconocieron acordes válidos.');
+    return;
+  }
+
+  // Convertir duración a número de compases
+  let durationMeasures;
+  switch(duration) {
+    case 'whole': durationMeasures = 4; break;
+    case 'half': durationMeasures = 2; break;
+    case 'quarter': durationMeasures = 1; break;
+    case 'eighth': durationMeasures = 0.5; break;
+    default: durationMeasures = 1;
+  }
+
+  const totalMeasuresNeeded = Math.ceil(chords.length * durationMeasures);
+
+  // Aumentar compases si es necesario
+  if (totalMeasuresNeeded > numMeasures) {
+    setMeasures(Math.min(8, totalMeasuresNeeded));
+  }
+
+  // Crear un canal por cada acorde
+  chords.forEach((chord, idx) => {
+    const measureIndex = Math.floor(idx * durationMeasures);
+
+    const newChannel = {
+      name: `Acorde: ${chord.name}`,
+      motor: idx % 12,  // Mapear acordes a motores disponibles
+      vel: 100,
+      homePwm: 375,
+      muted: false,
+      sustain: false,
+      steps: generateChordSteps(measureIndex, durationMeasures, numSteps)
+    };
+
+    channels.push(newChannel);
+  });
+
+  // Actualizar UI
+  renderSequencerUI();
+  syncToSongQueue();
+  setStatus(`✓ Agregados ${chords.length} canales de acordes en ${totalMeasuresNeeded} compases`);
+
+  // Limpiar textarea
+  document.getElementById('chordInputText').value = '';
+  updateChordPreview();
+}
+
 // ---- Enlazar botón al cargar el DOM ------------------------
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('btnMidi');
   if (btn) btn.onclick = openMidiImport;
+
+  // Conectar botones del conversor de acordes
+  const btnParseChords = document.getElementById('btnParseChords');
+  if (btnParseChords) {
+    btnParseChords.onclick = updateChordPreview;
+  }
+
+  const btnAddChords = document.getElementById('btnAddChordsFragment');
+  if (btnAddChords) {
+    btnAddChords.onclick = addChordsToSequencer;
+  }
+
+  const btnClearChords = document.getElementById('btnClearChords');
+  if (btnClearChords) {
+    btnClearChords.onclick = () => {
+      document.getElementById('chordInputText').value = '';
+      updateChordPreview();
+    };
+  }
+
+  const chordInputText = document.getElementById('chordInputText');
+  const chordOctave = document.getElementById('chordOctave');
+  const chordDuration = document.getElementById('chordDuration');
+
+  if (chordInputText) {
+    chordInputText.oninput = updateChordPreview;
+  }
+  if (chordOctave) {
+    chordOctave.onchange = updateChordPreview;
+  }
+  if (chordDuration) {
+    chordDuration.onchange = updateChordPreview;
+  }
+
+  // Inicializar preview
+  updateChordPreview();
 });
