@@ -2836,14 +2836,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('〰️ Onda: ' + currentWaveform);
   };
 
-  // Acordes
-  document.getElementById('chordKey').onchange = updateScaleDescription;
-  document.getElementById('chordScale').onchange = updateScaleDescription;
-  document.getElementById('btnViewScale').onclick = viewScale;
-
-  // Actualizar descripción inicial
-  updateScaleDescription();
-
   // Logs
   document.getElementById('btnLogs').onclick = () => {
     const w = window.open('', 'Logs', 'width=700,height=600,resizable=yes,scrollbars=yes');
@@ -3685,6 +3677,75 @@ function showMidiManualAssign(md, selChs) {
 }
 
 // ============================================================
+// POPUP — ACORDES (tonalidad + escala)
+// ============================================================
+
+function closeAcordesModal() {
+  const m = document.getElementById('acordesModal'); if (m) m.remove();
+}
+
+function openAcordesModal() {
+  closeAcordesModal();
+
+  const ov  = document.createElement('div');
+  ov.id = 'acordesModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:16px;';
+  ov.onclick = e => { if (e.target === ov) closeAcordesModal(); };
+
+  const box = _mkModalBox();
+  box.style.width = 'min(560px,100%)';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+  hdr.innerHTML = `
+    <span style="color:#3498db;font-weight:bold;font-size:13px;letter-spacing:2px">🎼 ACORDES — TONALIDAD Y ESCALA</span>
+    <button onclick="closeAcordesModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
+  box.appendChild(hdr);
+
+  // Controles tonalidad + escala
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end';
+
+  const selStyle = 'background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:"Courier New",monospace;cursor:pointer;';
+
+  row.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Tonalidad</label>
+      <select id="chordKey" style="${selStyle}width:75px">
+        ${['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'].map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Escala</label>
+      <select id="chordScale" style="${selStyle}width:170px">
+        ${['Mayor','Menor Natural','Menor Armónica','Menor Melódica','Dórica','Frigia','Lidia','Mixolidia','Pentatónica Mayor','Pentatónica Menor','Blues'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>`;
+  box.appendChild(row);
+
+  // Descripción de la escala
+  const desc = document.createElement('div');
+  desc.id = 'scaleDescription';
+  desc.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;font-size:11px;color:#aaa;line-height:1.8;min-height:40px';
+  box.appendChild(desc);
+
+  // Footer
+  const footer = _mkModalFooter();
+  footer.appendChild(_mkModalBtn('👁 View Scale', '#3498db', () => { viewScale(); closeAcordesModal(); }));
+  footer.appendChild(_mkModalBtn('✕ Cerrar', '#666', closeAcordesModal));
+  box.appendChild(footer);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+
+  // Conectar selects y actualizar descripción inicial
+  document.getElementById('chordKey').onchange   = updateScaleDescription;
+  document.getElementById('chordScale').onchange = updateScaleDescription;
+  updateScaleDescription();
+}
+
+// ============================================================
 // CONVERSOR DE ACORDES → SECUENCIA
 // ============================================================
 
@@ -3873,44 +3934,91 @@ function addChordsToSequencer() {
   renderSongQueue();
   setStatus(`✓ Fragment: "${fragmentName}" — ${chords.length} acordes, ${totalMeasures} compases`);
 
-  // Cambiar al tab de Fragments para ver el resultado
+  closeConverterModal();
+
   const tabCancion = document.querySelector('[data-tab="tab-cancion"]');
   if (tabCancion) tabCancion.click();
+}
 
-  document.getElementById('chordInputText').value = '';
+// ============================================================
+// POPUP — CONVERSOR DE ACORDES → SECUENCIA
+// ============================================================
+
+function closeConverterModal() {
+  const m = document.getElementById('converterModal'); if (m) m.remove();
+}
+
+function openChordConverterModal() {
+  closeConverterModal();
+
+  const ov = document.createElement('div');
+  ov.id = 'converterModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:16px;';
+  ov.onclick = e => { if (e.target === ov) closeConverterModal(); };
+
+  const box = _mkModalBox();
+  box.style.width = 'min(540px,100%)';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+  hdr.innerHTML = `
+    <span style="color:#3498db;font-weight:bold;font-size:13px;letter-spacing:2px">🎹 CONVERTIR ACORDES → FRAGMENT</span>
+    <button onclick="closeConverterModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
+  box.appendChild(hdr);
+
+  // Selector de duración
+  const durRow = document.createElement('div');
+  durRow.style.cssText = 'display:flex;align-items:center;gap:10px';
+  durRow.innerHTML = `
+    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;flex-shrink:0">Duración por acorde</label>
+    <select id="chordDuration" style="background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:'Courier New',monospace;cursor:pointer;">
+      <option value="whole">Redonda (4 compases)</option>
+      <option value="half">Blanca (2 compases)</option>
+      <option value="quarter" selected>Negra (1 compás)</option>
+      <option value="eighth">Corchea (½ compás)</option>
+    </select>`;
+  box.appendChild(durRow);
+
+  // Label + textarea
+  const lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px';
+  lbl.textContent = 'Acordes (ej: G B C Cm G)';
+  box.appendChild(lbl);
+
+  const ta = document.createElement('textarea');
+  ta.id = 'chordInputText';
+  ta.placeholder = 'Ej: G B C Cm G\nSoporta: C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B\nSufijos: m, 7, maj7, sus2, sus4, dim, aug';
+  ta.style.cssText = 'width:100%;min-height:70px;background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:8px;font-size:12px;font-family:"Courier New",monospace;resize:vertical;';
+  ta.oninput = updateChordPreview;
+  box.appendChild(ta);
+
+  // Preview
+  const prev = document.createElement('div');
+  prev.id = 'chordParsePreview';
+  prev.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;font-size:11px;color:#aaa;line-height:1.7;min-height:50px;white-space:pre-wrap;word-wrap:break-word;';
+  prev.textContent = '(escribe acordes para ver preview)';
+  box.appendChild(prev);
+
+  // Footer
+  const footer = _mkModalFooter();
+  footer.appendChild(_mkModalBtn('👁 Preview',            '#3498db', updateChordPreview));
+  footer.appendChild(_mkModalBtn('➕ Agregar Fragment',   '#27ae60', addChordsToSequencer));
+  footer.appendChild(_mkModalBtn('✕ Cerrar',             '#666',    closeConverterModal));
+  box.appendChild(footer);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+
+  document.getElementById('chordDuration').onchange = updateChordPreview;
   updateChordPreview();
 }
 
-// ---- Enlazar botón al cargar el DOM ------------------------
+// ---- Enlazar botones al cargar el DOM ----------------------
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('btnMidi');
   if (btn) btn.onclick = openMidiImport;
 
-  // Conectar botones del conversor de acordes
-  const btnParseChords = document.getElementById('btnParseChords');
-  if (btnParseChords) {
-    btnParseChords.onclick = updateChordPreview;
-  }
-
-  const btnAddChords = document.getElementById('btnAddChordsFragment');
-  if (btnAddChords) {
-    btnAddChords.onclick = addChordsToSequencer;
-  }
-
-  const btnClearChords = document.getElementById('btnClearChords');
-  if (btnClearChords) {
-    btnClearChords.onclick = () => {
-      document.getElementById('chordInputText').value = '';
-      updateChordPreview();
-    };
-  }
-
-  const chordInputText = document.getElementById('chordInputText');
-  const chordDuration = document.getElementById('chordDuration');
-
-  if (chordInputText) chordInputText.oninput = updateChordPreview;
-  if (chordDuration) chordDuration.onchange = updateChordPreview;
-
-  // Inicializar preview
-  updateChordPreview();
+  document.getElementById('btnOpenAcordes').onclick   = openAcordesModal;
+  document.getElementById('btnOpenConverter').onclick = openChordConverterModal;
 });
