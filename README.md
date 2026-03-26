@@ -5,7 +5,7 @@
 
 | | | |
 |---|---|---|
-| ![Image 1](images/Image1.jpg) | ![Image 2](images/Image2.jpg) | ![Image 3](images/Image3.jpg) |
+| ![Image 1](images/Image1.jpeg) | ![Image 2](images/Image2.jpeg) | ![Image 3](images/Image3.jpeg) |
 
 ## 📋 Descripción General
 
