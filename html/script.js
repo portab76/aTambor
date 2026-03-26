@@ -3862,7 +3862,7 @@ function updateChordPreview() {
   preview.textContent = output;
 }
 
-// Agregar acordes como nuevos canales
+// Agregar acordes como nuevo Fragment (entrada en songQueue)
 function addChordsToSequencer() {
   const text = document.getElementById('chordInputText').value;
   const octave = document.getElementById('chordOctave').value;
@@ -3887,12 +3887,9 @@ function addChordsToSequencer() {
 
   const totalMeasuresNeeded = Math.ceil(chords.length * durationMeasures);
 
-  // Aumentar compases si es necesario
-  if (totalMeasuresNeeded > numMeasures) {
-    setMeasures(Math.min(8, totalMeasuresNeeded));
-  }
+  // Crear arrays de canales para el fragment
+  const fragmentChannels = [];
 
-  // Crear un canal por cada acorde
   chords.forEach((chord, idx) => {
     const measureIndex = Math.floor(idx * durationMeasures);
 
@@ -3903,16 +3900,35 @@ function addChordsToSequencer() {
       homePwm: 375,
       muted: false,
       sustain: false,
-      steps: generateChordSteps(measureIndex, durationMeasures, numSteps)
+      steps: generateChordSteps(measureIndex, durationMeasures, totalMeasuresNeeded * 16)
     };
 
-    channels.push(newChannel);
+    fragmentChannels.push(newChannel);
   });
 
-  // Actualizar UI
-  renderSequencerUI();
-  syncToSongQueue();
-  setStatus(`✓ Agregados ${chords.length} canales de acordes en ${totalMeasuresNeeded} compases`);
+  // Crear nombre del fragment
+  const chordNames = chords.map(c => c.name).join(' • ');
+  const fragmentName = `Acordes: ${chordNames}`;
+
+  // Agregar a songQueue
+  songQueue.push({
+    name: fragmentName,
+    channels: fragmentChannels,
+    bpm: bpm,
+    hitDur: hitDur,
+    retractDur: retractDur,
+    numMeasures: totalMeasuresNeeded,
+    repeats: 1
+  });
+
+  // Actualizar UI de fragments
+  renderSongQueue();
+
+  setStatus(`✓ Fragment agregado: "${fragmentName}" (${totalMeasuresNeeded} compases)`);
+
+  // Cambiar al tab de canciones para ver el resultado
+  const tabCancion = document.querySelector('[data-tab="tab-cancion"]');
+  if (tabCancion) tabCancion.click();
 
   // Limpiar textarea
   document.getElementById('chordInputText').value = '';
