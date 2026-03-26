@@ -27,14 +27,12 @@ Demostración del hardware tocando una copla española tradicional. El archivo u
 - **Tempo**: 120 BPM
 - **Duración**: 19 compases
 
-Esta progresión es característica del flamenco español y la música de copla, donde el movimiento armónico desciende por cuartas justas (F→Bb→Eb) y luego resuelve en el relativo menor (Cm), creando la melancolía y dramatismo típico de este género.
-
 ---
 ## 🎹 Software: Características
 
 **Prueba aTambor ahora sin instalación**: https://elper.es/aTambor/ 
 
-Por defecto la interfaz genera sonidos sintetizados directamente en el navegador. El firmware del robot (ESP32 + control de servos) no está publicado. Si te interesa el proyecto completo para uso comercial o personal, contacta conmigo.
+Por defecto la interfaz genera sonidos sintetizados directamente en el navegador. El firmware del robot (ESP32 + control de servos) no está publicado. Si te interesa el proyecto completo para uso comercial o personal, contacta conmigo: **portab76@gmail.com**
 
 ### Gestión de Patrones
 - **Guardar/Cargar**: Exporta patrones en JSON
