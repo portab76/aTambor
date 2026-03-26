@@ -3863,9 +3863,11 @@ function updateChordPreview() {
     output += `${i + 1}. ${chord.name.toUpperCase()} → [${notes}]\n`;
   });
 
-  const durLabel = { whole: '4 compases', half: '2 compases', quarter: '1 compás', eighth: '½ compás' };
-  output += `\nDuración por acorde: ${durLabel[duration] || '1 compás'}`;
-  output += `\nTotal compases: ${parsed.length}`;
+  const stepsP = { whole: 16, half: 8, quarter: 4, eighth: 2 }[duration] || 4;
+  const durLabel = { whole: 'Redonda (16 pasos)', half: 'Blanca (8 pasos)', quarter: 'Negra (4 pasos)', eighth: 'Corchea (2 pasos)' };
+  const totalMeas = Math.ceil(parsed.length * stepsP / 16);
+  output += `\nDuración por acorde: ${durLabel[duration] || '4 pasos'}`;
+  output += `\nTotal compases: ${totalMeas} (${parsed.length} acordes × ${stepsP} pasos)`;
 
   preview.textContent = output;
 }
@@ -3886,14 +3888,11 @@ function addChordsToSequencer() {
     return;
   }
 
-  // Pasos por acorde según duración (1 compás = 16 pasos)
-  const stepsPerChord = { whole: 64, half: 32, quarter: 16, eighth: 8 }[duration] || 16;
-  const totalSteps = chords.length * stepsPerChord;
-  const totalMeasures = totalSteps / 16;
-
-  // Valor de velocidad del primer paso (igual que el sistema usa: 4 para negra 1/4)
-  // En 1/4 el primer paso lleva el valor de duración en pasos (4 = negra, 2 = corchea, etc.)
-  const stepValue = stepsPerChord / 4;  // negra=4, blanca=8, redonda=16, corchea=2
+  // Pasos que ocupa cada acorde según duración (1 compás = 16 pasos)
+  // negra=4, corchea=2, blanca=8, redonda=16
+  const stepsPerChord = { whole: 16, half: 8, quarter: 4, eighth: 2 }[duration] || 4;
+  const totalSteps    = chords.length * stepsPerChord;
+  const totalMeasures = Math.ceil(totalSteps / 16);
 
   // Crear 12 canales fijos (uno por semitono, motor 0-11 = C...B)
   const fragmentChannels = DEFAULT_KEYS.map(key => ({
@@ -3903,17 +3902,14 @@ function addChordsToSequencer() {
     homePwm: 375,
     muted: false,
     sustain: false,
-    steps: new Array(totalSteps).fill(0)
+    steps: new Array(totalMeasures * 16).fill(0)
   }));
 
-  // Para cada acorde, activar los motores en los 4 tiempos del compás
+  // Cada acorde suena UNA vez en su slot; el valor = duración en pasos
   chords.forEach((chord, idx) => {
     const startStep = idx * stepsPerChord;
     chord.semitones.forEach(semitone => {
-      // Poner el acorde en cada tiempo (cada 4 pasos) dentro del compás
-      for (let beat = 0; beat < stepsPerChord; beat += 4) {
-        fragmentChannels[semitone].steps[startStep + beat] = stepValue;
-      }
+      fragmentChannels[semitone].steps[startStep] = stepsPerChord;
     });
   });
 
