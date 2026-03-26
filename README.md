@@ -16,8 +16,6 @@ aTambor es una máquina de ritmos profesional que:
 
 ## 🎥 Demostración en YouTube
 
-### Copla Española - Progresión Flamenco en Fa Mayor
-
 🎬 **[Ver en YouTube Shorts](https://www.youtube.com/shorts/YCQLXMqEDCY)**
 
 Demostración del hardware tocando una copla española tradicional. El archivo utilizado es [`01_Copla.json`](https://github.com/portab76/aTambor/blob/main/Measures/01_Copla.json).
