@@ -45,7 +45,7 @@ let seqDragMoved  = false; // true si el ratón salió de la celda inicial
 let seqClipboard  = null;  // { rows, cols, data[][] } patrón copiado
 
 // Audio MIDI - Piano con soundfont
-let audioEnabled = true;
+let audioEnabled = false;
 let audioOctaveOffset = 3;  // C3, C4, C5, etc.
 let toneInitialized = false;
 let sampler = null;  // Tone.PolySynth para piano
@@ -1498,6 +1498,73 @@ function saveRhythm() {
   URL.revokeObjectURL(a.href);
 }
 
+// Convert current sequencer grid to MML-R (GrooveScript) text
+function saveAsGrooveScript() {
+  const NM       = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const gridSize = numMeasures * 16;
+
+  // Collect hits: position → { semitones[], dur }
+  const hits = {};
+  for (let ch = 0; ch < 12; ch++) {
+    if (!channels[ch] || channels[ch].muted) continue;
+    for (let i = 0; i < gridSize; i++) {
+      const v = channels[ch].steps[i];
+      if (v > 0) {
+        if (!hits[i]) hits[i] = { semitones: [], dur: v };
+        else hits[i].dur = Math.max(hits[i].dur, v);
+        hits[i].semitones.push(ch);
+      }
+    }
+  }
+
+  // Build ordered event list with rests between hits
+  const events = [];
+  let pos = 0;
+  while (pos < gridSize) {
+    if (hits[pos]) {
+      events.push({ type: 'note', semitones: hits[pos].semitones, dur: hits[pos].dur });
+      pos += hits[pos].dur;
+    } else {
+      let nextHit = pos + 1;
+      while (nextHit < gridSize && !hits[nextHit]) nextHit++;
+      events.push({ type: 'rest', dur: nextHit - pos });
+      pos = nextHit;
+    }
+  }
+
+  // Duration steps → MML-R string
+  const durToStr = d => ({ 16:'1', 8:'1/2', 4:'1/4', 2:'1/8', 1:'1/16' }[d] || `${d}/16`);
+
+  // Build MML-R text, adding | measure separators every 16 steps
+  const lines = [`@TEMPO=${bpm}`, '@DEFAULT_DUR=1/4', ''];
+  let line = '', stepCount = 0;
+  for (const ev of events) {
+    let token;
+    if (ev.type === 'rest') {
+      token = `R:${durToStr(ev.dur)}`;
+    } else if (ev.semitones.length === 1) {
+      token = `${NM[ev.semitones[0]]}:${durToStr(ev.dur)}`;
+    } else {
+      token = `(${ev.semitones.map(s => NM[s]).join(' ')}):${durToStr(ev.dur)}`;
+    }
+    line += (line ? ' ' : '') + token;
+    stepCount += ev.dur;
+    if (stepCount % 16 === 0) {
+      lines.push(line + ' |');
+      line = '';
+    }
+  }
+  if (line) lines.push(line);
+
+  const text = lines.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = 'groove.mmlr';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('✓ Saved as GrooveScript (.mmlr)');
+}
+
 // ---- Indicador visual de estado del ritmo ------------------
 function setRhythmState(state, label) {
   const panel = document.getElementById('rhythmStatePanel');
@@ -2544,8 +2611,9 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.addEventListener('click', e => e.stopPropagation());
   }
 
-  initDropdown('ctrlDropdownBtn', 'ctrlDropdownPanel');
-  initDropdown('loadDropdownBtn', 'loadDropdownPanel');
+  initDropdown('ctrlDropdownBtn',  'ctrlDropdownPanel');
+  initDropdown('loadDropdownBtn',  'loadDropdownPanel');
+  initDropdown('saveDropdownBtn',  'saveDropdownPanel');
 
   document.addEventListener('click', () => {
     document.querySelectorAll('.ctrl-dropdown-panel.open').forEach(p => p.classList.remove('open'));
@@ -2732,7 +2800,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Guardar / Cargar
-  document.getElementById('btnSave').onclick = saveRhythm;
+  document.getElementById('btnSave').onclick      = saveRhythm;
+  document.getElementById('btnSaveGroove').onclick = saveAsGrooveScript;
   document.getElementById('btnLoad').onclick = () => {
     document.getElementById('loadDropdownPanel').classList.remove('open');
     document.getElementById('loadDropdownBtn').classList.remove('open');
@@ -3428,42 +3497,26 @@ function showMidiAutoTranspose(md, selChs) {
   closeMidiModal();
 
   const REPR = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71];
-  const enabledMotors = new Set(Array.from({length: 12}, (_, i) => i));
 
   function buildEvents() {
     return md.events.map(e => {
       if (!selChs.includes(e.ch)) return e;
       const motor = e.note % 12;
-      if (!enabledMotors.has(motor)) return null;
       return { ...e, note: REPR[motor] };
-    }).filter(Boolean);
-  }
-
-  function updateDisplay() {
-    const newEvents = buildEvents();
-    const motorHits = new Array(12).fill(0);
-    newEvents.forEach(e => { if (selChs.includes(e.ch)) motorHits[e.note - 60]++; });
-
-    tbl.querySelectorAll('tbody tr').forEach((row, motor) => {
-      const hits = motorHits[motor];
-      row.style.opacity = enabledMotors.has(motor) ? '1' : '0.3';
-      const hitsCell = row.querySelector('td:last-child');
-      hitsCell.textContent = hits > 0 ? hits : '—';
-      hitsCell.style.color = hits > 0 ? '#fff' : '#445';
     });
   }
 
   const col = '#2ecc71';
   const ov  = _mkModalOverlay();
   const box = _mkModalBox();
-  box.appendChild(_mkModalHeader('📥 PASO 3 — ASIGNACIÓN CROMÁTICA'));
+  box.appendChild(_mkModalHeader('📥 STEP 3 — CHROMATIC ASSIGNMENT'));
 
   const resDiv = document.createElement('div');
   resDiv.style.cssText = 'background:#0d0d22;border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.9';
   resDiv.innerHTML =
-    `<div style="color:#ff8800;font-weight:bold;margin-bottom:4px">Escala: <span style="color:#fff">C · C# · D · D# · E · F · F# · G · G# · A · A# · B</span></div>` +
-    `<div style="color:#888">Cada nota MIDI se asigna a su motor cromático (nota % 12).</div>` +
-    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrumento${selChs.length>1?'s':''} · motores 0–11</div>`;
+    `<div style="color:#ff8800;font-weight:bold;margin-bottom:4px">Scale: <span style="color:#fff">C · C# · D · D# · E · F · F# · G · G# · A · A# · B</span></div>` +
+    `<div style="color:#888">Each MIDI note is assigned to its chromatic motor (note % 12).</div>` +
+    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrument${selChs.length>1?'s':''} · motors 0–11</div>`;
   box.appendChild(resDiv);
 
   // Tabla con checkboxes
@@ -3474,10 +3527,8 @@ function showMidiAutoTranspose(md, selChs) {
   tbl.innerHTML = `
     <thead style="color:#445;font-size:10px;text-transform:uppercase;letter-spacing:1px;background:#0d0d22;position:sticky;top:0">
       <tr>
-        <th style="padding:4px 6px;width:30px">✓</th>
         <th style="text-align:center;padding:4px 8px">Motor</th>
         <th style="text-align:left;padding:4px 10px">Nota</th>
-        <th style="text-align:center;padding:4px 10px">Hits</th>
       </tr>
     </thead><tbody></tbody>`;
 
@@ -3486,37 +3537,21 @@ function showMidiAutoTranspose(md, selChs) {
     const isSharp = [1,3,6,8,10].includes(motor);
     const tr = document.createElement('tr');
     tr.style.cssText = 'border-top:1px solid #1e1e36' + (isSharp ? ';background:#0a0a1e' : '');
-
-    const chk = document.createElement('input');
-    chk.type = 'checkbox'; chk.checked = true;
-    chk.style.cssText = 'cursor:pointer;accent-color:#3498db';
-    chk.onchange = () => {
-      if (chk.checked) enabledMotors.add(motor); else enabledMotors.delete(motor);
-      updateDisplay();
-    };
-    const chkCell = document.createElement('td');
-    chkCell.style.cssText = 'padding:5px 6px;text-align:center';
-    chkCell.appendChild(chk);
-
-    tr.appendChild(chkCell);
-    tr.innerHTML += `
+    tr.innerHTML = `
       <td style="padding:5px 8px;text-align:center;font-weight:bold;color:#fff">${motor}</td>
-      <td style="padding:5px 10px;color:${isSharp?'#ff8800':'#2ecc71'};font-weight:bold;font-size:13px">${_MOTOR_NOTE_NAME[motor]}</td>
-      <td style="padding:5px 10px;text-align:center;color:#445">—</td>`;
+      <td style="padding:5px 10px;color:${isSharp?'#ff8800':'#2ecc71'};font-weight:bold;font-size:13px">${_MOTOR_NOTE_NAME[motor]}</td>`;
     tbody.appendChild(tr);
   }
   tblWrap.appendChild(tbl);
   box.appendChild(tblWrap);
 
-  updateDisplay();
-
   const btnRow = _mkModalFooter();
-  btnRow.appendChild(_mkModalBtn('← Volver', '#445', () => showMidiStep2Instrument(md, selChs)));
-  btnRow.appendChild(_mkModalBtn('✔ Cargar en secuenciador', col, () => {
+  btnRow.appendChild(_mkModalBtn('← Back', '#445', () => showMidiStep2Instrument(md, selChs)));
+  btnRow.appendChild(_mkModalBtn('✔ Load to Sequencer', col, () => {
     const newEvents = buildEvents();
     const noteMap = {};
     selChs.forEach(ch => REPR.forEach((note, motor) => {
-      if (enabledMotors.has(motor)) noteMap[`${ch}_${note}`] = motor;
+      noteMap[`${ch}_${note}`] = motor;
     }));
     const newChanInfo = { ...md.chanInfo };
     selChs.forEach(ch => {
@@ -3527,7 +3562,7 @@ function showMidiAutoTranspose(md, selChs) {
     const mdQ = { ...md, events: newEvents, chanInfo: newChanInfo };
     if (_loadRhythmFromNoteMap(mdQ, noteMap)) {
       closeMidiModal();
-      setStatus('MIDI → secuenciador (cromático): ' + md._name + ' — ' + mdQ.bpm + ' BPM');
+      setStatus('MIDI → sequencer (chromatic): ' + md._name + ' — ' + mdQ.bpm + ' BPM');
     }
   }));
   box.appendChild(btnRow);
@@ -3852,243 +3887,301 @@ function harmonizeNote(noteSemitone, key, scaleType) {
   return intervals.map(i => (noteSemitone + i) % 12);
 }
 
-// Lee la tonalidad y escala del popup conversor (si está activada la armonización)
-function getConverterHarmonySettings() {
-  const chk = document.getElementById('chkHarmonize');
-  if (!chk || !chk.checked) return null;
-  const key   = document.getElementById('convKey')   ? document.getElementById('convKey').value   : null;
-  const scale = document.getElementById('convScale') ? document.getElementById('convScale').value : null;
-  return key && scale ? { key, scale } : null;
+// ============================================================
+// MML-R (GrooveScript) PARSER
+// ============================================================
+
+// Convert duration string to grid steps
+// Musical: "1"→16, "1/2"→8, "1/4"→4, "1/8"→2, "1/16"→1
+// Ms: "120" → round(120 / ms_per_step), ms_per_step = (60000/tempo)/4
+function mmlrDurationToSteps(durStr, tempo) {
+  tempo = tempo || 120;
+  durStr = String(durStr).trim();
+  const fracMatch = durStr.match(/^(\d+)(?:\/(\d+))?$/);
+  if (fracMatch) {
+    const num = parseInt(fracMatch[1]);
+    const den = fracMatch[2] ? parseInt(fracMatch[2]) : 1;
+    return Math.max(1, Math.round((num / den) * 16));
+  }
+  const ms = parseFloat(durStr);
+  if (!isNaN(ms) && ms > 0) {
+    const msPerStep = (60000 / tempo) / 4;
+    return Math.max(1, Math.round(ms / msPerStep));
+  }
+  return 4;
 }
 
-// Actualizar preview de acordes
-function updateChordPreview() {
-  const text = document.getElementById('chordInputText').value;
-  const duration = document.getElementById('chordDuration').value;
-  const preview = document.getElementById('chordParsePreview');
-
-  if (!text.trim()) {
-    preview.textContent = '(escribe acordes para ver preview)';
-    return;
-  }
-
-  const harmony = getConverterHarmonySettings();
-  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
-  const parsed = chordNames.map(name => {
-    let semitones = getChordSemitones(name);
-    // Si la armonización está activa Y es una nota individual → buscar acorde diatónico
-    if (harmony && semitones.length === 1) {
-      semitones = harmonizeNote(semitones[0], harmony.key, harmony.scale);
+// Parse @PARAM=VALUE directives from text
+function mmlrParseParams(text) {
+  const params = { tempo: 120, defaultVel: 100, defaultDur: '1/4', oct: 4, harmonize: null };
+  for (const line of text.split('\n')) {
+    const m = line.match(/@(\w+)\s*=\s*(.+)/);
+    if (!m) continue;
+    const k = m[1].toUpperCase(), v = m[2].trim();
+    if (k === 'TEMPO')       params.tempo      = parseInt(v)  || 120;
+    if (k === 'DEFAULT_VEL') params.defaultVel = parseInt(v)  || 100;
+    if (k === 'DEFAULT_DUR') params.defaultDur = v;
+    if (k === 'OCT')         params.oct        = parseInt(v)  || 4;
+    if (k === 'HARMONIZE') {
+      const p = v.split(':');
+      if (p.length >= 2) params.harmonize = { key: p[0].trim(), scale: p[1].trim() };
     }
-    return { name, semitones };
-  }).filter(c => c.semitones.length > 0);
-
-  if (parsed.length === 0) {
-    preview.textContent = 'No se reconocieron notas válidas.';
-    return;
   }
-
-  const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-
-  const headerKey = harmony ? ` [Armonizando en ${harmony.key} ${harmony.scale}]` : '';
-  let output = `Reconocidos (${parsed.length})${headerKey}:\n\n`;
-  parsed.forEach((chord, i) => {
-    const notes  = chord.semitones.map(s => noteNames[s]).join(', ');
-    const tipo   = chord.semitones.length === 1 ? '♩ nota' : '🎵 acorde';
-    output += `${i + 1}. ${chord.name.toUpperCase()} → ${tipo}: [${notes}]\n`;
-  });
-
-  const STEPS_MAP = { whole: 16, half: 8, quarter: 4, eighth: 2, sixteenth: 1 };
-  const stepsP    = STEPS_MAP[duration] || 4;
-  const durLabel  = { whole: '1/1 — Redonda (16 cuadros)', half: '1/2 — Blanca (8 cuadros)', quarter: '1/4 — Negra (4 cuadros)', eighth: '1/8 — Corchea (2 cuadros)', sixteenth: '1/16 — Semicorchea (1 cuadro)' };
-  const totalCuadros = parsed.length * stepsP;
-  const totalMeas = Math.ceil(totalCuadros / 16);
-  output += `\nDuración: ${durLabel[duration] || '4 cuadros'}`;
-  output += `\nTotal: ${parsed.length} notas × ${stepsP} cuadros = ${totalCuadros} cuadros (${totalMeas} compás${totalMeas !== 1 ? 'es' : ''})`;
-
-  preview.textContent = output;
+  return params;
 }
 
-// Agregar acordes como nuevo Fragment usando los 12 canales de DEFAULT_KEYS
-function addChordsToSequencer() {
-  const text = document.getElementById('chordInputText').value;
-  const duration = document.getElementById('chordDuration').value;
+// Strip @PARAM lines and | separators
+function mmlrStripParams(text) {
+  return text.split('\n').filter(l => !l.trim().startsWith('@')).join(' ').replace(/\|/g, ' ');
+}
 
-  const harmony = getConverterHarmonySettings();
-  const chordNames = text.split(/[\s,]+/).filter(c => c.length > 0);
-  const chords = chordNames.map(name => {
-    let semitones = getChordSemitones(name);
-    if (harmony && semitones.length === 1) {
-      semitones = harmonizeNote(semitones[0], harmony.key, harmony.scale);
+// Expand [EVENTS]xN repetition blocks (recursive, innermost first)
+function mmlrExpandRepetitions(text) {
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/\[([^\[\]]*)\]x(\d+)/gi, (_, content, n) => (content + ' ').repeat(parseInt(n)));
+  } while (text !== prev);
+  return text;
+}
+
+// Main MML-R parser → { events[], params }
+function parseMMLR(text) {
+  const params = mmlrParseParams(text);
+  let clean    = mmlrStripParams(text);
+  clean        = mmlrExpandRepetitions(clean);
+
+  // Encode spaces inside () to split on whitespace later
+  clean = clean.replace(/\(([^)]+)\)/g, (_, inner) => '(' + inner.trim().replace(/\s+/g, '_') + ')');
+
+  const tokens = clean.trim().split(/\s+/).filter(t => t.length > 0);
+  const events = [];
+  const defSteps = () => mmlrDurationToSteps(params.defaultDur, params.tempo);
+
+  for (const token of tokens) {
+    // Octave shifts — no octave dimension in aTambor, skip
+    if (token === 'O+' || token === 'O-') continue;
+
+    // Rest: R:DUR
+    if (/^R:/i.test(token)) {
+      const parts = token.split(':');
+      const steps = parts[1] ? mmlrDurationToSteps(parts[1], params.tempo) : defSteps();
+      events.push({ type: 'rest', semitones: [], steps, vel: 0 });
+      continue;
     }
-    return { name: name.toUpperCase(), semitones };
-  }).filter(c => c.semitones.length > 0);
 
-  if (chords.length === 0) {
-    alert('No se reconocieron acordes válidos.');
-    return;
+    // Chord group: (N_N_N):DUR:VEL[articulation]
+    if (token.startsWith('(')) {
+      const m = token.match(/^\(([^)]+)\)(?::([^:>.<\-]+))?(?::([^>.<\-]+))?([>.<\-]*)$/);
+      if (m) {
+        const semitones = [...new Set(m[1].split('_').map(n => {
+          const key = n.toUpperCase().replace(/\d/g, '');
+          return NOTE_TO_SEMITONE[key] !== undefined ? NOTE_TO_SEMITONE[key] % 12 : null;
+        }).filter(s => s !== null))];
+        const steps = m[2] ? mmlrDurationToSteps(m[2], params.tempo) : defSteps();
+        let vel     = m[3] ? (parseInt(m[3]) || params.defaultVel) : params.defaultVel;
+        const art   = m[4] || '';
+        if (art.includes('>')) vel = Math.min(127, vel + 20);
+        if (art.includes('<')) vel = Math.max(1,   vel - 20);
+        const adjSteps = art.includes('.') ? Math.max(1, Math.round(steps * 0.5)) : steps;
+        if (semitones.length > 0) events.push({ type: 'chord', semitones, steps: adjSteps, vel });
+      }
+      continue;
+    }
+
+    // Note / named chord: NOTE[:DUR[:VEL]][articulation]
+    const artM = token.match(/^(.+?)([>.<\-]*)$/);
+    const main  = artM[1], art = artM[2];
+    const parts = main.split(':');
+    const noteName = parts[0];
+    const durPart  = parts[1] || null;
+    const velPart  = parts[2] || null;
+
+    const chordParsed = parseChordName(noteName);
+    if (!chordParsed) continue;
+
+    let semitones = getChordSemitones(noteName);
+    if (semitones.length === 0) continue;
+
+    // Apply @HARMONIZE: single note → diatonic chord
+    if (params.harmonize && semitones.length === 1) {
+      semitones = harmonizeNote(semitones[0], params.harmonize.key, params.harmonize.scale);
+    }
+
+    let steps = durPart ? mmlrDurationToSteps(durPart, params.tempo) : defSteps();
+    let vel   = velPart ? (parseInt(velPart) || params.defaultVel) : params.defaultVel;
+
+    if (art.includes('>')) vel = Math.min(127, vel + 20);
+    if (art.includes('<')) vel = Math.max(1,   vel - 20);
+    if (art.includes('.')) steps = Math.max(1, Math.round(steps * 0.5));
+
+    events.push({ type: semitones.length === 1 ? 'note' : 'chord', semitones, steps, vel });
   }
 
-  // Cuadros que ocupa cada nota según duración (1 compás = 16 cuadros)
-  // 1/1=16, 1/2=8, 1/4=4, 1/8=2, 1/16=1
-  const stepsPerChord = { whole: 16, half: 8, quarter: 4, eighth: 2, sixteenth: 1 }[duration] || 4;
-  const totalSteps    = chords.length * stepsPerChord;
-  const totalMeasures = Math.ceil(totalSteps / 16);
+  return { events, params };
+}
 
-  // Crear 12 canales fijos (uno por semitono, motor 0-11 = C...B)
-  const fragmentChannels = DEFAULT_KEYS.map(key => ({
-    name: key.name,
-    motor: key.motor,
-    vel: 60,
-    homePwm: 375,
-    muted: false,
-    sustain: false,
-    steps: new Array(totalMeasures * 16).fill(0)
+// Convert parsed MML-R to a 12-channel Fragment
+function mmlrToFragment(parsed) {
+  const { events, params } = parsed;
+  const totalSteps    = events.reduce((a, e) => a + e.steps, 0);
+  const totalMeasures = Math.max(1, Math.ceil(totalSteps / 16));
+  const gridSize      = totalMeasures * 16;
+
+  const channels = DEFAULT_KEYS.map(key => ({
+    name: key.name, motor: key.motor, vel: 60, homePwm: 375,
+    muted: false, sustain: false, steps: new Array(gridSize).fill(0)
   }));
 
-  // Cada acorde suena UNA vez en su slot; el valor = duración en pasos
-  chords.forEach((chord, idx) => {
-    const startStep = idx * stepsPerChord;
-    chord.semitones.forEach(semitone => {
-      fragmentChannels[semitone].steps[startStep] = stepsPerChord;
+  let pos = 0;
+  for (const ev of events) {
+    if (ev.type !== 'rest' && pos < gridSize) {
+      ev.semitones.forEach(s => { channels[s % 12].steps[pos] = ev.steps; });
+    }
+    pos += ev.steps;
+  }
+
+  return { channels, totalMeasures, params };
+}
+
+// Preview for MML-R modal
+function updateMMLRPreview() {
+  const text    = document.getElementById('mmlrInputText').value;
+  const preview = document.getElementById('mmlrParsePreview');
+  if (!text.trim()) { preview.textContent = '(type MML-R to see preview)'; return; }
+
+  try {
+    const { events, params } = parseMMLR(text);
+    if (events.length === 0) { preview.textContent = 'No valid events recognized.'; return; }
+
+    const NM = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const totalSteps    = events.reduce((a, e) => a + e.steps, 0);
+    const totalMeasures = Math.max(1, Math.ceil(totalSteps / 16));
+
+    let out = `BPM: ${params.tempo}  |  Events: ${events.length}  |  ${totalMeasures} measure${totalMeasures !== 1 ? 's' : ''}`;
+    if (params.harmonize) out += `  |  🎼 ${params.harmonize.key} ${params.harmonize.scale}`;
+    out += '\n\n';
+
+    const MAX = 30;
+    events.slice(0, MAX).forEach((ev, i) => {
+      const label = ev.type === 'rest' ? '— rest' : ev.semitones.length === 1 ? '♩' : '🎵';
+      const notes = ev.semitones.map(s => NM[s % 12]).join('+');
+      out += `${i + 1}. ${label} [${notes || '—'}]  ${ev.steps}step${ev.steps !== 1 ? 's' : ''}\n`;
     });
-  });
+    if (events.length > MAX) out += `... (+${events.length - MAX} more)\n`;
+    out += `\nTotal: ${totalSteps} steps = ${totalMeasures} measure${totalMeasures !== 1 ? 's' : ''}`;
+    preview.textContent = out;
+  } catch(e) {
+    preview.textContent = 'Error: ' + e.message;
+  }
+}
 
-  // Nombre del fragment
-  const fragmentName = `Acordes: ${chords.map(c => c.name).join(' ')}`;
+// Add MML-R fragment to sequencer
+function addMMLRToSequencer() {
+  const text = document.getElementById('mmlrInputText').value;
+  if (!text.trim()) { alert('Type a MML-R sequence.'); return; }
 
-  // Agregar a songQueue
+  let parsed;
+  try { parsed = parseMMLR(text); }
+  catch(e) { alert('Parse error: ' + e.message); return; }
+
+  if (parsed.events.length === 0) { alert('No valid events recognized.'); return; }
+
+  const { channels, totalMeasures, params } = mmlrToFragment(parsed);
+  const NM = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const firstNotes = parsed.events
+    .filter(e => e.type !== 'rest').slice(0, 6)
+    .map(e => e.semitones.map(s => NM[s % 12]).join('+')).join(' ');
+
+  const fragmentName = `GS: ${firstNotes || 'Secuencia'}`;
+
   songQueue.push({
-    name: fragmentName,
-    channels: fragmentChannels,
-    bpm: bpm,
-    hitDur: hitDur,
-    retractDur: retractDur,
-    numMeasures: totalMeasures,
-    repeats: 1
+    name: fragmentName, channels,
+    bpm: params.tempo || bpm, hitDur, retractDur,
+    numMeasures: totalMeasures, repeats: 1
   });
 
   renderSongQueue();
-  setStatus(`✓ Fragment: "${fragmentName}" — ${chords.length} acordes, ${totalMeasures} compases`);
-
-  closeConverterModal();
-
-  const tabCancion = document.querySelector('[data-tab="tab-cancion"]');
-  if (tabCancion) tabCancion.click();
+  setStatus(`✓ Fragment: "${fragmentName}" — ${parsed.events.length} events, ${totalMeasures} measures`);
+  closeMMLRModal();
+  const tab = document.querySelector('[data-tab="tab-cancion"]');
+  if (tab) tab.click();
 }
 
 // ============================================================
-// POPUP — CONVERSOR DE ACORDES → SECUENCIA
+// POPUP — GrooveScript (MML-R) EDITOR
 // ============================================================
 
-function closeConverterModal() {
-  const m = document.getElementById('converterModal'); if (m) m.remove();
+function closeMMLRModal() {
+  const m = document.getElementById('mmlrModal'); if (m) m.remove();
 }
 
 function openChordConverterModal() {
-  closeConverterModal();
+  closeMMLRModal();
 
   const ov = document.createElement('div');
-  ov.id = 'converterModal';
+  ov.id = 'mmlrModal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:16px;';
-  ov.onclick = e => { if (e.target === ov) closeConverterModal(); };
+  ov.onclick = e => { if (e.target === ov) closeMMLRModal(); };
 
   const box = _mkModalBox();
-  box.style.width = 'min(540px,100%)';
+  box.style.width = 'min(600px,100%)';
 
   // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
-  hdr.innerHTML = `
-    <span style="color:#3498db;font-weight:bold;font-size:13px;letter-spacing:2px">🎹 CONVERTIR ACORDES → FRAGMENT</span>
-    <button onclick="closeConverterModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
+  hdr.innerHTML = `<span style="color:#3498db;font-weight:bold;font-size:13px;letter-spacing:2px">🎵 GROOVESCRIPT → FRAGMENT</span>
+    <button onclick="closeMMLRModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
   box.appendChild(hdr);
 
-  // Selector de duración
-  const durRow = document.createElement('div');
-  durRow.style.cssText = 'display:flex;align-items:center;gap:10px';
-  durRow.innerHTML = `
-    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;flex-shrink:0">Duración por acorde</label>
-    <select id="chordDuration" style="background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:'Courier New',monospace;cursor:pointer;">
-      <option value="whole">  1/1  — Redonda    (16 cuadros)</option>
-      <option value="half">   1/2  — Blanca     (8 cuadros)</option>
-      <option value="quarter" selected>1/4  — Negra      (4 cuadros)</option>
-      <option value="eighth"> 1/8  — Corchea    (2 cuadros)</option>
-      <option value="sixteenth">1/16 — Semicorchea (1 cuadro)</option>
-    </select>`;
-  box.appendChild(durRow);
-
-  // Sección de armonización
-  const harmBox = document.createElement('div');
-  harmBox.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px;';
-
-  const harmToggle = document.createElement('label');
-  harmToggle.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:#aaa;';
-  harmToggle.innerHTML = `
-    <input type="checkbox" id="chkHarmonize" style="accent-color:#27ae60;width:14px;height:14px;cursor:pointer;">
-    <span>🎼 Armonizar notas con escala <span style="color:#666;font-size:10px">(convierte cada nota en su acorde diatónico)</span></span>`;
-  harmBox.appendChild(harmToggle);
-
-  const selStyle = 'background:#111;color:#ddd;border:1px solid #27ae60;border-radius:4px;padding:4px 7px;font-size:11px;font-family:"Courier New",monospace;cursor:pointer;';
-  const harmSelects = document.createElement('div');
-  harmSelects.id = 'harmSelects';
-  harmSelects.style.cssText = 'display:none;gap:10px;flex-wrap:wrap;align-items:center;';
-  harmSelects.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:3px">
-      <label style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:1px">Tonalidad</label>
-      <select id="convKey" style="${selStyle}width:70px">
-        ${['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'].map(n=>`<option value="${n}">${n}</option>`).join('')}
-      </select>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:3px">
-      <label style="font-size:9px;color:#666;text-transform:uppercase;letter-spacing:1px">Escala</label>
-      <select id="convScale" style="${selStyle}width:160px">
-        ${['Mayor','Menor Natural','Menor Armónica','Menor Melódica','Dórica','Frigia','Lidia','Mixolidia','Pentatónica Mayor','Pentatónica Menor','Blues'].map(s=>`<option value="${s}">${s}</option>`).join('')}
-      </select>
-    </div>`;
-  harmBox.appendChild(harmSelects);
-  box.appendChild(harmBox);
-
-  // Mostrar/ocultar selects al marcar el checkbox
-  document.createElement('script'); // dummy - la lógica va en el evento
-  harmToggle.querySelector('#chkHarmonize').addEventListener('change', e => {
-    harmSelects.style.display = e.target.checked ? 'flex' : 'none';
-    updateChordPreview();
+  // Template quick-load buttons
+  const tmplRow = document.createElement('div');
+  tmplRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+  [
+    ['Melody',      '@TEMPO=120\n@DEFAULT_DUR=1/4\n\nE E F G G F E D C C D E E:1/2 D:1/2'],
+    ['Chords',      '@TEMPO=120\n@DEFAULT_DUR=1/4\n\nCmaj:1/4 Am:1/4 Fmaj:1/4 G7:1/4'],
+    ['Harmonizing', '@TEMPO=120\n@DEFAULT_DUR=1/4\n@HARMONIZE=C:Mayor\n\nE F G D C C D E'],
+    ['Groove',      '@TEMPO=120\n@DEFAULT_DUR=1/8\n\n[ C:1/16 R:1/16 C:1/8 R:1/8 ]x4'],
+  ].forEach(([label, tmpl]) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = 'background:#0d0d22;color:#3498db;border:1px solid #3498db;border-radius:4px;padding:3px 10px;font-size:10px;cursor:pointer;font-family:"Courier New",monospace;';
+    btn.onclick = () => { document.getElementById('mmlrInputText').value = tmpl; updateMMLRPreview(); };
+    tmplRow.appendChild(btn);
   });
-  harmSelects.querySelectorAll('select').forEach(s => s.addEventListener('change', updateChordPreview));
+  box.appendChild(tmplRow);
 
-  // Label + textarea
-  const lbl = document.createElement('div');
-  lbl.style.cssText = 'font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px';
-  lbl.textContent = 'Notas o acordes (ej: E4 E4 F4 G4 ó Am G C F)';
-  box.appendChild(lbl);
+  // Syntax hint bar
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:9px;color:#556;line-height:1.6;background:#0a0a18;border:1px solid #223;border-radius:4px;padding:8px;font-family:"Courier New",monospace;';
+  hint.innerHTML = '<b style="color:#3498db">@TEMPO</b>=120  <b style="color:#27ae60">@DEFAULT_DUR</b>=1/4  <b style="color:#e67e22">@HARMONIZE</b>=C:Mayor<br>'
+    + '<span style="color:#aaa">C4:1/4  E:1/8  R:1/4  Em:1/2  (E4 G4 B4):1/4  [C D E F]x4  O+  O-</span>';
+  box.appendChild(hint);
 
+  // Textarea
   const ta = document.createElement('textarea');
-  ta.id = 'chordInputText';
-  ta.placeholder = 'Notas con octava: E4 F4 G4 D4  → notas individuales\nNombres de acorde: Am G C F   → triadas\nCon armonización: E4 F4 G4   → acorde diatónico automático';
-  ta.style.cssText = 'width:100%;min-height:70px;background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:8px;font-size:12px;font-family:"Courier New",monospace;resize:vertical;';
-  ta.oninput = updateChordPreview;
+  ta.id = 'mmlrInputText';
+  ta.placeholder = '@TEMPO=120\n@DEFAULT_DUR=1/4\n\nE E F G G F E D C C D E';
+  ta.style.cssText = 'width:100%;min-height:100px;background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:8px;font-size:12px;font-family:"Courier New",monospace;resize:vertical;box-sizing:border-box;';
+  ta.oninput = updateMMLRPreview;
   box.appendChild(ta);
 
-  // Preview
+  // Preview panel
   const prev = document.createElement('div');
-  prev.id = 'chordParsePreview';
-  prev.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;font-size:11px;color:#aaa;line-height:1.7;min-height:50px;white-space:pre-wrap;word-wrap:break-word;';
-  prev.textContent = '(escribe acordes para ver preview)';
+  prev.id = 'mmlrParsePreview';
+  prev.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;font-size:11px;color:#aaa;line-height:1.7;min-height:60px;white-space:pre-wrap;word-wrap:break-word;max-height:180px;overflow-y:auto;';
+  prev.textContent = '(type MML-R to see preview)';
   box.appendChild(prev);
 
   // Footer
   const footer = _mkModalFooter();
-  footer.appendChild(_mkModalBtn('👁 Preview',            '#3498db', updateChordPreview));
-  footer.appendChild(_mkModalBtn('➕ Agregar Fragment',   '#27ae60', addChordsToSequencer));
-  footer.appendChild(_mkModalBtn('✕ Cerrar',             '#666',    closeConverterModal));
+  footer.appendChild(_mkModalBtn('➕ Add Fragment', '#27ae60', addMMLRToSequencer));
+  footer.appendChild(_mkModalBtn('✕ Close',        '#666',    closeMMLRModal));
   box.appendChild(footer);
 
   ov.appendChild(box);
   document.body.appendChild(ov);
-
-  document.getElementById('chordDuration').onchange = updateChordPreview;
-  updateChordPreview();
+  updateMMLRPreview();
 }
 
 // ---- Enlazar botones al cargar el DOM ----------------------

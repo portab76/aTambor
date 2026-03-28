@@ -901,7 +901,7 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
       <div class="ctrl-group">
 
-        <input type="checkbox" id="audioToggle" title="Enable virtual piano audio" style="width:18px;height:18px;cursor:pointer;accent-color:#3498db;" checked>
+        <input type="checkbox" id="audioToggle" title="Enable virtual piano audio" style="width:18px;height:18px;cursor:pointer;accent-color:#3498db;">
 
         <label>Virtual Piano 🎹</label>
 
@@ -979,7 +979,18 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
   <button class="btn" id="btnSnap" title="Merge consecutive 1/16 notes to the nearest standard value">⚡ Merge</button>
 
-  <button class="btn" id="btnSave" title="Save rhythm as JSON">💾 Save Measures</button>
+  <div class="ctrl-dropdown" id="saveDropdown">
+
+    <button class="btn ctrl-dropdown-toggle" id="saveDropdownBtn">💾 Save Measures ▾</button>
+
+    <div class="ctrl-dropdown-panel" id="saveDropdownPanel" style="min-width:160px;gap:4px;">
+
+      <button class="btn" id="btnSave"          style="text-align:left">📄 Save JSON</button>
+      <button class="btn" id="btnSaveGroove"    style="text-align:left">🎵 Save GrooveScript</button>
+
+    </div>
+
+  </div>
 
   <div class="ctrl-dropdown" id="loadDropdown">
 
@@ -989,8 +1000,8 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
       <button class="btn" id="btnMidi"          style="text-align:left">🎹 From MIDI</button>
       <button class="btn" id="btnLoad"          style="text-align:left">📄 From JSON</button>
-      <button class="btn" id="btnOpenAcordes"   style="text-align:left">🎼 Acordes</button>
-      <button class="btn" id="btnOpenConverter" style="text-align:left">🎹 Convertir Acordes</button>
+      <button class="btn" id="btnOpenAcordes"   style="text-align:left">🎼 Chords</button>
+      <button class="btn" id="btnOpenConverter" style="text-align:left">🎵 GrooveScript</button>
 
     </div>
 
