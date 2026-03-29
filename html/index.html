@@ -481,9 +481,9 @@ input[type="range"] { width: 100px; accent-color: #a04020; cursor: pointer; }
 
 .step-btn {
 
-  width: 34px;
+  width: 26px;
 
-  height: 34px;
+  height: 26px;
 
   border-radius: 5px;
 
@@ -986,7 +986,7 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
     <div class="ctrl-dropdown-panel" id="saveDropdownPanel" style="min-width:160px;gap:4px;">
 
       <button class="btn" id="btnSave"          style="text-align:left">📄 Save JSON</button>
-      <button class="btn" id="btnSaveGroove"    style="text-align:left">🎵 Save GrooveScript</button>
+      <button class="btn" id="btnSaveGroove"    style="text-align:left">🎵 Save MMLR</button>
 
     </div>
 
@@ -1000,8 +1000,8 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
       <button class="btn" id="btnMidi"          style="text-align:left">🎹 From MIDI</button>
       <button class="btn" id="btnLoad"          style="text-align:left">📄 From JSON</button>
+      <button class="btn" id="btnOpenConverter" style="text-align:left">🎵 From MMLR</button>
       <button class="btn" id="btnOpenAcordes"   style="text-align:left">🎼 Chords</button>
-      <button class="btn" id="btnOpenConverter" style="text-align:left">🎵 GrooveScript</button>
 
     </div>
 
@@ -1010,6 +1010,7 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
   <button class="btn btn-play" id="btnPlay">▶ PLAY</button>
   <button class="btn btn-pause" id="btnPause" disabled>⏸ PAUSE</button>
   <button class="btn btn-stop"  id="btnStop" >■ STOP</button>
+  <button class="btn" id="btnStaffToggle" onclick="toggleStaffView()" title="Switch to staff notation view">🎼 Score</button>
 
 </div>
 
@@ -1057,6 +1058,20 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
       </table>
 
+    </div>
+
+    <div id="staffView" style="display:none;padding:8px 0;overflow-x:auto">
+      <div id="staffToolbar"></div>
+      <div style="font-size:11px;color:#888;margin-bottom:4px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:4px">
+          <span style="display:inline-block;width:8px;height:8px;background:#27ae60;border-radius:50%"></span> Active
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:4px">
+          <span style="display:inline-block;width:8px;height:8px;background:#888888;border-radius:50%"></span> Muted
+        </span>
+        <button class="btn" onclick="renderStaff()" style="font-size:10px;padding:2px 8px">↺ Refresh</button>
+      </div>
+      <div id="staffSvg" style="cursor:crosshair"></div>
     </div>
 
   </div>
@@ -1121,6 +1136,7 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
 
 
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
 <script src="./script.js"></script>

@@ -9,18 +9,22 @@
 let ESP32_IP   = '192.168.1.128'; // ← IP real del ESP32 en tu red (configurable desde Settings)
 const MAX_CH     = 20;
 const DEFAULT_KEYS = [
-  { name: 'C',        motor: 0  },
+  { name: 'C1',        motor: 0  },
   { name: 'C#',       motor: 1  },
-  { name: 'D',        motor: 2  },
-  { name: 'D# / Eb', motor: 3  },
-  { name: 'E',        motor: 4  },
-  { name: 'F',        motor: 5  },
-  { name: 'F# / Gb', motor: 6  },
-  { name: 'G',        motor: 7  },
-  { name: 'G# / Ab', motor: 8  },
-  { name: 'A',        motor: 9  },
-  { name: 'A# / Bb', motor: 10 },
-  { name: 'B',        motor: 11 },
+  { name: 'D1',        motor: 2  },
+  { name: 'D#1 / Eb1', motor: 3  },
+  { name: 'E1',        motor: 4  },
+  { name: 'F1',        motor: 5  },
+  { name: 'F#1 / Gb1', motor: 6  },
+  { name: 'G1',        motor: 7  },
+  { name: 'G#1 / Ab1', motor: 8  },
+  { name: 'A1',        motor: 9  },
+  { name: 'A#1 / Bb1', motor: 10 },
+  { name: 'B1',        motor: 11 },
+  { name: 'C2',       motor: 12 },
+  { name: 'D2',       motor: 13 },
+  { name: 'E2',       motor: 14 },
+  { name: 'G2',       motor: 15 },
 ];
 let numMeasures  = 1;
 let numSteps     = 16;  // numMeasures * 16
@@ -187,7 +191,16 @@ const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 
 
 // ---- Canal vacío --------------------------------------------
 function emptyChannel(index) {
-  return { name: `Drum ${index + 1}`, motor: index, vel: 60, homePwm: 375, muted: false, sustain: false, steps: new Array(numSteps).fill(0) };
+  return { name: `Drum ${index + 1}`, motor: index, vel: 60, homePwm: 375, muted: false, sustain: false, steps: new Array(numSteps).fill(0), notation: { dynamics: {}, articulations: {} } };
+}
+function _chNotation(ch) {
+  if (!ch.notation)                    ch.notation = {};
+  ch.notation.dynamics      = ch.notation.dynamics      || {};
+  ch.notation.articulations = ch.notation.articulations || {};
+  ch.notation.ties          = ch.notation.ties          || [];
+  ch.notation.durOverride   = ch.notation.durOverride   || {};
+  ch.notation.tuplets       = ch.notation.tuplets       || [];
+  return ch.notation;
 }
 
 // Redimensiona todos los canales repitiendo/truncando el patrón actual
@@ -2749,6 +2762,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { sym: '𝅝',  label: '1',    steps: 16 },
       { sym: '⇒', label: '1/16→1/8', steps: null, action: () => convert16to8() },
       { sym: '◈', label: 'Únicos',   steps: null, action: () => deduplicateMeasures() },
+      { sym: '🎵', label: 'Notes→Chords', steps: null, action: () => openHarmonizeGridModal() },
     ];
 
     const picker = document.createElement('div');
@@ -3491,17 +3505,25 @@ function showMidiStep2Instrument(md, selChs) {
 }
 
 // ============================================================
-// PASO 3A — Asignación cromática automática (12 notas = 12 motores)
+// PASO 3A — Asignación cromática automática (DEFAULT_KEYS motores)
 // ============================================================
 function showMidiAutoTranspose(md, selChs) {
   closeMidiModal();
 
-  const REPR = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71];
+  // Build REPR (one MIDI note per motor) from DEFAULT_KEYS
+  const REPR = DEFAULT_KEYS.map(key => {
+    const noteName = key.name.replace(/[\s\/].*$/, '').replace(/\d/g, '');
+    const semitone = NOTE_TO_SEMITONE[noteName] ?? (key.motor % 12);
+    const octave   = parseInt(key.name.match(/(\d)/)?.[1] ?? '4');
+    return (octave + 1) * 12 + semitone;
+  });
 
   function buildEvents() {
     return md.events.map(e => {
       if (!selChs.includes(e.ch)) return e;
-      const motor = e.note % 12;
+      // Prefer exact octave match, fall back to semitone (motor 0-11)
+      const exactIdx = REPR.indexOf(e.note);
+      const motor    = exactIdx >= 0 ? exactIdx : e.note % 12;
       return { ...e, note: REPR[motor] };
     });
   }
@@ -3514,12 +3536,10 @@ function showMidiAutoTranspose(md, selChs) {
   const resDiv = document.createElement('div');
   resDiv.style.cssText = 'background:#0d0d22;border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.9';
   resDiv.innerHTML =
-    `<div style="color:#ff8800;font-weight:bold;margin-bottom:4px">Scale: <span style="color:#fff">C · C# · D · D# · E · F · F# · G · G# · A · A# · B</span></div>` +
-    `<div style="color:#888">Each MIDI note is assigned to its chromatic motor (note % 12).</div>` +
-    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrument${selChs.length>1?'s':''} · motors 0–11</div>`;
+    `<div style="color:#888">Each MIDI note is assigned to its chromatic motor (note % 12). Higher-octave motors take priority.</div>` +
+    `<div style="color:#2ecc71;margin-top:4px">✔ ${selChs.length} instrument${selChs.length>1?'s':''} · motors 0–${DEFAULT_KEYS.length - 1}</div>`;
   box.appendChild(resDiv);
 
-  // Tabla con checkboxes
   const tblWrap = document.createElement('div');
   tblWrap.style.cssText = 'border:1px solid #2a2a44;border-radius:8px;overflow:hidden;max-height:320px;overflow-y:auto';
   const tbl = document.createElement('table');
@@ -3528,20 +3548,24 @@ function showMidiAutoTranspose(md, selChs) {
     <thead style="color:#445;font-size:10px;text-transform:uppercase;letter-spacing:1px;background:#0d0d22;position:sticky;top:0">
       <tr>
         <th style="text-align:center;padding:4px 8px">Motor</th>
-        <th style="text-align:left;padding:4px 10px">Nota</th>
+        <th style="text-align:left;padding:4px 10px">Note</th>
+        <th style="text-align:center;padding:4px 8px">MIDI</th>
       </tr>
     </thead><tbody></tbody>`;
 
   const tbody = tbl.querySelector('tbody');
-  for (let motor = 0; motor < 12; motor++) {
-    const isSharp = [1,3,6,8,10].includes(motor);
+  DEFAULT_KEYS.forEach((key, motor) => {
+    const isHighOctave = motor >= 12;
+    const isSharp      = [1,3,6,8,10].includes(motor % 12);
     const tr = document.createElement('tr');
-    tr.style.cssText = 'border-top:1px solid #1e1e36' + (isSharp ? ';background:#0a0a1e' : '');
+    tr.style.cssText = 'border-top:1px solid ' + (isHighOctave ? '2px solid #3498db' : '1px solid #1e1e36') +
+      (isSharp && !isHighOctave ? ';background:#0a0a1e' : '');
     tr.innerHTML = `
       <td style="padding:5px 8px;text-align:center;font-weight:bold;color:#fff">${motor}</td>
-      <td style="padding:5px 10px;color:${isSharp?'#ff8800':'#2ecc71'};font-weight:bold;font-size:13px">${_MOTOR_NOTE_NAME[motor]}</td>`;
+      <td style="padding:5px 10px;color:${isHighOctave?'#3498db':isSharp?'#ff8800':'#2ecc71'};font-weight:bold;font-size:13px">${key.name}</td>
+      <td style="padding:5px 8px;text-align:center;color:#556;font-size:11px">${REPR[motor]}</td>`;
     tbody.appendChild(tr);
-  }
+  });
   tblWrap.appendChild(tbl);
   box.appendChild(tblWrap);
 
@@ -3669,8 +3693,8 @@ function showMidiManualAssign(md, selChs) {
     const initVal = initialMap[key];
     const isSharp = [1,3,6,8,10].includes(note % 12);
     const noteCol = isSharp ? '#ff8800' : '#2ecc71';
-    const opts = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-      .map(m => `<option value="${m}" ${initVal===m?'selected':''}>${m===-1?'—':m}</option>`)
+    const opts = [-1, ...DEFAULT_KEYS.map((_, i) => i)]
+      .map(m => `<option value="${m}" ${initVal===m?'selected':''}>${m===-1?'—':m+' '+DEFAULT_KEYS[m].name}</option>`)
       .join('');
     const tr = document.createElement('tr');
     tr.style.borderTop = '1px solid #1e1e36';
@@ -3679,7 +3703,7 @@ function showMidiManualAssign(md, selChs) {
       <td style="padding:5px 6px;color:${noteCol};font-weight:bold">${noteDisplayName(ch, note)}</td>
       <td style="padding:5px 6px;text-align:center;color:#666">${hits}</td>
       <td style="padding:5px 10px;text-align:center">
-        <select id="midiM_${key}" style="background:#1a1a44;color:#ddd;border:1px solid #334;border-radius:4px;padding:2px 4px;font-family:inherit;font-size:12px;width:54px">${opts}</select>
+        <select id="midiM_${key}" style="background:#1a1a44;color:#ddd;border:1px solid #334;border-radius:4px;padding:2px 4px;font-family:inherit;font-size:12px;width:72px">${opts}</select>
       </td>`;
     tbl.appendChild(tr);
   });
@@ -3778,6 +3802,102 @@ function openAcordesModal() {
   document.getElementById('chordKey').onchange   = updateScaleDescription;
   document.getElementById('chordScale').onchange = updateScaleDescription;
   updateScaleDescription();
+}
+
+// ============================================================
+// NOTES → CHORDS (harmonize current grid)
+// ============================================================
+
+function applyHarmonizeToGrid(key, scale) {
+  const gridSize = channels[0]?.steps.length || numSteps;
+  let count = 0;
+
+  for (let step = 0; step < gridSize; step++) {
+    // Collect hits at this step position (snapshot before modifying)
+    const hits = [];
+    for (let ch = 0; ch < 12; ch++) {
+      if (channels[ch] && channels[ch].steps[step] > 0) {
+        hits.push({ ch, val: channels[ch].steps[step] });
+      }
+    }
+
+    // Expand each hit to its diatonic triad
+    for (const hit of hits) {
+      const chordSemitones = harmonizeNote(hit.ch, key, scale);
+      for (const s of chordSemitones) {
+        if (s !== hit.ch && channels[s] && channels[s].steps[step] === 0) {
+          channels[s].steps[step] = hit.val; // same duration as original note
+          count++;
+        }
+      }
+    }
+  }
+
+  render();
+  setStatus(`✓ Notes → Chords: ${count} note${count !== 1 ? 's' : ''} added`);
+  closeHarmonizeGridModal();
+}
+
+function closeHarmonizeGridModal() {
+  const m = document.getElementById('harmonizeGridModal'); if (m) m.remove();
+}
+
+function openHarmonizeGridModal() {
+  closeHarmonizeGridModal();
+
+  const ov = document.createElement('div');
+  ov.id = 'harmonizeGridModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:16px;';
+  ov.onclick = e => { if (e.target === ov) closeHarmonizeGridModal(); };
+
+  const box = _mkModalBox();
+  box.style.width = 'min(420px,100%)';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+  hdr.innerHTML = `<span style="color:#3498db;font-weight:bold;font-size:13px;letter-spacing:2px">🎵 NOTES → CHORDS</span>
+    <button onclick="closeHarmonizeGridModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
+  box.appendChild(hdr);
+
+  // Info
+  const info = document.createElement('div');
+  info.style.cssText = 'font-size:11px;color:#888;line-height:1.7;background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;';
+  info.textContent = 'Expands each note in the grid to its diatonic 3-note chord. Chord duration matches the original note.';
+  box.appendChild(info);
+
+  // Key + Scale selectors
+  const selStyle = 'background:#0d0d22;color:#ddd;border:1px solid #3498db;border-radius:4px;padding:5px 8px;font-size:12px;font-family:"Courier New",monospace;cursor:pointer;';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end';
+  row.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Key</label>
+      <select id="hgKey" style="${selStyle}width:75px">
+        ${['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'].map(n=>`<option value="${n}">${n}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Scale</label>
+      <select id="hgScale" style="${selStyle}width:170px">
+        ${['Mayor','Menor Natural','Menor Armónica','Menor Melódica','Dórica','Frigia','Lidia','Mixolidia','Pentatónica Mayor','Pentatónica Menor','Blues'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>`;
+  box.appendChild(row);
+
+  // Footer
+  const footer = _mkModalFooter();
+  footer.appendChild(_mkModalBtn('🎵 Apply', '#27ae60', () => {
+    applyHarmonizeToGrid(
+      document.getElementById('hgKey').value,
+      document.getElementById('hgScale').value
+    );
+  }));
+  footer.appendChild(_mkModalBtn('✕ Cancel', '#666', closeHarmonizeGridModal));
+  box.appendChild(footer);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
 }
 
 // ============================================================
@@ -4182,6 +4302,479 @@ function openChordConverterModal() {
   ov.appendChild(box);
   document.body.appendChild(ov);
   updateMMLRPreview();
+}
+
+// ============================================================
+// STAFF VIEW — VexFlow Phase 4 (full scope)
+// ============================================================
+let staffViewActive          = false;
+let staffEditMode            = 'add';   // 'add'|'delete'|'tie'|'tuplet'|'repeat-start'|'repeat-end'
+let staffSelectedDur         = 4;       // steps: 16,8,4,2,1,-1(32nd),-2(64th)
+let staffSelectedCh          = 0;       // channel index
+let staffSelectedDynamic     = '';      // ''|'ppp'|'pp'|'p'|'mp'|'mf'|'f'|'ff'|'fff'|'sfz'
+let staffSelectedArticulation= '';      // ''|'staccato'|'tenuto'|'accent'|'marcato'|'fermata'
+let staffTupletCount         = 3;       // 3 = triplet, 6 = sextuplet
+let staffTiePending          = null;    // {ci, absStep} — first note of pending tie
+let measureNotation          = {};      // {mi: {repeatStart, repeatEnd}}
+let _staveLayout             = [];      // [{mi,x,y,w,h,noteX,noteW}]
+let staffZoom                = 32;      // px per occupied step (controls stave width)
+
+// VexFlow key + accidental per motor index (0-15)
+const MOTOR_VEX = [
+  { key: 'c/4',  acc: null },  // 0  C1
+  { key: 'c#/4', acc: '#'  },  // 1  C#
+  { key: 'd/4',  acc: null },  // 2  D1
+  { key: 'd#/4', acc: '#'  },  // 3  D#1
+  { key: 'e/4',  acc: null },  // 4  E1
+  { key: 'f/4',  acc: null },  // 5  F1
+  { key: 'f#/4', acc: '#'  },  // 6  F#1
+  { key: 'g/4',  acc: null },  // 7  G1
+  { key: 'g#/4', acc: '#'  },  // 8  G#1
+  { key: 'a/4',  acc: null },  // 9  A1
+  { key: 'a#/4', acc: '#'  },  // 10 A#1
+  { key: 'b/4',  acc: null },  // 11 B1
+  { key: 'c/5',  acc: null },  // 12 C2
+  { key: 'd/5',  acc: null },  // 13 D2
+  { key: 'e/5',  acc: null },  // 14 E2
+  { key: 'g/5',  acc: null },  // 15 G2
+];
+
+const _STEPS_TO_DUR = [[16,'w'],[8,'h'],[4,'q'],[2,'8'],[1,'16']];
+
+function _stepsToVexDur(n) {
+  return (_STEPS_TO_DUR.find(([s]) => s <= n) || [1,'16'])[1];
+}
+
+// Fill a gap of `steps` steps with rest notes
+function _addRests(out, steps, VF) {
+  let rem = steps;
+  while (rem > 0) {
+    const [s, d] = _STEPS_TO_DUR.find(([s]) => s <= rem) || [1,'16'];
+    out.push(new VF.StaveNote({ keys: ['b/4'], duration: d + 'r' }));
+    rem -= s;
+  }
+}
+
+// Build VexFlow notes for one measure — returns {notes, noteReg, tupletGroups}
+function _buildMeasureNotes(mi, VF) {
+  const offset = mi * 16;
+  const byStep = {};
+
+  channels.forEach((ch, ci) => {
+    if (ci >= MOTOR_VEX.length) return;
+    for (let s = 0; s < 16; s++) {
+      const dur = ch.steps[offset + s] || 0;
+      if (dur > 0) {
+        if (!byStep[s]) byStep[s] = [];
+        const n = ch.notation || {};
+        byStep[s].push({
+          ci, dur, muted: !!ch.muted,
+          dynamic:     (n.dynamics     || {})[offset + s] || '',
+          articulation:(n.articulations|| {})[offset + s] || '',
+          durOverride: (n.durOverride  || {})[offset + s] || ''
+        });
+      }
+    }
+  });
+
+  const notes       = [];
+  const noteReg     = {};  // `${ci}_${absStep}` → VF note
+  const stepToNote  = {};  // local step → VF note (for tuplet lookup)
+  let pos = 0;
+
+  Object.keys(byStep).map(Number).sort((a, b) => a - b).forEach(step => {
+    if (step > pos) _addRests(notes, step - pos, VF);
+
+    const evs    = byStep[step].sort((a, b) => a.ci - b.ci);
+    const keys   = evs.map(e => MOTOR_VEX[e.ci].key);
+    const maxDur = Math.max(...evs.map(e => e.dur));
+    const vexDur = evs[0].durOverride || _stepsToVexDur(maxDur);
+    const note   = new VF.StaveNote({ keys, duration: vexDur, clef: 'treble' });
+
+    evs.forEach((e, ki) => {
+      const vex   = MOTOR_VEX[e.ci];
+      const color = e.muted ? '#999999' : '#27ae60';
+      if (vex.acc) note.addModifier(new VF.Accidental(vex.acc), ki);
+      note.setKeyStyle(ki, { fillStyle: color, strokeStyle: color });
+    });
+    note.setStemStyle({ fillStyle: '#555', strokeStyle: '#555' });
+
+    const dynVal = evs.find(e => e.dynamic)?.dynamic;
+    if (dynVal) {
+      const ann = new VF.Annotation(dynVal);
+      ann.setFont('Times New Roman', 11, 'bold italic');
+      ann.setVerticalJustification(3);
+      note.addModifier(ann);
+    }
+    const artVal = evs.find(e => e.articulation)?.articulation;
+    if (artVal) {
+      const artMap = { staccato:'a.', tenuto:'a-', accent:'a>', marcato:'a^', fermata:'a@a' };
+      const code = artMap[artVal];
+      if (code) note.addModifier(new VF.Articulation(code));
+    }
+
+    notes.push(note);
+    evs.forEach(e => { noteReg[`${e.ci}_${offset + step}`] = note; });
+    stepToNote[step] = note;
+    pos = step + maxDur;
+  });
+
+  if (pos < 16) _addRests(notes, 16 - pos, VF);
+
+  // Detect tuplet groups for this measure
+  const tupletGroups = [];
+  channels.forEach((ch, ci) => {
+    if (ci >= MOTOR_VEX.length) return;
+    (ch.notation?.tuplets || []).forEach(tup => {
+      const localStart = tup.start - offset;
+      if (localStart < 0 || localStart >= 16) return;
+      const relevant = Object.keys(byStep).map(Number)
+        .filter(s => s >= localStart && byStep[s].some(e => e.ci === ci))
+        .sort((a, b) => a - b).slice(0, tup.count);
+      const tupNotes = relevant.map(s => stepToNote[s]).filter(Boolean);
+      if (tupNotes.length >= 2) tupletGroups.push({ notes: tupNotes, count: tup.count });
+    });
+  });
+
+  return { notes, noteReg, tupletGroups };
+}
+
+// ---- Toolbar ------------------------------------------------
+function _buildStaffToolbar() {
+  const tb = document.getElementById('staffToolbar');
+  if (!tb) return;
+  const durs = [
+    { steps:16, sym:'𝅝',   label:'Whole'     },
+    { steps: 8, sym:'𝅗𝅥',   label:'Half'      },
+    { steps: 4, sym:'♩',   label:'Quarter'   },
+    { steps: 2, sym:'♪',   label:'Eighth'    },
+    { steps: 1, sym:'♬',   label:'Sixteenth' },
+    { steps:-1, sym:'𝅘𝅥𝅯',  label:'32nd (fusa)'    },
+    { steps:-2, sym:'𝅘𝅥𝅱',  label:'64th (semifusa)' },
+  ];
+  // Helper: btn with .btn class + optional active-color override
+  const btn = (onclick, label, title, selColor, isSelected, extraStyle='') => {
+    const activeStyle = isSelected ? `background:${selColor};color:#fff;border-color:${selColor};` : '';
+    return `<button class="btn" onclick="${onclick}" title="${title||label}" style="font-size:11px;padding:3px 8px;letter-spacing:0;${activeStyle}${extraStyle}">${label}</button>`;
+  };
+  const sep = `<span style="color:#b09070;margin:0 2px;font-size:13px">│</span>`;
+  const lbl = (t) => `<span style="font-size:10px;color:#7a5a40;margin-right:1px;letter-spacing:0.5px;text-transform:uppercase">${t}</span>`;
+
+  let h = `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:6px 4px 4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:6px">`;
+
+  // Group 1: Mode
+  h += lbl('Mode');
+  h += btn("setStaffMode('add')",    '✏ Add',     'Add note',   '#3a7850', staffEditMode==='add');
+  h += btn("setStaffMode('delete')", '🗑 Del',    'Delete',     '#a03828', staffEditMode==='delete');
+  h += btn("setStaffMode('tie')",    '~ Tie',     'Tie notes',  '#3a6a9a', staffEditMode==='tie');
+  h += sep;
+
+  // Group 2: Duration
+  h += lbl('Duration');
+  durs.forEach(d => {
+    h += btn(`setStaffDur(${d.steps})`, d.sym, d.label, '#3a6a9a', staffSelectedDur===d.steps, 'font-size:14px;padding:2px 6px;');
+  });
+  h += sep;
+
+  // Group 3: Note (channel selector)
+  h += lbl('Note');
+  DEFAULT_KEYS.forEach((k, i) => {
+    const sharp = k.name.includes('#');
+    const label = k.name.replace(/\d.*/,'');
+    const baseStyle = sharp ? 'color:#8b5e00;' : '';
+    h += btn(`setStaffCh(${i})`, label, k.name, '#8e44ad', staffSelectedCh===i, `font-size:10px;padding:2px 4px;min-width:24px;${baseStyle}`);
+  });
+  h += `</div>`;
+
+  // Row 2: Dynamics + Articulations
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:4px">`;
+  h += lbl('Dynamics');
+  ['ppp','pp','p','mp','mf','f','ff','fff','sfz'].forEach(d => {
+    h += btn(`setStaffDyn('${d}')`, d, d, '#a03828', staffSelectedDynamic===d, 'font-style:italic;min-width:26px;');
+  });
+  h += btn("setStaffDyn('')", '✕', 'Clear dynamic', '', false, 'color:#999;padding:3px 6px;');
+  h += sep;
+  h += lbl('Articulation');
+  [['staccato','·','Staccato'],['tenuto','—','Tenuto'],['accent','>','Accent'],['marcato','^','Marcato'],['fermata','𝄐','Fermata']].forEach(([id,sym,title]) => {
+    h += btn(`setStaffArt('${id}')`, sym, title, '#9a7820', staffSelectedArticulation===id, 'font-size:14px;');
+  });
+  h += btn("setStaffArt('')", '✕', 'Clear articulation', '', false, 'color:#999;padding:3px 6px;');
+  h += `</div>`;
+
+  // Row 3: Tuplets + Repeats + Zoom
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:6px">`;
+  h += lbl('Tuplet');
+  h += btn("setStaffMode('tuplet')",  '3 Triplet',   'Triplet',    '#7d3c98', staffEditMode==='tuplet' && staffTupletCount===3);
+  h += btn("setStaffMode('tuplet6')", '6 Sextuplet', 'Sextuplet',  '#6c3483', staffEditMode==='tuplet' && staffTupletCount===6);
+  h += sep;
+  h += lbl('Repeat');
+  h += btn("setStaffMode('repeat-start')", '|: Begin', 'Repeat begin', '#16a085', staffEditMode==='repeat-start');
+  h += btn("setStaffMode('repeat-end')",   ':| End',   'Repeat end',   '#16a085', staffEditMode==='repeat-end');
+  h += sep;
+  h += lbl('Zoom');
+  h += btn('setStaffZoom(staffZoom-6)', '−', 'Zoom out', '', false, 'padding:3px 9px;font-size:14px;');
+  h += `<span style="font-size:11px;color:#7a5a40;min-width:34px;text-align:center">${staffZoom}px</span>`;
+  h += btn('setStaffZoom(staffZoom+6)', '+', 'Zoom in',  '', false, 'padding:3px 9px;font-size:14px;');
+  if (staffEditMode === 'tie' && staffTiePending) {
+    h += `<span style="font-size:11px;color:#3a6a9a;margin-left:8px;font-style:italic">~ click second note (ch ${staffTiePending.ci})</span>`;
+  }
+  h += `</div>`;
+
+  tb.innerHTML = h;
+}
+
+function setStaffMode(m) {
+  if (m === 'tuplet')  { staffTupletCount = 3; staffEditMode = 'tuplet'; }
+  else if (m === 'tuplet6') { staffTupletCount = 6; staffEditMode = 'tuplet'; }
+  else { staffEditMode = m; }
+  if (m !== 'tie') staffTiePending = null;
+  _buildStaffToolbar();
+}
+function setStaffDur(d)  { staffSelectedDur          = d; _buildStaffToolbar(); }
+function setStaffCh(i)   { staffSelectedCh           = i; _buildStaffToolbar(); }
+function setStaffDyn(d)  { staffSelectedDynamic      = staffSelectedDynamic  === d ? '' : d; _buildStaffToolbar(); }
+function setStaffArt(a)  { staffSelectedArticulation = staffSelectedArticulation === a ? '' : a; _buildStaffToolbar(); }
+function setStaffZoom(v) { staffZoom = Math.max(20, Math.min(80, +v)); _buildStaffToolbar(); renderStaff(); }
+
+// Count unique occupied step positions in a measure (0-16)
+function _staffDensity(mi) {
+  const offset = mi * 16;
+  const occ = new Set();
+  channels.forEach(ch => {
+    for (let s = 0; s < 16; s++) {
+      if ((ch.steps[offset + s] || 0) > 0) occ.add(s);
+    }
+  });
+  return occ.size;
+}
+
+// ---- Click → measure + step ---------------------------------
+function _xyToMeasureStep(px, py) {
+  for (const s of _staveLayout) {
+    if (px >= s.x && px <= s.x + s.w && py >= s.y && py <= s.y + s.h) {
+      const relX = px - s.noteX;
+      if (relX < 0 || relX > s.noteW) return { mi: -1, step: -1 };
+      const step = Math.max(0, Math.min(15, Math.floor(relX / s.noteW * 16)));
+      return { mi: s.mi, step };
+    }
+  }
+  return { mi: -1, step: -1 };
+}
+
+function _onStaffSvgClick(ev) {
+  if (!staffViewActive) return;
+  const wrap = document.getElementById('staffSvg');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  const px   = ev.clientX - rect.left;
+  const py   = ev.clientY - rect.top;
+  const { mi, step } = _xyToMeasureStep(px, py);
+  if (mi < 0 || step < 0) return;
+
+  const absStep = mi * 16 + step;
+  const ci      = staffSelectedCh;
+
+  // ---- Repeat barlines (measure-level, no channel needed) ----
+  if (staffEditMode === 'repeat-start' || staffEditMode === 'repeat-end') {
+    if (!measureNotation[mi]) measureNotation[mi] = {};
+    const key = staffEditMode === 'repeat-start' ? 'repeatStart' : 'repeatEnd';
+    measureNotation[mi][key] = !measureNotation[mi][key];
+    renderStaff();
+    return;
+  }
+
+  if (ci >= channels.length) return;
+  const stps = channels[ci].steps;
+
+  // ---- Tie mode (two-click) ----------------------------------
+  if (staffEditMode === 'tie') {
+    const ns = _noteStart(stps, absStep);
+    if (!staffTiePending) {
+      if (ns >= 0) { staffTiePending = { ci, absStep: ns }; _buildStaffToolbar(); }
+    } else {
+      if (staffTiePending.ci === ci && ns >= 0 && ns !== staffTiePending.absStep) {
+        const n = _chNotation(channels[ci]);
+        const from = Math.min(staffTiePending.absStep, ns);
+        const to   = Math.max(staffTiePending.absStep, ns);
+        // Remove duplicate tie if exists
+        n.ties = n.ties.filter(t => !(t.from === from && t.to === to));
+        n.ties.push({ from, to });
+      }
+      staffTiePending = null;
+      _buildStaffToolbar();
+      renderStaff();
+    }
+    return;
+  }
+
+  // ---- Tuplet mode -------------------------------------------
+  if (staffEditMode === 'tuplet') {
+    const ns = _noteStart(stps, absStep);
+    if (ns >= 0) {
+      const n = _chNotation(channels[ci]);
+      n.tuplets = n.tuplets.filter(t => t.start !== ns);
+      n.tuplets.push({ start: ns, count: staffTupletCount });
+      renderStaff();
+    }
+    return;
+  }
+
+  // ---- Delete ------------------------------------------------
+  if (staffEditMode === 'delete') {
+    const ns = _noteStart(stps, absStep);
+    if (ns >= 0) {
+      const n = _chNotation(channels[ci]);
+      delete n.dynamics[ns];
+      delete n.articulations[ns];
+      delete n.durOverride[ns];
+      n.ties    = n.ties.filter(t => t.from !== ns && t.to !== ns);
+      n.tuplets = n.tuplets.filter(t => t.start !== ns);
+      stps[ns] = 0;
+      renderStaff();
+      renderChannels();
+    }
+    return;
+  }
+
+  // ---- Add ---------------------------------------------------
+  const gridDur = staffSelectedDur > 0 ? staffSelectedDur : 1;
+  const durOvr  = staffSelectedDur === -1 ? '32' : staffSelectedDur === -2 ? '64' : '';
+  const end = Math.min(absStep + gridDur, stps.length);
+  for (let s = absStep; s < end; s++) {
+    const ns = _noteStart(stps, s);
+    if (ns >= 0) stps[ns] = 0;
+  }
+  stps[absStep] = gridDur;
+  const n = _chNotation(channels[ci]);
+  if (staffSelectedDynamic)      n.dynamics[absStep]      = staffSelectedDynamic;
+  else                           delete n.dynamics[absStep];
+  if (staffSelectedArticulation) n.articulations[absStep] = staffSelectedArticulation;
+  else                           delete n.articulations[absStep];
+  if (durOvr) n.durOverride[absStep] = durOvr;
+  else        delete n.durOverride[absStep];
+  renderStaff();
+  renderChannels();
+}
+
+// ---- Renderer -----------------------------------------------
+function renderStaff() {
+  const container = document.getElementById('staffSvg');
+  if (!container) return;
+  if (typeof Vex === 'undefined') {
+    container.innerHTML = '<p style="color:#c0392b;padding:12px">VexFlow not loaded — check internet connection.</p>';
+    return;
+  }
+  container.innerHTML = '';
+  _staveLayout = [];
+  const VF = Vex.Flow;
+
+  const STAVE_H    = 120;
+  const CLEF_EXTRA = 80;
+  const MAX_ROW_W  = 960;
+  const ML = 20, MT = 24;
+
+  // --- Dynamic layout: per-measure width based on note density ---
+  const layout = [];     // [{mi, x, y, w, isFirst}]
+  let rowX = 0, rowY = 0, rowHasEntry = false;
+
+  for (let mi = 0; mi < numMeasures; mi++) {
+    const density = _staffDensity(mi);
+    const baseW   = Math.max(120, density * staffZoom + 30);
+    const isFirst = !rowHasEntry;
+    const w       = isFirst ? baseW + CLEF_EXTRA : baseW;
+
+    if (rowHasEntry && rowX + w > MAX_ROW_W) {
+      rowY += STAVE_H;
+      rowX = 0;
+      rowHasEntry = false;
+      const wf = baseW + CLEF_EXTRA;
+      layout.push({ mi, x: ML, y: MT + rowY, w: wf, isFirst: true });
+      rowX = wf;
+    } else {
+      layout.push({ mi, x: ML + rowX, y: MT + rowY, w, isFirst });
+      rowX += w;
+    }
+    rowHasEntry = true;
+  }
+
+  const totalW = Math.max(...layout.map(e => e.x + e.w)) + ML;
+  const totalH = MT + rowY + STAVE_H + 10;
+
+  const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+  renderer.resize(totalW, totalH);
+  const ctx = renderer.getContext();
+  ctx.setFont('Arial', 9, 'normal');
+
+  const noteRegistry = {};  // `${ci}_${absStep}` → VF note (for ties)
+
+  for (const { mi, x, y, w, isFirst } of layout) {
+    const noteX = isFirst ? x + CLEF_EXTRA + 8 : x + 5;
+    const noteW = w - 35;
+    _staveLayout.push({ mi, x, y, w, h: STAVE_H - 20, noteX, noteW });
+
+    const stave = new VF.Stave(x, y, w);
+    if (isFirst) stave.addClef('treble').addTimeSignature('4/4');
+
+    // Repeat barlines
+    const mn = measureNotation[mi] || {};
+    if (mn.repeatStart) stave.setBegBarType(VF.Barline.type.REPEAT_BEGIN);
+    if (mn.repeatEnd)   stave.setEndBarType(VF.Barline.type.REPEAT_END);
+
+    stave.setContext(ctx).draw();
+
+    ctx.setFillStyle('#999');
+    ctx.fillText('C' + (mi + 1), x + (isFirst ? CLEF_EXTRA - 8 : 4), y - 6);
+
+    const { notes, noteReg, tupletGroups } = _buildMeasureNotes(mi, VF);
+    Object.assign(noteRegistry, noteReg);
+    if (!notes.length) continue;
+
+    const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
+    voice.setStrict(false);
+    voice.addTickables(notes);
+    new VF.Formatter().joinVoices([voice]).format([voice], noteW);
+    voice.draw(ctx, stave);
+
+    // Tuplet brackets (drawn after voice.draw)
+    tupletGroups.forEach(tg => {
+      try {
+        new VF.Tuplet(tg.notes, { num_notes: tg.count, beats_occupied: tg.count - 1, bracketed: true })
+          .setContext(ctx).draw();
+      } catch (_) { /* skip malformed group */ }
+    });
+  }
+
+  // Ties — drawn after all measures so cross-stave ties also work
+  channels.forEach((ch, ci) => {
+    (ch.notation?.ties || []).forEach(tie => {
+      const fn = noteRegistry[`${ci}_${tie.from}`];
+      const ln = noteRegistry[`${ci}_${tie.to}`];
+      if (!fn || !ln) return;
+      try {
+        new VF.StaveTie({ first_note: fn, last_note: ln, first_indices: [0], last_indices: [0] })
+          .setContext(ctx).draw();
+      } catch (_) { /* skip */ }
+    });
+  });
+}
+
+function toggleStaffView() {
+  staffViewActive = !staffViewActive;
+  const grid  = document.querySelector('.sequencer-wrap');
+  const staff = document.getElementById('staffView');
+  const btn   = document.getElementById('btnStaffToggle');
+  if (staffViewActive) {
+    grid.style.display  = 'none';
+    staff.style.display = 'block';
+    btn.textContent     = '🎹 Grid';
+    _buildStaffToolbar();
+    document.getElementById('staffSvg').onclick = _onStaffSvgClick;
+    renderStaff();
+  } else {
+    grid.style.display  = '';
+    staff.style.display = 'none';
+    btn.textContent     = '🎼 Score';
+  }
 }
 
 // ---- Enlazar botones al cargar el DOM ----------------------
