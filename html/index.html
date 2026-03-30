@@ -221,7 +221,24 @@ input[type="range"] { width: 100px; accent-color: #a04020; cursor: pointer; }
 
 /* SEQUENCER */
 
-.sequencer-wrap { overflow-x: auto; padding-bottom: 6px; }
+.sequencer-wrap { overflow-x: auto; overflow-y: auto; max-height: 440px; padding-bottom: 6px; }
+
+/* Cabeceras sticky al hacer scroll vertical */
+#stepHeaders th, #stepHeaders td {
+  position: sticky;
+  z-index: 13;
+}
+#stepHeaders tr:first-child th,
+#stepHeaders tr:first-child td  { top: 0; background: #e8dac8; }
+#stepHeaders tr:nth-child(2) th,
+#stepHeaders tr:nth-child(2) td { background: #e8dac8; }
+/* Restaurar colores de compás en la fila de etiquetas */
+#stepHeaders .measure-label.mc0 { background: #f5ddd8; }
+#stepHeaders .measure-label.mc1 { background: #f5ead8; }
+#stepHeaders .measure-label.mc2 { background: #d8e8f5; }
+#stepHeaders .measure-label.mc3 { background: #d8f0e4; }
+/* Celda esquina: sticky en ambas direcciones */
+#stepHeaders .seq-header-info { background: #ddd0b8; z-index: 15; }
 
 .ch-info-sticky {
   position: sticky;
@@ -1038,12 +1055,6 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
       <span id="measureSelLabel">0 measures selected</span>
       <button id="btnMeasureSelAdd">➕ Add to queue</button>
       <button class="sel-clear" id="btnMeasureSelClear">✕ Clear</button>
-    </div>
-
-    <div id="measureJumpBar" style="display:none;align-items:center;gap:8px;padding:5px 10px;margin-bottom:6px;background:#dde8f5;border:1px solid #3a6a9a;border-radius:6px;font-size:11px;color:#3a6a9a;font-family:'Courier New',monospace;">
-      <label style="flex-shrink:0;">Go to measure:</label>
-      <input type="number" id="jumpMeasureInput" min="1" placeholder="1" style="width:60px;background:#ede0ce;color:#2c1e12;border:1px solid #c8a882;border-radius:4px;padding:3px 5px;font-size:11px;font-family:'Courier New',monospace;text-align:center;">
-      <button class="btn" id="btnMeasureJump" style="font-size:11px;padding:3px 10px;border-color:#3498db;color:#3498db;flex-shrink:0;">→ Go</button>
     </div>
 
     <div class="sequencer-wrap">

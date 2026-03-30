@@ -680,7 +680,6 @@ const SUB_LABELS = ['1','e','+','a'];
 function render() {
   renderHeaders();
   renderChannels();
-  _updateMeasureJumpBar();
   generateCommand();
 }
 
@@ -751,22 +750,6 @@ function _updateMeasureSelBar() {
   }
 }
 
-function _updateMeasureJumpBar() {
-  const bar = document.getElementById('measureJumpBar');
-  if (!bar) return;
-  bar.style.display = numMeasures > 1 ? 'flex' : 'none';
-}
-
-function jumpToMeasure(m) {
-  if (m < 1 || m > numMeasures) return;
-  // Buscar el header del compás m (0-indexed: m-1)
-  const headers = document.querySelectorAll('.measure-label');
-  if (m - 1 < headers.length) {
-    const target = headers[m - 1];
-    // Scroll al elemento (con offset para verlo bien en pantalla)
-    target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
-  }
-}
 
 function addSelMeasuresToQueue() {
   if (selectedMeasures.size === 0) return;
@@ -834,6 +817,14 @@ function renderHeaders() {
   html += '</tr>';
   thead.innerHTML = html;
 
+  // Set top offset of 2nd header row dynamically so it sits just below the 1st
+  requestAnimationFrame(() => {
+    const rows = thead.querySelectorAll('tr');
+    if (rows.length >= 2) {
+      const h = rows[0].getBoundingClientRect().height;
+      rows[1].querySelectorAll('th, td').forEach(c => c.style.top = h + 'px');
+    }
+  });
 }
 
 function renderChannels() {
@@ -2852,17 +2843,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedMeasures.clear(); _updateMeasureSelBar(); renderHeaders();
   };
 
-  document.getElementById('btnMeasureJump').onclick = () => {
-    const inp = document.getElementById('jumpMeasureInput');
-    const m = parseInt(inp.value) || 1;
-    jumpToMeasure(m);
-  };
-  document.getElementById('jumpMeasureInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      const m = parseInt(e.target.value) || 1;
-      jumpToMeasure(m);
-    }
-  });
 
   document.getElementById('btnSongSave').onclick = saveSongToJSON;
   document.getElementById('btnSongLoad').onclick = loadSongFromJSON;
