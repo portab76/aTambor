@@ -44,6 +44,28 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
 - **Repetición**: Control de repeticiones por fragmento
 - **Merge**: Fusiona notas consecutivas a valores estándar
 
+### Editor de Grid
+- **Scroll vertical**: El grid limita su altura y hace scroll cuando hay muchas filas (p.ej. 30 notas), con cabeceras de compás y numeración siempre visibles
+- **Undo** (↩ botón + `Ctrl+Z`): Deshace las últimas 50 acciones (toggle de celda, cambio de duración, pegar, limpiar, borrar compás/beat, añadir fragmento MMLR)
+- **Insertar compás** (clic derecho → ➕ Insert Measure): Inserta un compás en blanco antes del compás actual desplazando todo el contenido a la derecha
+- **Vista de pentagrama** (Score): Visualización de la secuencia en notación musical con VexFlow
+
+### GrooveScript (MML-R)
+- **Editor integrado**: Sintaxis tipo MML para componer melodías, acordes y patrones rítmicos
+- **Importar archivo .txt**: Carga directamente un archivo de texto con sintaxis GrooveScript desde el botón 📂 Import .txt del modal
+- **Armonización automática**: Genera acordes diatónicos a partir de una melodía con `@HARMONIZE`
+- **Plantillas rápidas**: Melody, Chords, Harmonizing, Groove
+
+### Exportación e Importación
+
+| Formato | Función |
+|---------|---------|
+| **JSON MEASURE** | Guardar/cargar patrones personalizados |
+| **MIDI** | Importar archivos .mid estándar |
+| **JSON FRAGMENT** | Guardar composición completa con fragmentos |
+| **MMLR / GrooveScript** | Importar/exportar notación textual MML-R |
+| **TXT** | Importar scripts GrooveScript desde archivo de texto |
+
 
 ## ⚙️ Hardware: Componentes
 
@@ -120,13 +142,6 @@ Retract = 150ms → Pausa antes siguiente golpe
 
 ---
 
-### Exportación e Importación
-
-| Formato | Función |
-|---------|---------|
-| **JSON MEASURE** |  . Guardar/cargar patrones personalizados |
-| **MIDI** | Importar archivos .mid estándar |
-| **JSON FRAGMENT** | Guardar composición completa con fragmentos |
 
 ## 📝 Información Técnica
 
