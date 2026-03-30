@@ -42,6 +42,10 @@ let metroTimer  = null;
 let currentStep = -1;
 let pendingPlayTimeout = null;
 
+// Undo stack
+const _undoStack = [];
+const _UNDO_MAX  = 50;
+
 // Drag-select + clipboard
 let seqDragStart  = null;  // { ci, s } celda donde empezó el drag
 let seqDragEnd    = null;  // { ci, s } celda actual durante el drag
@@ -234,7 +238,24 @@ function initChannels() {
   }
 }
 
+function _pushUndo() {
+  _undoStack.push(JSON.parse(JSON.stringify(channels)));
+  if (_undoStack.length > _UNDO_MAX) _undoStack.shift();
+  _updateUndoBtn();
+}
+function _updateUndoBtn() {
+  const btn = document.getElementById('btnUndo');
+  if (btn) btn.disabled = !_undoStack.length;
+}
+function undoStep() {
+  if (!_undoStack.length) return;
+  channels = _undoStack.pop();
+  render();
+  _updateUndoBtn();
+}
+
 function clearSteps() {
+  _pushUndo();
   channels.forEach(ch => { ch.steps = new Array(numSteps).fill(0); });
   render();
   if (isPlaying) {
@@ -685,6 +706,7 @@ function render() {
 
 function deleteMeasure(m) {
   if (numMeasures <= 1) return;
+  _pushUndo();
   const start = m * 16;
   channels.forEach(ch => ch.steps.splice(start, 16));
   numMeasures--;
@@ -698,6 +720,7 @@ function deleteMeasure(m) {
 function deleteBeat(beatGlobalIdx) {
   const startStep = beatGlobalIdx * 4;
   if (startStep >= numSteps) return;
+  _pushUndo();
   channels.forEach(ch => {
     ch.steps.splice(startStep, 4);
     // Rellenar al final para mantener la longitud total (numSteps)
@@ -1000,6 +1023,7 @@ function renderChannels() {
 }
 
 function toggleStep(ci, si) {
+  _pushUndo();
   const steps = channels[ci].steps;
   const ns = _noteStart(steps, si);
   if (ns >= 0) {
@@ -1064,6 +1088,7 @@ function showDurationPicker(e, ci, stepIdx) {
     ob.onmouseover = () => { ob.style.borderColor = '#3a6a9a'; ob.style.background = '#c8d8e8'; };
     ob.onmouseout  = () => { ob.style.borderColor = '#c8a882'; ob.style.background = '#ddd0b8'; };
     ob.onclick = () => {
+      _pushUndo();
       const dur = Math.min(opt.steps, steps.length - ns);
       // Borrar todas las notas que queden dentro del nuevo rango (sobreescribir)
       for (let i = ns + 1; i < ns + dur; i++) {
@@ -1077,6 +1102,28 @@ function showDurationPicker(e, ci, stepIdx) {
     };
     picker.appendChild(ob);
   });
+
+  // Separator + Insert Measure button
+  const sepIns = document.createElement('div');
+  sepIns.style.cssText = 'width:1px;background:#c8a882;align-self:stretch;margin:0 4px;flex-shrink:0;';
+  picker.appendChild(sepIns);
+
+  const insertAt = Math.floor(stepIdx / 16) * 16;
+  const ib = document.createElement('button');
+  ib.style.cssText = 'background:#f5ead8;border:1px solid #9a6020;border-radius:6px;color:#7a4010;cursor:pointer;padding:5px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;font-family:inherit;';
+  ib.innerHTML = '<span style="font-size:15px">➕</span><span style="font-size:10px">Insert</span><span style="font-size:9px;color:#9a7860">Measure</span>';
+  ib.onmouseover = () => { ib.style.borderColor = '#6a3a10'; ib.style.background = '#e8c898'; };
+  ib.onmouseout  = () => { ib.style.borderColor = '#9a6020'; ib.style.background = '#f5ead8'; };
+  ib.onclick = () => {
+    _pushUndo();
+    channels.forEach(ch => ch.steps.splice(insertAt, 0, ...new Array(16).fill(0)));
+    numMeasures++;
+    numSteps = numMeasures * 16;
+    document.getElementById('measuresInput').value = numMeasures;
+    picker.remove();
+    render();
+  };
+  picker.appendChild(ib);
 
   document.body.appendChild(picker);
   setTimeout(() => {
@@ -2479,6 +2526,7 @@ function _copySelectionToClipboard() {
 
 function _pasteFromClipboard(toCi, toS) {
   if (!seqClipboard) return;
+  _pushUndo();
   const { rows, cols, data } = seqClipboard;
   for (let r = 0; r < rows; r++) {
     const ci = toCi + r;
@@ -2740,6 +2788,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Fusionar grupos de notas 1/16 consecutivas en notas de hasta 1/4
+  document.getElementById('btnUndo').onclick = undoStep;
+
   document.getElementById('btnSnap').onclick = e => {
     const existing = document.getElementById('snapPicker');
     if (existing) { existing.remove(); return; }
@@ -2812,6 +2862,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('loadDropdownBtn').classList.remove('open');
     loadRhythm();
   };
+
+  // Ctrl+Z → Undo
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      const active = document.activeElement;
+      // Don't intercept Ctrl+Z inside text inputs/textareas
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      undoStep();
+    }
+  });
 
   // + Canal
   document.getElementById('btnAddCh').onclick = () => {
@@ -4180,6 +4241,7 @@ function updateMMLRPreview() {
 function addMMLRToSequencer() {
   const text = document.getElementById('mmlrInputText').value;
   if (!text.trim()) { alert('Type a MML-R sequence.'); return; }
+  _pushUndo();
 
   let parsed;
   try { parsed = parseMMLR(text); }
@@ -4273,8 +4335,29 @@ function openChordConverterModal() {
   prev.textContent = '(type MML-R to see preview)';
   box.appendChild(prev);
 
+  // Hidden file input for text import
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.txt,.mmlr,.gs';
+  fileInput.style.display = 'none';
+  fileInput.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('mmlrInputText').value = ev.target.result;
+      updateMMLRPreview();
+    };
+    reader.readAsText(file, 'utf-8');
+    fileInput.value = '';   // allow re-selecting the same file
+  };
+  box.appendChild(fileInput);
+
   // Footer
   const footer = _mkModalFooter();
+  const importBtn = _mkModalBtn('📂 Import .txt', '#8860d0', () => fileInput.click());
+  importBtn.style.marginRight = 'auto';   // push to left corner
+  footer.appendChild(importBtn);
   footer.appendChild(_mkModalBtn('➕ Add Fragment', '#27ae60', addMMLRToSequencer));
   footer.appendChild(_mkModalBtn('✕ Close',        '#666',    closeMMLRModal));
   box.appendChild(footer);
