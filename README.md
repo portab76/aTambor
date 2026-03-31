@@ -1,7 +1,7 @@
 # aTambor 🥁
 ## Piano Machine Music Robot
 
-**aTambor** es un sistema híbrido de **drum machine automática** que combina software web con hardware de solenoides para golpear las teclas de un piano en tiempo real. Un proyecto innovador que integra secuenciación digital con percusión mecánica auténtica.
+**aTambor** es un sistema híbrido de **drum machine automática** que combina software web con hardware de servos para golpear las teclas de un piano en tiempo real. Un proyecto innovador que integra secuenciación digital con percusión mecánica auténtica.
 
 | | | |
 |---|---|---|
@@ -11,7 +11,7 @@
 
 aTambor es una máquina de ritmos profesional que:
 - 🎛️ **Secuencia patrones rítmicos** mediante interfaz web intuitiva
-- 🔊 **Controla 12 servos solenoides** que golpean un piano real
+- 🔊 **Controla 12 servos ** que golpean un piano real
 - ⚙️ **Genera sonido auténtico**, no sintetizado (es un instrumento mecánico-digital)
 - 🎵 **Encadena fragmentos** para crear composiciones completas
 - 📱 **Opera desde navegador web** conectado a ESP32 vía WebSocket IP
@@ -94,7 +94,7 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
                │ +5V / GND
                ▼
     ┌──────────────────────┐
-    │  16 Solenoides       │
+    │  12 Servos       │
     └──────────┬───────────┘
                │ Golpean
                ▼
@@ -106,7 +106,7 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
 
 ### Vista Detallada del Hardware
 
-![Solenoides y Control](images/IMG_20260318_131525.jpg)
+![Servos y Control](images/IMG_20260318_131525.jpg)
 
 ![Mecanismo de Strikers](images/IMG_20260318_131623.jpg)
 
@@ -122,7 +122,7 @@ Por defecto la interfaz genera sonidos sintetizados directamente en el navegador
 2. **Envío**: Navegador envía comandos al ESP32 vía IP/WebSocket
 3. **Procesamiento**: ESP32 calcula timing basado en BPM
 4. **Activación**: Envía pulsos a placa de control
-5. **Mecánica**: Solenoides se activan → Strikers golpean teclas MIDI
+5. **Mecánica**: Servos se activan → Strikers golpean teclas MIDI
 6. **Salida**: Teclado genera sonido auténtico
 
 ### Sincronización Temporal
@@ -156,7 +156,7 @@ Retract = 150ms → Pausa antes siguiente golpe
 - **Controlador Servor I2C**: ICP9685
 - **Control**: Seloides Servo motores 
 - **Interfaz**: Piano con Teclado estándar o instrumento musical. 
-- **Alimentación**: +5V, +12V (según solenoides)
+- **Alimentación**: +5V, +12V (según Servos)
 
 ## 📚 Recursos
 
