@@ -4582,7 +4582,7 @@ function _buildStaffToolbar() {
   let h = `<div style="display:flex;gap:6px;align-items:center;padding:8px 12px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;overflow:visible;flex-wrap:nowrap;position:relative;">`;
 
   // === HELP BUTTON ===
-  h += btn("toggleStaffHelp()", '🛟 Help', 'Help & shortcuts (H)', '', false, 'padding:3px 8px;margin-right:4px');
+  h += btn("toggleStaffHelp()", '❓ Help', 'Help & shortcuts (H)', '', false, 'padding:3px 8px;margin-right:4px');
   h += sep;
 
   // === MODE BUTTONS ===
