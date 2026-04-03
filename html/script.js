@@ -2919,6 +2919,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.style.display = 'none';
       });
     }
+
+    // H: toggle help
+    if (key === 'h') {
+      e.preventDefault();
+      toggleStaffHelp();
+    }
   });
 
   // + Canal
@@ -4428,6 +4434,7 @@ let staffTiePending          = null;    // {ci, absStep} — first note of pendi
 let measureNotation          = {};      // {mi: {repeatStart, repeatEnd}}
 let _staveLayout             = [];      // [{mi,x,y,w,h,noteX,noteW}]
 let staffZoom                = 32;      // px per occupied step (controls stave width)
+let staffHelpVisible         = false;   // help modal state
 
 // VexFlow key + accidental per motor index (0-15)
 const MOTOR_VEX = [
@@ -4574,6 +4581,10 @@ function _buildStaffToolbar() {
   // Single compact row
   let h = `<div style="display:flex;gap:6px;align-items:center;padding:8px 12px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;overflow:visible;flex-wrap:nowrap;position:relative;">`;
 
+  // === HELP BUTTON ===
+  h += btn("toggleStaffHelp()", '🛟 Help', 'Help & shortcuts (H)', '', false, 'padding:3px 8px;margin-right:4px');
+  h += sep;
+
   // === MODE BUTTONS ===
   h += btn("setStaffMode('add')",    '✏ Add',     'Add note (A)',      '#3a7850', staffEditMode==='add');
   h += btn("setStaffMode('delete')", '🗑 Del',    'Delete (D)',        '#a03828', staffEditMode==='delete');
@@ -4583,8 +4594,9 @@ function _buildStaffToolbar() {
   // === DURATION DROPDOWN ===
   const curDur = durs.find(d => d.steps === staffSelectedDur);
   const durSym = curDur ? curDur.sym : '♩';
+  const durLabel = curDur ? curDur.label : 'Quarter';
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('dur-menu')" style="font-size:13px;padding:3px 10px;background:#3a6a9a;color:#fff;border-color:#3a6a9a">${durSym} ▼</button>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('dur-menu')" title="Note duration - currently ${durLabel} (press 1-7)" style="font-size:13px;padding:3px 10px;background:#3a6a9a;color:#fff;border-color:#3a6a9a">${durSym} ▼</button>`;
   h += `<div id="dur-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   durs.forEach(d => {
     h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffSelectedDur===d.steps ? 'background:#3a6a9a;color:#fff;' : ''}" onmouseover="this.style.background='#d0c0a8'" onmouseout="this.style.background=''" onclick="_selectStaffDur(${d.steps}); _toggleStaffDropdown('dur-menu')">${d.sym} ${d.label}</div>`;
@@ -4594,8 +4606,9 @@ function _buildStaffToolbar() {
   // === NOTE DROPDOWN ===
   const curNote = DEFAULT_KEYS[staffSelectedCh];
   const noteLbl = curNote ? curNote.name.replace(/\d.*/,'') : '?';
+  const noteFullName = curNote ? curNote.name : '?';
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('note-menu')" style="font-size:13px;padding:3px 10px;background:#8e44ad;color:#fff;border-color:#8e44ad">${noteLbl} ▼</button>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('note-menu')" title="Select note/channel - currently ${noteFullName}" style="font-size:13px;padding:3px 10px;background:#8e44ad;color:#fff;border-color:#8e44ad">${noteLbl} ▼</button>`;
   h += `<div id="note-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;width:160px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   DEFAULT_KEYS.forEach((k, i) => {
     const lbl = k.name.replace(/\d.*/,'');
@@ -4609,8 +4622,10 @@ function _buildStaffToolbar() {
 
   // === DYNAMICS DROPDOWN ===
   const dynLbl = staffSelectedDynamic || '—';
+  const dynMap = {ppp:'Pianissimissimo',pp:'Pianissimo',p:'Piano',mp:'Mezzo-piano',mf:'Mezzo-forte',f:'Forte',ff:'Fortissimo',fff:'Fortissimissimo',sfz:'Sforzando'};
+  const dynText = staffSelectedDynamic ? dynMap[staffSelectedDynamic] || 'Dynamic' : 'None';
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('dyn-menu')" style="font-size:12px;padding:3px 10px;background:#a03828;color:#fff;border-color:#a03828;font-style:italic">${dynLbl} ▼</button>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('dyn-menu')" title="Volume marking - ${dynText}" style="font-size:12px;padding:3px 10px;background:#a03828;color:#fff;border-color:#a03828;font-style:italic">${dynLbl} ▼</button>`;
   h += `<div id="dyn-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:120px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   ['ppp','pp','p','mp','mf','f','ff','fff','sfz'].forEach(d => {
     h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;font-style:italic;${staffSelectedDynamic===d ? 'background:#a03828;color:#fff;' : ''}" onmouseover="this.style.background='#d7a9a1'" onmouseout="this.style.background='${staffSelectedDynamic===d ? '#a03828' : ''}'" onclick="_selectStaffDyn('${d}'); _toggleStaffDropdown('dyn-menu')">${d}</div>`;
@@ -4621,8 +4636,10 @@ function _buildStaffToolbar() {
   // === ARTICULATION DROPDOWN ===
   const artMap = {staccato:'·',tenuto:'—',accent:'>',marcato:'^',fermata:'𝄐'};
   const artLbl = staffSelectedArticulation ? (artMap[staffSelectedArticulation] || '?') : '—';
+  const artFullMap = {staccato:'Staccato',tenuto:'Tenuto',accent:'Accent',marcato:'Marcato',fermata:'Fermata'};
+  const artText = staffSelectedArticulation ? artFullMap[staffSelectedArticulation] || 'Articulation' : 'None';
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('art-menu')" style="font-size:13px;padding:3px 10px;background:#9a7820;color:#fff;border-color:#9a7820">${artLbl} ▼</button>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('art-menu')" title="How to play - ${artText}" style="font-size:13px;padding:3px 10px;background:#9a7820;color:#fff;border-color:#9a7820">${artLbl} ▼</button>`;
   h += `<div id="art-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   [['staccato','·','Staccato'],['tenuto','—','Tenuto'],['accent','>','Accent'],['marcato','^','Marcato'],['fermata','𝄐','Fermata']].forEach(([id,sym,title]) => {
     h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffSelectedArticulation===id ? 'background:#9a7820;color:#fff;' : ''}" onmouseover="this.style.background='#c4a770'" onmouseout="this.style.background='${staffSelectedArticulation===id ? '#9a7820' : ''}'" onclick="_selectStaffArt('${id}'); _toggleStaffDropdown('art-menu')">${sym} ${title}</div>`;
@@ -4632,7 +4649,7 @@ function _buildStaffToolbar() {
 
   // === MORE (Tuplet + Repeat) DROPDOWN ===
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('more-menu')" style="font-size:12px;padding:3px 10px;background:#c8a882;color:#fff;border-color:#8a6848">⋮ More ▼</button>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('more-menu')" title="Tuplets & repeats - advanced notation" style="font-size:12px;padding:3px 10px;background:#c8a882;color:#fff;border-color:#8a6848">⋮ More ▼</button>`;
   h += `<div id="more-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   h += `<div style="font-size:10px;color:#7a5a40;text-transform:uppercase;padding:4px 0;margin-bottom:4px;border-bottom:1px solid #c0a070;font-weight:bold">Tuplet</div>`;
   h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffEditMode==='tuplet' && staffTupletCount===3 ? 'background:#7d3c98;color:#fff;' : ''}" onmouseover="this.style.background='#a370bb'" onmouseout="this.style.background='${staffEditMode==='tuplet' && staffTupletCount===3 ? '#7d3c98' : ''}'" onclick="_selectStaffMode('tuplet'); _toggleStaffDropdown('more-menu')">3 Triplet</div>`;
@@ -4990,6 +5007,191 @@ function toggleStaffView() {
       _staffDropdownHandler = null;
     }
   }
+}
+
+// ---- Staff Help Modal -----------------------------------------------
+function toggleStaffHelp() {
+  staffHelpVisible = !staffHelpVisible;
+  const modal = document.getElementById('staffHelpModal');
+
+  if (staffHelpVisible) {
+    if (!modal) createStaffHelpModal();
+    const m = document.getElementById('staffHelpModal');
+    if (m) m.style.display = 'flex';
+  } else {
+    if (modal) modal.style.display = 'none';
+  }
+}
+
+function createStaffHelpModal() {
+  if (document.getElementById('staffHelpModal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'staffHelpModal';
+  modal.style.cssText = `
+    display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.6);z-index:20000;align-items:center;justify-content:center;
+    flex-direction:column;padding:20px;box-sizing:border-box;
+  `;
+
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background:#ede0ce;border:2px solid #c8a882;border-radius:12px;
+    max-width:900px;width:100%;max-height:85vh;overflow-y:auto;
+    padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.4);
+    font-family:'Courier New',monospace;
+  `;
+
+  const title = document.createElement('h2');
+  title.style.cssText = 'margin:0 0 16px;color:#3a3a2a;font-size:20px;text-align:center;border-bottom:2px solid #c8a882;padding-bottom:12px;';
+  title.textContent = 'SCORE VIEW — KEYBOARD SHORTCUTS & HELP';
+  content.appendChild(title);
+
+  // Tabs
+  const tabContainer = document.createElement('div');
+  tabContainer.style.cssText = 'display:flex;gap:2px;margin-bottom:16px;border-bottom:2px solid #c8a882;';
+
+  const tabs = [
+    {id:'shortcuts', label:'Shortcuts', icon:'⌨️'},
+    {id:'dynamics', label:'Dynamics', icon:'🔊'},
+    {id:'articulations', label:'Articulations', icon:'⏸️'},
+    {id:'tuplets', label:'Tuplets & Repeats', icon:'🔁'}
+  ];
+
+  const tabContent = document.createElement('div');
+  tabContent.id = 'staffHelpContent';
+
+  tabs.forEach((tab, idx) => {
+    const btn = document.createElement('button');
+    btn.style.cssText = `
+      flex:1;padding:10px;background:${idx===0 ? '#c8a882' : '#d8ccc0'};
+      color:${idx===0 ? '#fff' : '#5a4a3a'};border:none;cursor:pointer;
+      border-radius:6px 6px 0 0;font-weight:bold;transition:all 0.2s;
+      font-family:'Courier New',monospace;font-size:12px;
+    `;
+    btn.innerHTML = `${tab.icon} ${tab.label}`;
+    btn.onmouseover = () => { if(btn.style.background !== '#c8a882') btn.style.background = '#e0d4c8'; };
+    btn.onmouseout = () => { if(btn.style.background !== '#c8a882') btn.style.background = '#d8ccc0'; };
+    btn.onclick = () => showStaffHelpTab(tab.id, tabs, btn, tabContainer);
+    tabContainer.appendChild(btn);
+  });
+  content.appendChild(tabContainer);
+
+  // Content area for each tab
+  const contentArea = document.createElement('div');
+  contentArea.style.cssText = 'background:#f5f0e8;border-radius:6px;padding:14px;min-height:300px;color:#2a2a2a;line-height:1.8;font-size:12px;';
+  contentArea.id = 'staffHelpTabContent';
+  content.appendChild(contentArea);
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.style.cssText = `
+    margin-top:14px;padding:8px 24px;background:#a03828;color:#fff;border:none;
+    border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;
+    font-family:'Courier New',monospace;transition:all 0.2s;
+  `;
+  closeBtn.textContent = 'CLOSE (ESC or H)';
+  closeBtn.onmouseover = () => closeBtn.style.background = '#c84838';
+  closeBtn.onmouseout = () => closeBtn.style.background = '#a03828';
+  closeBtn.onclick = toggleStaffHelp;
+  content.appendChild(closeBtn);
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // Close on ESC or click outside
+  modal.onclick = (e) => {
+    if (e.target === modal) toggleStaffHelp();
+  };
+
+  // Show first tab
+  showStaffHelpTab('shortcuts', tabs, tabContainer.firstChild, tabContainer);
+}
+
+function showStaffHelpTab(tabId, tabs, activeBtn, tabContainer) {
+  // Update button styles
+  Array.from(tabContainer.children).forEach(b => {
+    b.style.background = '#d8ccc0';
+    b.style.color = '#5a4a3a';
+  });
+  activeBtn.style.background = '#c8a882';
+  activeBtn.style.color = '#fff';
+
+  const content = document.getElementById('staffHelpTabContent');
+  if (!content) return;
+
+  const html = getStaffHelpContent(tabId);
+  content.innerHTML = html;
+}
+
+function getStaffHelpContent(tabId) {
+  const styles = 'style="margin:8px 0;padding:6px;background:#fff;border-left:3px solid #3a6a9a;padding-left:10px;border-radius:3px;"';
+  const keyStyle = 'style="color:#3a6a9a;font-weight:bold;background:#e8f0ff;padding:2px 6px;border-radius:3px;display:inline-block;min-width:40px;text-align:center;"';
+
+  const contents = {
+    shortcuts: `
+      <h3 style="margin-top:0;color:#3a6a9a;border-bottom:1px solid #3a6a9a;padding-bottom:6px;">MODE</h3>
+      <div ${styles}><span ${keyStyle}>A</span> → Add note to selected channel</div>
+      <div ${styles}><span ${keyStyle}>D</span> → Delete selected note</div>
+      <div ${styles}><span ${keyStyle}>T</span> → Tie notes (click first, then second note)</div>
+
+      <h3 style="margin-top:16px;color:#3a6a9a;border-bottom:1px solid #3a6a9a;padding-bottom:6px;">DURATION</h3>
+      <div ${styles}><span ${keyStyle}>1</span> → Whole note (𝅝 16 steps)</div>
+      <div ${styles}><span ${keyStyle}>2</span> → Half note (𝅗𝅥 8 steps)</div>
+      <div ${styles}><span ${keyStyle}>3</span> → Quarter note (♩ 4 steps)</div>
+      <div ${styles}><span ${keyStyle}>4</span> → Eighth note (♪ 2 steps)</div>
+      <div ${styles}><span ${keyStyle}>5</span> → Sixteenth note (♬ 1 step)</div>
+      <div ${styles}><span ${keyStyle}>6</span> → 32nd note (𝅘𝅥𝅯)</div>
+      <div ${styles}><span ${keyStyle}>7</span> → 64th note (𝅘𝅥𝅱)</div>
+
+      <h3 style="margin-top:16px;color:#3a6a9a;border-bottom:1px solid #3a6a9a;padding-bottom:6px;">VIEW</h3>
+      <div ${styles}><span ${keyStyle}>+</span> → Zoom in (increase staff width)</div>
+      <div ${styles}><span ${keyStyle}>-</span> → Zoom out (decrease staff width)</div>
+      <div ${styles}><span ${keyStyle}>ESC</span> → Close dropdown menus</div>
+      <div ${styles}><span ${keyStyle}>H</span> → Toggle this help dialog</div>
+    `,
+
+    dynamics: `
+      <h3 style="margin-top:0;color:#a03828;border-bottom:1px solid #a03828;padding-bottom:6px;">MUSICAL DYNAMICS</h3>
+      <p style="font-size:11px;color:#666;margin:0 0 12px;">Dynamics mark the volume/intensity of notes. Click the dynamics dropdown (p ▼) to select.</p>
+      <div ${styles}><strong>ppp</strong> → Pianissimissimo (extremely soft, barely audible)</div>
+      <div ${styles}><strong>pp</strong> → Pianissimo (very soft)</div>
+      <div ${styles}><strong>p</strong> → Piano (soft)</div>
+      <div ${styles}><strong>mp</strong> → Mezzo-piano (medium-soft, less soft than pp)</div>
+      <div ${styles}><strong>mf</strong> → Mezzo-forte (medium-loud, moderately loud)</div>
+      <div ${styles}><strong>f</strong> → Forte (loud)</div>
+      <div ${styles}><strong>ff</strong> → Fortissimo (very loud)</div>
+      <div ${styles}><strong>fff</strong> → Fortissimissimo (extremely loud, maximum)</div>
+      <div ${styles}><strong>sfz</strong> → Sforzando (sudden accent, forceful attack)</div>
+      <p style="font-size:11px;color:#666;margin-top:12px;">💡 Tip: Click the same dynamic twice to clear it.</p>
+    `,
+
+    articulations: `
+      <h3 style="margin-top:0;color:#9a7820;border-bottom:1px solid #9a7820;padding-bottom:6px;">ARTICULATION MARKS</h3>
+      <p style="font-size:11px;color:#666;margin:0 0 12px;">Articulations define how notes are played. Click the articulation dropdown (· ▼) to select.</p>
+      <div ${styles}><strong>Staccato (·)</strong> → Notes are short and separated from each other</div>
+      <div ${styles}><strong>Tenuto (—)</strong> → Notes are held for full duration with slight separation</div>
+      <div ${styles}><strong>Accent (>)</strong> → Notes are emphasized/accented with more attack</div>
+      <div ${styles}><strong>Marcato (^)</strong> → Notes are clearly separated and pointed</div>
+      <div ${styles}><strong>Fermata (𝄐)</strong> → Hold the note indefinitely longer than written</div>
+      <p style="font-size:11px;color:#666;margin-top:12px;">💡 Tip: Click the same articulation twice to clear it.</p>
+    `,
+
+    tuplets: `
+      <h3 style="margin-top:0;color:#7d3c98;border-bottom:1px solid #7d3c98;padding-bottom:6px;">TUPLETS</h3>
+      <p style="font-size:11px;color:#666;margin:0 0 12px;">Tuplets divide a beat into unequal numbers of notes. Use the "⋮ More" dropdown.</p>
+      <div ${styles}><strong>3 Triplet</strong> → Three notes fit in the time of two (3:2). Creates a lilting rhythm.</div>
+      <div ${styles}><strong>6 Sextuplet</strong> → Six notes fit in the time of four (6:4). Used for quick passages.</div>
+
+      <h3 style="margin-top:16px;color:#16a085;border-bottom:1px solid #16a085;padding-bottom:6px;">REPEAT MARKS</h3>
+      <p style="font-size:11px;color:#666;margin:0 0 12px;">Repeat marks define sections of music to play multiple times. Use the "⋮ More" dropdown.</p>
+      <div ${styles}><strong>|: Repeat Begin</strong> → Mark the start of a section to repeat</div>
+      <div ${styles}><strong>:| Repeat End</strong> → Mark the end of a section to repeat</div>
+      <p style="font-size:11px;color:#666;margin-top:12px;">💡 Tip: The music between repeat marks will be played twice.</p>
+    `
+  };
+
+  return contents[tabId] || contents.shortcuts;
 }
 
 // ---- Enlazar botones al cargar el DOM ----------------------
