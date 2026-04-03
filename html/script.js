@@ -4621,14 +4621,15 @@ function _buildStaffToolbar() {
   h += sep;
 
   // === DYNAMICS DROPDOWN ===
-  const dynLbl = staffSelectedDynamic || '—';
-  const dynMap = {ppp:'Pianissimissimo',pp:'Pianissimo',p:'Piano',mp:'Mezzo-piano',mf:'Mezzo-forte',f:'Forte',ff:'Fortissimo',fff:'Fortissimissimo',sfz:'Sforzando'};
-  const dynText = staffSelectedDynamic ? dynMap[staffSelectedDynamic] || 'Dynamic' : 'None';
+  const dynFullMap = {ppp:'Pianissimissimo',pp:'Pianissimo',p:'Piano',mp:'Mezzo-piano',mf:'Mezzo-forte',f:'Forte',ff:'Fortissimo',fff:'Fortissimissimo',sfz:'Sforzando'};
+  const dynIconMap = {ppp:'🤫',pp:'🔉',p:'🔉',mp:'🔊',mf:'🔊',f:'🔊',ff:'🔊🔊',fff:'🔊🔊🔊',sfz:'⚡'};
+  const dynText = staffSelectedDynamic ? dynFullMap[staffSelectedDynamic] || 'Dynamic' : 'None';
+  const dynCurrentIcon = staffSelectedDynamic ? dynIconMap[staffSelectedDynamic] : '🔊';
   h += `<div style="position:relative;display:inline-block;z-index:100">`;
-  h += `<button class="btn" onclick="_toggleStaffDropdown('dyn-menu')" title="Volume marking - ${dynText}" style="font-size:12px;padding:3px 10px;background:#a03828;color:#fff;border-color:#a03828">${dynLbl !== '—' ? dynLbl : '🔊'} ▼</button>`;
-  h += `<div id="dyn-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:120px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
-  ['ppp','pp','p','mp','mf','f','ff','fff','sfz'].forEach(d => {
-    h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;font-style:italic;${staffSelectedDynamic===d ? 'background:#a03828;color:#fff;' : ''}" onmouseover="this.style.background='#d7a9a1'" onmouseout="this.style.background='${staffSelectedDynamic===d ? '#a03828' : ''}'" onclick="_selectStaffDyn('${d}'); _toggleStaffDropdown('dyn-menu')">${d}</div>`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('dyn-menu')" title="Volume marking - ${dynText}" style="font-size:12px;padding:3px 10px;background:#a03828;color:#fff;border-color:#a03828">${dynCurrentIcon} ▼</button>`;
+  h += `<div id="dyn-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
+  Object.entries(dynIconMap).forEach(([d, icon]) => {
+    h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffSelectedDynamic===d ? 'background:#a03828;color:#fff;' : ''}" onmouseover="this.style.background='#d7a9a1'" onmouseout="this.style.background='${staffSelectedDynamic===d ? '#a03828' : ''}'" onclick="_selectStaffDyn('${d}'); _toggleStaffDropdown('dyn-menu')">${icon} ${d}</div>`;
   });
   h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;color:#999;" onmouseover="this.style.background='#e8dcc8'" onmouseout="this.style.background=''" onclick="_selectStaffDyn(''); _toggleStaffDropdown('dyn-menu')">✕ Clear</div>`;
   h += `</div></div>`;
