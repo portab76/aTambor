@@ -2865,12 +2865,59 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Ctrl+Z → Undo
   document.addEventListener('keydown', e => {
+    // Global: Ctrl+Z for undo
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       const active = document.activeElement;
       // Don't intercept Ctrl+Z inside text inputs/textareas
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
       e.preventDefault();
       undoStep();
+    }
+
+    // Staff view shortcuts
+    if (!staffViewActive) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+    const key = e.key.toLowerCase();
+
+    // Mode shortcuts: A=Add, D=Delete, T=Tie
+    if (key === 'a') {
+      e.preventDefault();
+      setStaffMode('add');
+    } else if (key === 'd') {
+      e.preventDefault();
+      setStaffMode('delete');
+    } else if (key === 't') {
+      e.preventDefault();
+      setStaffMode('tie');
+    }
+
+    // Duration shortcuts: 1-7 for different note durations
+    if (key >= '1' && key <= '7') {
+      e.preventDefault();
+      const durs = [16, 8, 4, 2, 1, -1, -2];
+      const idx = parseInt(key) - 1;
+      if (idx < durs.length) {
+        setStaffDur(durs[idx]);
+      }
+    }
+
+    // Zoom shortcuts: + / - (or = key for +)
+    if (key === '+' || key === '=') {
+      e.preventDefault();
+      setStaffZoom(staffZoom + 6);
+    } else if (key === '-' || key === '_') {
+      e.preventDefault();
+      setStaffZoom(staffZoom - 6);
+    }
+
+    // Escape: close all dropdowns
+    if (key === 'escape') {
+      ['dur-menu','note-menu','dyn-menu','art-menu','more-menu'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
     }
   });
 
@@ -4502,10 +4549,11 @@ function _buildMeasureNotes(mi, VF) {
   return { notes, noteReg, tupletGroups };
 }
 
-// ---- Toolbar ------------------------------------------------
+// ---- Toolbar (Compact) ----------------------------------------
 function _buildStaffToolbar() {
   const tb = document.getElementById('staffToolbar');
   if (!tb) return;
+
   const durs = [
     { steps:16, sym:'𝅝',   label:'Whole'     },
     { steps: 8, sym:'𝅗𝅥',   label:'Half'      },
@@ -4515,75 +4563,158 @@ function _buildStaffToolbar() {
     { steps:-1, sym:'𝅘𝅥𝅯',  label:'32nd (fusa)'    },
     { steps:-2, sym:'𝅘𝅥𝅱',  label:'64th (semifusa)' },
   ];
-  // Helper: btn with .btn class + optional active-color override
+
   const btn = (onclick, label, title, selColor, isSelected, extraStyle='') => {
     const activeStyle = isSelected ? `background:${selColor};color:#fff;border-color:${selColor};` : '';
     return `<button class="btn" onclick="${onclick}" title="${title||label}" style="font-size:11px;padding:3px 8px;letter-spacing:0;${activeStyle}${extraStyle}">${label}</button>`;
   };
-  const sep = `<span style="color:#b09070;margin:0 2px;font-size:13px">│</span>`;
-  const lbl = (t) => `<span style="font-size:10px;color:#7a5a40;margin-right:1px;letter-spacing:0.5px;text-transform:uppercase">${t}</span>`;
 
-  let h = `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:6px 4px 4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:6px">`;
+  const sep = `<span style="color:#b09070;margin:0 4px;font-size:13px">│</span>`;
 
-  // Group 1: Mode
-  h += lbl('Mode');
-  h += btn("setStaffMode('add')",    '✏ Add',     'Add note',   '#3a7850', staffEditMode==='add');
-  h += btn("setStaffMode('delete')", '🗑 Del',    'Delete',     '#a03828', staffEditMode==='delete');
-  h += btn("setStaffMode('tie')",    '~ Tie',     'Tie notes',  '#3a6a9a', staffEditMode==='tie');
+  // Single compact row
+  let h = `<div style="display:flex;gap:6px;align-items:center;padding:8px 12px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;overflow:visible;flex-wrap:nowrap;position:relative;">`;
+
+  // === MODE BUTTONS ===
+  h += btn("setStaffMode('add')",    '✏ Add',     'Add note (A)',      '#3a7850', staffEditMode==='add');
+  h += btn("setStaffMode('delete')", '🗑 Del',    'Delete (D)',        '#a03828', staffEditMode==='delete');
+  h += btn("setStaffMode('tie')",    '~ Tie',     'Tie notes (T)',     '#3a6a9a', staffEditMode==='tie');
   h += sep;
 
-  // Group 2: Duration
-  h += lbl('Duration');
+  // === DURATION DROPDOWN ===
+  const curDur = durs.find(d => d.steps === staffSelectedDur);
+  const durSym = curDur ? curDur.sym : '♩';
+  h += `<div style="position:relative;display:inline-block;z-index:100">`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('dur-menu')" style="font-size:13px;padding:3px 10px;background:#3a6a9a;color:#fff;border-color:#3a6a9a">${durSym} ▼</button>`;
+  h += `<div id="dur-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   durs.forEach(d => {
-    h += btn(`setStaffDur(${d.steps})`, d.sym, d.label, '#3a6a9a', staffSelectedDur===d.steps, 'font-size:14px;padding:2px 6px;');
+    h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffSelectedDur===d.steps ? 'background:#3a6a9a;color:#fff;' : ''}" onmouseover="this.style.background='#d0c0a8'" onmouseout="this.style.background=''" onclick="_selectStaffDur(${d.steps}); _toggleStaffDropdown('dur-menu')">${d.sym} ${d.label}</div>`;
   });
-  h += sep;
+  h += `</div></div>`;
 
-  // Group 3: Note (channel selector)
-  h += lbl('Note');
+  // === NOTE DROPDOWN ===
+  const curNote = DEFAULT_KEYS[staffSelectedCh];
+  const noteLbl = curNote ? curNote.name.replace(/\d.*/,'') : '?';
+  h += `<div style="position:relative;display:inline-block;z-index:100">`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('note-menu')" style="font-size:13px;padding:3px 10px;background:#8e44ad;color:#fff;border-color:#8e44ad">${noteLbl} ▼</button>`;
+  h += `<div id="note-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;width:160px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   DEFAULT_KEYS.forEach((k, i) => {
+    const lbl = k.name.replace(/\d.*/,'');
     const sharp = k.name.includes('#');
-    const label = k.name.replace(/\d.*/,'');
-    const baseStyle = sharp ? 'color:#8b5e00;' : '';
-    h += btn(`setStaffCh(${i})`, label, k.name, '#8e44ad', staffSelectedCh===i, `font-size:10px;padding:2px 4px;min-width:24px;${baseStyle}`);
+    const bgColor = staffSelectedCh===i ? '#8e44ad' : (sharp ? '#f5ddd8' : '#fff');
+    const textColor = staffSelectedCh===i ? '#fff' : '#000';
+    h += `<div style="padding:4px;cursor:pointer;border-radius:3px;font-size:10px;text-align:center;background:${bgColor};color:${textColor};" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" onclick="_selectStaffCh(${i}); _toggleStaffDropdown('note-menu')">${lbl}</div>`;
   });
-  h += `</div>`;
+  h += `</div></div>`;
+  h += sep;
 
-  // Row 2: Dynamics + Articulations
-  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:4px">`;
-  h += lbl('Dynamics');
+  // === DYNAMICS DROPDOWN ===
+  const dynLbl = staffSelectedDynamic || '—';
+  h += `<div style="position:relative;display:inline-block;z-index:100">`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('dyn-menu')" style="font-size:12px;padding:3px 10px;background:#a03828;color:#fff;border-color:#a03828;font-style:italic">${dynLbl} ▼</button>`;
+  h += `<div id="dyn-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:120px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
   ['ppp','pp','p','mp','mf','f','ff','fff','sfz'].forEach(d => {
-    h += btn(`setStaffDyn('${d}')`, d, d, '#a03828', staffSelectedDynamic===d, 'font-style:italic;min-width:26px;');
+    h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;font-style:italic;${staffSelectedDynamic===d ? 'background:#a03828;color:#fff;' : ''}" onmouseover="this.style.background='#d7a9a1'" onmouseout="this.style.background='${staffSelectedDynamic===d ? '#a03828' : ''}'" onclick="_selectStaffDyn('${d}'); _toggleStaffDropdown('dyn-menu')">${d}</div>`;
   });
-  h += btn("setStaffDyn('')", '✕', 'Clear dynamic', '', false, 'color:#999;padding:3px 6px;');
-  h += sep;
-  h += lbl('Articulation');
-  [['staccato','·','Staccato'],['tenuto','—','Tenuto'],['accent','>','Accent'],['marcato','^','Marcato'],['fermata','𝄐','Fermata']].forEach(([id,sym,title]) => {
-    h += btn(`setStaffArt('${id}')`, sym, title, '#9a7820', staffSelectedArticulation===id, 'font-size:14px;');
-  });
-  h += btn("setStaffArt('')", '✕', 'Clear articulation', '', false, 'color:#999;padding:3px 6px;');
-  h += `</div>`;
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;color:#999;" onmouseover="this.style.background='#e8dcc8'" onmouseout="this.style.background=''" onclick="_selectStaffDyn(''); _toggleStaffDropdown('dyn-menu')">✕ Clear</div>`;
+  h += `</div></div>`;
 
-  // Row 3: Tuplets + Repeats + Zoom
-  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;padding:4px;background:#ede0ce;border-radius:8px;border:1px solid #c8a882;margin-bottom:6px">`;
-  h += lbl('Tuplet');
-  h += btn("setStaffMode('tuplet')",  '3 Triplet',   'Triplet',    '#7d3c98', staffEditMode==='tuplet' && staffTupletCount===3);
-  h += btn("setStaffMode('tuplet6')", '6 Sextuplet', 'Sextuplet',  '#6c3483', staffEditMode==='tuplet' && staffTupletCount===6);
+  // === ARTICULATION DROPDOWN ===
+  const artMap = {staccato:'·',tenuto:'—',accent:'>',marcato:'^',fermata:'𝄐'};
+  const artLbl = staffSelectedArticulation ? (artMap[staffSelectedArticulation] || '?') : '—';
+  h += `<div style="position:relative;display:inline-block;z-index:100">`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('art-menu')" style="font-size:13px;padding:3px 10px;background:#9a7820;color:#fff;border-color:#9a7820">${artLbl} ▼</button>`;
+  h += `<div id="art-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
+  [['staccato','·','Staccato'],['tenuto','—','Tenuto'],['accent','>','Accent'],['marcato','^','Marcato'],['fermata','𝄐','Fermata']].forEach(([id,sym,title]) => {
+    h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffSelectedArticulation===id ? 'background:#9a7820;color:#fff;' : ''}" onmouseover="this.style.background='#c4a770'" onmouseout="this.style.background='${staffSelectedArticulation===id ? '#9a7820' : ''}'" onclick="_selectStaffArt('${id}'); _toggleStaffDropdown('art-menu')">${sym} ${title}</div>`;
+  });
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;color:#999;" onmouseover="this.style.background='#e8dcc8'" onmouseout="this.style.background=''" onclick="_selectStaffArt(''); _toggleStaffDropdown('art-menu')">✕ Clear</div>`;
+  h += `</div></div>`;
+
+  // === MORE (Tuplet + Repeat) DROPDOWN ===
+  h += `<div style="position:relative;display:inline-block;z-index:100">`;
+  h += `<button class="btn" onclick="_toggleStaffDropdown('more-menu')" style="font-size:12px;padding:3px 10px;background:#c8a882;color:#fff;border-color:#8a6848">⋮ More ▼</button>`;
+  h += `<div id="more-menu" style="display:none;position:absolute;top:100%;left:0;background:#e8dac8;border:1px solid #c0a070;border-radius:6px;padding:6px;z-index:10000;min-width:140px;box-shadow:0 8px 20px rgba(0,0,0,0.25)">`;
+  h += `<div style="font-size:10px;color:#7a5a40;text-transform:uppercase;padding:4px 0;margin-bottom:4px;border-bottom:1px solid #c0a070;font-weight:bold">Tuplet</div>`;
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffEditMode==='tuplet' && staffTupletCount===3 ? 'background:#7d3c98;color:#fff;' : ''}" onmouseover="this.style.background='#a370bb'" onmouseout="this.style.background='${staffEditMode==='tuplet' && staffTupletCount===3 ? '#7d3c98' : ''}'" onclick="_selectStaffMode('tuplet'); _toggleStaffDropdown('more-menu')">3 Triplet</div>`;
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffEditMode==='tuplet' && staffTupletCount===6 ? 'background:#6c3483;color:#fff;' : ''}" onmouseover="this.style.background='#8a5aaa'" onmouseout="this.style.background='${staffEditMode==='tuplet' && staffTupletCount===6 ? '#6c3483' : ''}'" onclick="_selectStaffMode('tuplet6'); _toggleStaffDropdown('more-menu')">6 Sextuplet</div>`;
+  h += `<div style="font-size:10px;color:#7a5a40;text-transform:uppercase;padding:4px 0;margin:6px 0 4px;border-bottom:1px solid #c0a070;font-weight:bold">Repeat</div>`;
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffEditMode==='repeat-start' ? 'background:#16a085;color:#fff;' : ''}" onmouseover="this.style.background='#2cba9f'" onmouseout="this.style.background='${staffEditMode==='repeat-start' ? '#16a085' : ''}'" onclick="_selectStaffMode('repeat-start'); _toggleStaffDropdown('more-menu')">|: Repeat Begin</div>`;
+  h += `<div style="padding:4px 8px;cursor:pointer;border-radius:3px;font-size:11px;${staffEditMode==='repeat-end' ? 'background:#16a085;color:#fff;' : ''}" onmouseover="this.style.background='#2cba9f'" onmouseout="this.style.background='${staffEditMode==='repeat-end' ? '#16a085' : ''}'" onclick="_selectStaffMode('repeat-end'); _toggleStaffDropdown('more-menu')">:| Repeat End</div>`;
+  h += `</div></div>`;
   h += sep;
-  h += lbl('Repeat');
-  h += btn("setStaffMode('repeat-start')", '|: Begin', 'Repeat begin', '#16a085', staffEditMode==='repeat-start');
-  h += btn("setStaffMode('repeat-end')",   ':| End',   'Repeat end',   '#16a085', staffEditMode==='repeat-end');
+
+  // === ZOOM ===
+  h += btn('setStaffZoom(staffZoom-6)', '−', 'Zoom out (- key)', '', false, 'padding:3px 9px;font-size:14px;');
+  h += `<span style="font-size:11px;color:#7a5a40;min-width:40px;text-align:center;font-weight:bold">${staffZoom}px</span>`;
+  h += btn('setStaffZoom(staffZoom+6)', '+', 'Zoom in (+ key)', '', false, 'padding:3px 9px;font-size:14px;');
+
   h += sep;
-  h += lbl('Zoom');
-  h += btn('setStaffZoom(staffZoom-6)', '−', 'Zoom out', '', false, 'padding:3px 9px;font-size:14px;');
-  h += `<span style="font-size:11px;color:#7a5a40;min-width:34px;text-align:center">${staffZoom}px</span>`;
-  h += btn('setStaffZoom(staffZoom+6)', '+', 'Zoom in',  '', false, 'padding:3px 9px;font-size:14px;');
+
+  // Spacer to push legend to the right
+  h += `<div style="flex:1;min-width:20px"></div>`;
+
+  // === LEGEND: Active / Muted ===
+  h += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#7a5a40;white-space:nowrap">`;
+  h += `<span style="display:inline-block;width:8px;height:8px;background:#27ae60;border-radius:50%"></span> Active`;
+  h += `</span>`;
+  h += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#7a5a40;white-space:nowrap;margin-left:8px">`;
+  h += `<span style="display:inline-block;width:8px;height:8px;background:#888888;border-radius:50%"></span> Muted`;
+  h += `</span>`;
+
+  // === REFRESH BUTTON ===
+  h += btn('renderStaff()', '↺ Refresh', 'Refresh staff view', '', false, 'font-size:10px;padding:2px 8px;margin-left:8px');
+
+  // === TIE PENDING MESSAGE ===
   if (staffEditMode === 'tie' && staffTiePending) {
-    h += `<span style="font-size:11px;color:#3a6a9a;margin-left:8px;font-style:italic">~ click second note (ch ${staffTiePending.ci})</span>`;
+    h += `<span style="font-size:11px;color:#3a6a9a;margin-left:8px;font-style:italic;white-space:nowrap">~ click 2nd note</span>`;
   }
+
   h += `</div>`;
 
   tb.innerHTML = h;
+}
+
+// Helper functions for dropdowns and setters
+function _toggleStaffDropdown(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  // Close all other menus
+  ['dur-menu','note-menu','dyn-menu','art-menu','more-menu'].forEach(id => {
+    if (id !== menuId) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+  });
+  // Toggle current menu
+  menu.style.display = menu.style.display === 'none' ? 'grid' : 'none';
+}
+
+function _selectStaffDur(d) {
+  staffSelectedDur = d;
+  _buildStaffToolbar();
+}
+
+function _selectStaffCh(i) {
+  staffSelectedCh = i;
+  _buildStaffToolbar();
+}
+
+function _selectStaffDyn(d) {
+  staffSelectedDynamic = staffSelectedDynamic === d ? '' : d;
+  _buildStaffToolbar();
+}
+
+function _selectStaffArt(a) {
+  staffSelectedArticulation = staffSelectedArticulation === a ? '' : a;
+  _buildStaffToolbar();
+}
+
+function _selectStaffMode(m) {
+  if (m === 'tuplet')  { staffTupletCount = 3; staffEditMode = 'tuplet'; }
+  else if (m === 'tuplet6') { staffTupletCount = 6; staffEditMode = 'tuplet'; }
+  else { staffEditMode = m; }
+  if (m !== 'tie') staffTiePending = null;
+  _buildStaffToolbar();
 }
 
 function setStaffMode(m) {
@@ -4821,6 +4952,9 @@ function renderStaff() {
   });
 }
 
+// Global handler for closing staff dropdowns
+let _staffDropdownHandler = null;
+
 function toggleStaffView() {
   staffViewActive = !staffViewActive;
   const grid  = document.querySelector('.sequencer-wrap');
@@ -4833,10 +4967,28 @@ function toggleStaffView() {
     _buildStaffToolbar();
     document.getElementById('staffSvg').onclick = _onStaffSvgClick;
     renderStaff();
+
+    // Add click-outside handler for dropdowns
+    const tb = document.getElementById('staffToolbar');
+    _staffDropdownHandler = (e) => {
+      if (tb && !tb.contains(e.target)) {
+        ['dur-menu','note-menu','dyn-menu','art-menu','more-menu'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+      }
+    };
+    document.addEventListener('click', _staffDropdownHandler);
   } else {
     grid.style.display  = '';
     staff.style.display = 'none';
     btn.textContent     = '🎼 Score';
+
+    // Remove click-outside handler
+    if (_staffDropdownHandler) {
+      document.removeEventListener('click', _staffDropdownHandler);
+      _staffDropdownHandler = null;
+    }
   }
 }
 

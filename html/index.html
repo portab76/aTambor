@@ -1073,17 +1073,8 @@ select:disabled option { background: #e0d5c0; color: #a08060; }
 
     </div>
 
-    <div id="staffView" style="display:none;padding:8px 0;overflow-x:auto">
-      <div id="staffToolbar"></div>
-      <div style="font-size:11px;color:#888;margin-bottom:4px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <span style="display:inline-block;width:8px;height:8px;background:#27ae60;border-radius:50%"></span> Active
-        </span>
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <span style="display:inline-block;width:8px;height:8px;background:#888888;border-radius:50%"></span> Muted
-        </span>
-        <button class="btn" onclick="renderStaff()" style="font-size:10px;padding:2px 8px">↺ Refresh</button>
-      </div>
+    <div id="staffView" style="display:none;padding:8px 0;overflow:visible;position:relative;z-index:1">
+      <div id="staffToolbar" style="overflow:visible;position:relative;z-index:100"></div>
       <div id="staffSvg" style="cursor:crosshair"></div>
     </div>
 
