@@ -660,8 +660,8 @@ function generateCommand() {
   const cmd = buildCommand(channels, bpm, hitDur, numSteps);
   if (!cmd) {
     const msg = hasSteps
-      ? 'ERROR: BPM demasiado alto o golpe demasiado largo'
-      : 'Sin golpes activos — marca algún paso para reproducir';
+      ? 'ERROR: BPM too high or hit duration too long'
+      : 'No active notes — mark a step to play';
     setStatus(msg, hasSteps ? 'error' : 'warn');
     return '';
   }
@@ -2612,7 +2612,7 @@ function viewScale() {
   const chords = getScaleChords(key, scaleType);
 
   if (!chords.length) {
-    setStatus('❌ Escala no válida', 'error');
+    setStatus('❌ Invalid scale', 'error');
     return;
   }
 
@@ -2758,7 +2758,7 @@ document.addEventListener('DOMContentLoaded', () => {
       drumStreamPause();
       isPausing = true;
       _setTransport('paused');
-      setStatus('⏸ Pausando…');
+      setStatus('⏸ Pausing...');
     }
   };
 
@@ -2983,9 +2983,9 @@ document.addEventListener('DOMContentLoaded', () => {
     _setPianoControlsEnabled(audioEnabled);
     if (audioEnabled) {
       await initToneAudio();
-      setStatus('🎹 Piano Virtual ACTIVADO');
+      setStatus('🎹 Virtual Piano ENABLED');
     } else {
-      setStatus('🎹 Piano Virtual desactivado');
+      setStatus('🎹 Virtual Piano disabled');
     }
   };
 
