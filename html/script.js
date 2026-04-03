@@ -7,25 +7,94 @@
 // ============================================================
 
 let ESP32_IP   = '192.168.1.128'; // ← IP real del ESP32 en tu red (configurable desde Settings)
-const MAX_CH     = 20;
+// ============================================================
+// DEFAULT_KEYS — single source of truth for motors and PCAs
+// ============================================================
+// pca:   PCA9685 chip index  (I2C addr = 0x40 + pca)
+// motor: global index sent to firmware via "m N;"
+//        firmware routing: chip = motor/16, canal = motor%16
+//
+// To add a motor:  add an entry (or uncomment)
+// To remove:       delete or comment out the entry
+// To add a PCA:    add entries with the new pca index
+// MAX_CH and NUM_PCA are derived automatically — do not edit
+// ============================================================
 const DEFAULT_KEYS = [
-  { name: 'C1',        motor: 0  },
-  { name: 'C#',       motor: 1  },
-  { name: 'D1',        motor: 2  },
-  { name: 'D#1 / Eb1', motor: 3  },
-  { name: 'E1',        motor: 4  },
-  { name: 'F1',        motor: 5  },
-  { name: 'F#1 / Gb1', motor: 6  },
-  { name: 'G1',        motor: 7  },
-  { name: 'G#1 / Ab1', motor: 8  },
-  { name: 'A1',        motor: 9  },
-  { name: 'A#1 / Bb1', motor: 10 },
-  { name: 'B1',        motor: 11 },
-  { name: 'C2',       motor: 12 },
-  { name: 'D2',       motor: 13 },
-  { name: 'E2',       motor: 14 },
-  { name: 'G2',       motor: 15 },
+
+  // ── PCA 0  (I2C 0x40) ─────────────────────────────────────
+  { name: 'C1',  pca: 0, motor: 0  },
+  { name: 'C#1', pca: 0, motor: 1  },
+  { name: 'D1',  pca: 0, motor: 2  },
+  { name: 'D#1', pca: 0, motor: 3  },
+  { name: 'E1',  pca: 0, motor: 4  },
+  { name: 'F1',  pca: 0, motor: 5  },
+  { name: 'F#1', pca: 0, motor: 6  },
+  { name: 'G1',  pca: 0, motor: 7  },
+  { name: 'G#1', pca: 0, motor: 8  },
+  { name: 'A1',  pca: 0, motor: 9  },
+  { name: 'A#1', pca: 0, motor: 10 },
+  { name: 'B1',  pca: 0, motor: 11 },
+
+  // ── PCA 1  (I2C 0x41) — uncomment when hardware ready ─────
+  // { name: 'C2',  pca: 1, motor: 16 },
+  // { name: 'C#2', pca: 1, motor: 17 },
+  // { name: 'D2',  pca: 1, motor: 18 },
+  // { name: 'D#2', pca: 1, motor: 19 },
+  // { name: 'E2',  pca: 1, motor: 20 },
+  // { name: 'F2',  pca: 1, motor: 21 },
+  // { name: 'F#2', pca: 1, motor: 22 },
+  // { name: 'G2',  pca: 1, motor: 23 },
+  // { name: 'G#2', pca: 1, motor: 24 },
+  // { name: 'A2',  pca: 1, motor: 25 },
+  // { name: 'A#2', pca: 1, motor: 26 },
+  // { name: 'B2',  pca: 1, motor: 27 },
+
+  // ── PCA 2  (I2C 0x42) — uncomment when hardware ready ─────
+  // { name: 'C3',  pca: 2, motor: 32 },
+  // { name: 'C#3', pca: 2, motor: 33 },
+  // { name: 'D3',  pca: 2, motor: 34 },
+  // { name: 'D#3', pca: 2, motor: 35 },
+  // { name: 'E3',  pca: 2, motor: 36 },
+  // { name: 'F3',  pca: 2, motor: 37 },
+  // { name: 'F#3', pca: 2, motor: 38 },
+  // { name: 'G3',  pca: 2, motor: 39 },
+  // { name: 'G#3', pca: 2, motor: 40 },
+  // { name: 'A3',  pca: 2, motor: 41 },
+  // { name: 'A#3', pca: 2, motor: 42 },
+  // { name: 'B3',  pca: 2, motor: 43 },
+
+  // ── PCA 3  (I2C 0x43) — uncomment when hardware ready ─────
+  // { name: 'C4',  pca: 3, motor: 48 },
+  // { name: 'C#4', pca: 3, motor: 49 },
+  // { name: 'D4',  pca: 3, motor: 50 },
+  // { name: 'D#4', pca: 3, motor: 51 },
+  // { name: 'E4',  pca: 3, motor: 52 },
+  // { name: 'F4',  pca: 3, motor: 53 },
+  // { name: 'F#4', pca: 3, motor: 54 },
+  // { name: 'G4',  pca: 3, motor: 55 },
+  // { name: 'G#4', pca: 3, motor: 56 },
+  // { name: 'A4',  pca: 3, motor: 57 },
+  // { name: 'A#4', pca: 3, motor: 58 },
+  // { name: 'B4',  pca: 3, motor: 59 },
+
+  // ── PCA 4  (I2C 0x44) — uncomment when hardware ready ─────
+  // { name: 'C5',  pca: 4, motor: 64 },
+  // { name: 'C#5', pca: 4, motor: 65 },
+  // { name: 'D5',  pca: 4, motor: 66 },
+  // { name: 'D#5', pca: 4, motor: 67 },
+  // { name: 'E5',  pca: 4, motor: 68 },
+  // { name: 'F5',  pca: 4, motor: 69 },
+  // { name: 'F#5', pca: 4, motor: 70 },
+  // { name: 'G5',  pca: 4, motor: 71 },
+  // { name: 'G#5', pca: 4, motor: 72 },
+  // { name: 'A5',  pca: 4, motor: 73 },
+  // { name: 'A#5', pca: 4, motor: 74 },
+  // { name: 'B5',  pca: 4, motor: 75 },
 ];
+
+// ── Derived automatically — DO NOT EDIT ───────────────────────
+const MAX_CH  = DEFAULT_KEYS.length;
+const NUM_PCA = new Set(DEFAULT_KEYS.map(k => k.pca)).size;
 let numMeasures  = 1;
 let numSteps     = 16;  // numMeasures * 16
 
@@ -195,7 +264,7 @@ const FLAT_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 
 
 // ---- Canal vacío --------------------------------------------
 function emptyChannel(index) {
-  return { name: `Drum ${index + 1}`, motor: index, vel: 60, homePwm: 375, muted: false, sustain: false, steps: new Array(numSteps).fill(0), notation: { dynamics: {}, articulations: {} } };
+  return { name: `Drum ${index + 1}`, motor: index, pca: Math.floor(index / 16), vel: 60, homePwm: 375, muted: false, sustain: false, steps: new Array(numSteps).fill(0), notation: { dynamics: {}, articulations: {} } };
 }
 function _chNotation(ch) {
   if (!ch.notation)                    ch.notation = {};
@@ -230,7 +299,7 @@ function setMeasures(n) {
 // ---- Inicializar canales vacíos -----------------------------
 function initChannels() {
   songLoadedIdx = -1; songLoadedModified = false;
-  channels = DEFAULT_KEYS.map(k => ({ ...emptyChannel(k.motor), name: k.name, motor: k.motor }));
+  channels = DEFAULT_KEYS.map(k => ({ ...emptyChannel(k.motor), name: k.name, motor: k.motor, pca: k.pca }));
   render();
   if (isPlaying) {
     if (drumStreamActive) { drumStreamStop(); setTimeout(drumStreamStart, 100); }
