@@ -101,7 +101,7 @@ Total PCAs: 2 | Active motors: 0-31
 
 El sistema cuenta con dos entornos de trabajo complementarios.
 
-**→ Ver documentación completa del software:** [README del software](../../../xampp/htdocs/aTambor/README.md)
+**→ Ver documentación completa del software:** [README del software](https://github.com/portab76/aTambor/blob/main/html/README.md)
 
 ### aTambor — Drum Machine (`aTambor.html`)
 Secuenciador paso a paso por canales, al estilo de las clásicas cajas de ritmos. Composición de patrones rítmicos, modo Song, mute por canal y calibración de motores.
