@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Sequencer Grid</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: #1e1e2f;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Barra de herramientas superior ── */
+        .toolbar {
+            background: #16162a;
+            border-bottom: 1px solid #3a3a5a;
+            padding: 6px 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .toolbar-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #a0a0cc;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        .toolbar-sep {
+            width: 1px;
+            height: 24px;
+            background: #3a3a5a;
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+
+        /* ── Controles generales ── */
+        button, select {
+            background: #2e2e42;
+            color: #ddd;
+            border: 1px solid #4a4a6a;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        button:hover:not(:disabled) { background: #3a3a58; }
+        button:disabled { opacity: 0.4; cursor: default; }
+
+        input[type="file"] {
+            background: #2e2e42;
+            color: #ddd;
+            border: 1px solid #4a4a6a;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            max-width: 200px;
+        }
+
+        select { max-width: 220px; }
+
+        /* Botones de transporte con iconos más grandes */
+        .btn-transport {
+            padding: 5px 10px;
+            font-size: 15px;
+            min-width: 36px;
+        }
+
+        /* Botón notas activas */
+        #activeNotesBtn.active {
+            background: #2a3a5a;
+            border-color: #4a6a9a;
+            color: #aaccff;
+        }
+
+        /* Estado/mensaje */
+        #statusMsg {
+            font-size: 12px;
+            color: #8888aa;
+            margin-left: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 280px;
+        }
+
+        /* ── Área de contenido (info + grid) ── */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 8px 12px;
+            gap: 6px;
+        }
+
+        .info {
+            background: #22223a;
+            border: 1px solid #33335a;
+            border-radius: 5px;
+            padding: 6px 10px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #9999bb;
+            max-height: none;
+            overflow-y: visible;
+            flex-shrink: 0;
+        }
+
+        /* ── Piano roll: columna fija + canvas scrollable ── */
+        .piano-roll-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            border-radius: 6px;
+            border: 1px solid #33335a;
+            background: #1a1a2e;
+            min-height: 0;
+        }
+
+        /* Columna de notas (fija, no se mueve al hacer scroll horizontal) */
+        .notes-panel-scroll {
+            width: 75px;  /* Aumentado de 62 a 75 */
+            flex-shrink: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: none;       /* Firefox */
+            border-right: 1px solid #33335a;
+            background: #13132a;
+        }
+        .notes-panel-scroll::-webkit-scrollbar { display: none; }
+
+        /* Área scrollable del grid */
+        .grid-scroll {
+            flex: 1;
+            overflow: auto;
+        }
+
+        canvas {
+            display: block;
+            background: #252530;
+            cursor: crosshair;
+        }
+
+        /* Fila de acordes: wrapper con spacer alineado a la columna de notas */
+        .chord-row-wrapper {
+            display: flex;
+            flex-shrink: 0;
+            border-top: 1px solid #33335a;
+            border-radius: 0 0 6px 6px;
+            overflow: hidden;
+        }
+        .chord-row-spacer {
+            width: 75px;  /* Debe coincidir con .notes-panel-scroll */
+            flex-shrink: 0;
+            background: #13132a;
+            border-right: 1px solid #33335a;
+        }
+        #chordRowContainer {
+            white-space: nowrap;
+            overflow: hidden;   /* scroll controlado por JS en sincronía con gridScroll */
+            flex: 1;
+            min-height: 52px;
+        }
+
+        /* ── Panel Motor Map colapsable ── */
+        .motor-map-panel {
+            flex-shrink: 0;
+            background: #13132a;
+            border-top: 1px solid #33335a;
+            font-family: 'Segoe UI', monospace;
+            font-size: 12px;
+            color: #ddd;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.25s ease;
+        }
+        .motor-map-panel.open {
+            position: fixed;
+            top: 150px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            max-height: none;
+            z-index: 1000;
+            border-radius: 0;
+            border-top: 1px solid #33335a;
+            display: flex;
+            flex-direction: column;
+        }
+        .motor-map-panel.open .motor-map-inner {
+            flex: 1;
+            max-height: none;
+            overflow-y: auto;
+        }
+        .motor-map-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 14px;
+            background: #1a1a30;
+            border-top: 1px solid #33335a;
+            cursor: pointer;
+            font-size: 11px;
+            color: #7777aa;
+            user-select: none;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1001;
+        }
+        .motor-map-toggle:hover { background: #22223a; color: #aaaacc; }
+        .motor-map-panel.open ~ .motor-map-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 20px;
+            left: auto;
+            top: auto;
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            width: auto;
+            border-top: 1px solid #3a3a5a;
+        }
+        .motor-map-inner {
+            overflow-y: auto;
+            max-height: 200px;
+            padding: 6px 14px 10px;
+        }
+        .motor-map-inner table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .motor-map-inner th {
+            color: #5555aa;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            padding: 3px 6px;
+            border-bottom: 1px solid #2a2a4a;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            background: #13132a;
+        }
+        .motor-map-inner td { padding: 2px 6px; border-bottom: 1px solid #1e1e38; }
+        .motor-map-inner tr:hover td { background: #1e1e3a; }
+        .motor-map-inner tr.mm-selected td { background: #2a2a50; }
+        .mm-input {
+            width: 54px;
+            background: #0e0e1e;
+            color: #eee;
+            border: 1px solid #3a3a5a;
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-size: 11px;
+        }
+        .mm-test-btn {
+            margin: 4px 0 0 14px;
+            font-size: 11px;
+            padding: 3px 10px;
+            background: #1a5f3a;
+            border-color: #2a8a5a;
+            color: #aaffcc;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ BARRA DE HERRAMIENTAS ══════════════ -->
+<div class="toolbar">
+    <span class="toolbar-title">🎹 MIDI Grid</span>
+
+    <!-- Nuevo documento vacío -->
+    <button onclick="loadBlankGrid()" title="Nuevo grid vacío (1 compás con notas del Motor Map)"
+            style="font-size:12px;">📄 Nuevo</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Carga de archivo -->
+    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
+
+    <!-- Selección de instrumento -->
+    <select id="instrumentSelect" disabled>
+        <option value="">-- Canal / Instrumento --</option>
+    </select>
+    <button id="loadInstrumentBtn" disabled>Mostrar Grid</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Transporte -->
+    <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
+    <button id="pauseBtn" class="btn-transport" disabled title="Pause">⏸</button>
+    <button id="stopBtn"  class="btn-transport" disabled title="Stop">⏹</button>
+    <button id="loopBtn"  class="btn-transport" disabled title="Loop">🔁</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Notas activas -->
+    <button id="activeNotesBtn" title="Ver notas activas del instrumento" disabled
+            style="font-size:12px;">🎵 Notas</button>
+
+    <!-- Motor Map -->
+    <button onclick="toggleMotorMapPanel()" title="Abrir/cerrar panel Motor Map"
+            style="font-size:12px;">⚙ Motor Map</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Persistencia -->
+    <button id="exportMidiBtn" title="Exportar eventos a JSON">⬇ Export</button>
+    <button id="saveProjectBtn" title="Guardar proyecto">💾 Guardar</button>
+    <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
+    <button id="loadProjectBtn" title="Cargar proyecto guardado">📂 Cargar</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Conexión ESP32 -->
+    <input id="esp32IpInput" value="192.168.1.128"
+           title="IP del ESP32"
+           style="width:130px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
+                  border-radius:4px;padding:3px 6px;font-size:12px;">
+    <button onclick="initWebSocket()"
+            title="Conectar con ESP32"
+            style="font-size:12px;">Conectar</button>
+    <span id="esp32StatusDot" style="font-size:16px;line-height:1;color:#dd4444;">●</span>
+    <span id="esp32StatusLabel" style="font-size:11px;color:#888;">ESP32 desconectado</span>
+    <div class="toolbar-sep"></div>
+
+    <!-- Estado MIDI -->
+    <span id="statusMsg">Esperando MIDI...</span>
+</div>
+
+<!-- ══════════════ ÁREA PRINCIPAL ══════════════ -->
+<div class="content">
+    <!-- Log de información (oculto por defecto, toggle desde botón en chord-row) -->
+    <div class="info" id="debugInfo" style="display:none;">
+        <strong>Info MIDI:</strong> ningún archivo cargado.
+    </div>
+
+    <!-- Piano roll: columna de notas fija + canvas scrollable -->
+    <div class="piano-roll-wrapper">
+        <div id="notesPanelScroll" class="notes-panel-scroll">
+            <canvas id="noteLabelsCanvas" width="75"></canvas>
+        </div>
+        <div id="gridScroll" class="grid-scroll">
+            <canvas id="pianoRollCanvas" width="800" height="400"></canvas>
+        </div>
+    </div>
+
+    <!-- Fila de acordes (alineada con el grid, scroll sincronizado) -->
+    <div class="chord-row-wrapper">
+        <div class="chord-row-spacer" style="display:flex;align-items:center;justify-content:center;">
+            <button id="infoToggleBtn"
+                onclick="(function(){
+                    const d = document.getElementById('debugInfo');
+                    const visible = d.style.display !== 'none';
+                    d.style.display = visible ? 'none' : 'block';
+                    document.getElementById('infoToggleBtn').style.opacity = visible ? '0.4' : '1';
+                })()"
+                title="Mostrar/ocultar info MIDI"
+                style="font-size:11px;padding:2px 6px;opacity:0.4;min-width:0;width:58px;">
+                ℹ Info
+            </button>
+        </div>
+        <div id="chordRowContainer"></div>
+    </div>
+
+    <!-- Toggle colapsable del panel Motor Map -->
+    <div class="motor-map-toggle" id="motorMapToggle" onclick="toggleMotorMapPanel()">
+        <span class="mm-arrow">▲</span>
+        <span>Motor Map — MIDI note → ESP32 motor</span>
+        <span style="margin-left:auto;font-size:10px;color:#555;" id="motorMapSummary"></span>
+    </div>
+
+    <!-- Panel Motor Map colapsable (debajo del chord-row) -->
+    <div class="motor-map-panel" id="motorMapPanel">
+
+        <!-- Teclado miniatura -->
+        <div style="padding:8px 14px 4px;border-bottom:1px solid #2a2a4a;">
+            <canvas id="mmMiniKeyboard" style="display:block;border-radius:3px;"></canvas>
+        </div>
+
+        <div class="motor-map-inner">
+            <table>
+                <thead>
+                    <tr>
+                        <th>MIDI</th>
+                        <th>Nota</th>
+                        <th>Motor</th>
+                        <th>HomePWM</th>
+                        <th>Vel</th>
+                        <th>Inv</th>
+                        <th>PCA/ch</th>
+                    </tr>
+                </thead>
+                <tbody id="motorMapPanelTbody"></tbody>
+            </table>
+        </div>
+
+        <!-- Leyenda arcoíris -->
+        <div style="padding:6px 14px 4px;border-top:1px solid #2a2a4a;
+                    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;">
+            <span style="color:#555;font-style:italic;">🎹 Octavas:</span>
+            <span style="color:#ff6666;">● Do1 <span style="color:#555;font-size:10px;">graves</span></span>
+            <span style="color:#ff9944;">● Do2</span>
+            <span style="color:#dddd44;">● Do3</span>
+            <span style="color:#44dd44;">● Do4</span>
+            <span style="color:#4488ff;">● Do5</span>
+            <span style="color:#bb66ff;">● Do6 <span style="color:#555;font-size:10px;">agudos</span></span>
+            <span style="margin-left:auto;color:#333;font-size:10px;letter-spacing:1px;">
+                GRAVES ←————————→ AGUDOS
+            </span>
+        </div>
+        <div style="display:flex;gap:6px;padding:4px 0 45px 14px;">
+            <button class="mm-test-btn" onclick="_mmPanelTest()" title="Enviar golpe de prueba al motor seleccionado">
+                ▶ Test
+            </button>
+            <button class="mm-test-btn" onclick="motorMapExport()" title="Exportar a JSON"
+                style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">
+                ⬇ Export
+            </button>
+            <button class="mm-test-btn" onclick="motorMapImport()" title="Importar desde JSON"
+                style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">
+                ⬆ Import
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
+<!-- Librerías MIDI.js + jasmid -->
+<script src="./MIDI.js/inc/shim/Base64.js"></script>
+<script src="./MIDI.js/inc/shim/Base64binary.js"></script>
+<script src="./MIDI.js/inc/shim/WebAudioAPI.js"></script>
+<script src="./MIDI.js/inc/jasmid/stream.js"></script>
+<script src="./MIDI.js/inc/jasmid/midifile.js"></script>
+<script src="./MIDI.js/build/MIDI.min.js"></script>
+<!-- Módulos del proyecto -->
+<script src="./js/ws-connector.js"></script>
+<script src="./js/motor-map.js"></script>
+<script src="./js/esp32-sequencer.js"></script>
+<script src="./js/state.js"></script>
+<script src="./js/midi-parser.js"></script>
+<script src="./js/piano-roll.js"></script>
+<script src="./js/harmonic.js"></script>
+<script src="./js/chord-row.js"></script>
+<script src="./js/active-notes-panel.js"></script>
+<script src="./js/playback.js"></script>
+<script src="./js/editor.js"></script>
+<script src="./js/persistence.js"></script>
+<script src="./js/midiGrid.js"></script>
+</body>
+</html>

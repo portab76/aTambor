@@ -1,0 +1,107 @@
+{
+  "bpm": 120,
+  "hitDur": 80,
+  "numMeasures": 1,
+  "channels": [
+    {
+      "name": "Drum 1",
+      "motor": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "Drum 2",
+      "motor": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Drum 3",
+      "motor": 2,
+      "vel": 60,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Drum 4",
+      "motor": 3,
+      "vel": 60,
+      "homePwm": 375,
+      "rebound": false,
+      "steps": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

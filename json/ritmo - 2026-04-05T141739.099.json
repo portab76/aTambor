@@ -1,0 +1,245 @@
+{
+  "bpm": 60,
+  "hitDur": 80,
+  "numMeasures": 1,
+  "channels": [
+    {
+      "name": "C",
+      "motor": 0,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "C#",
+      "motor": 1,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "D",
+      "motor": 2,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "D#",
+      "motor": 3,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "E",
+      "motor": 4,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "F",
+      "motor": 5,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "F#",
+      "motor": 6,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "G",
+      "motor": 7,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "G#",
+      "motor": 8,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "A",
+      "motor": 9,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "A#",
+      "motor": 10,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "B",
+      "motor": 11,
+      "pca": 0,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "C_1",
+      "motor": 16,
+      "pca": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "D_1",
+      "motor": 18,
+      "pca": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "E_1",
+      "motor": 20,
+      "pca": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "F_1",
+      "motor": 21,
+      "pca": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    },
+    {
+      "name": "G_1",
+      "motor": 23,
+      "pca": 1,
+      "vel": 60,
+      "homePwm": 375,
+      "muted": false,
+      "sustain": false,
+      "steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "notation": {
+        "dynamics": {},
+        "articulations": {}
+      }
+    }
+  ]
+}

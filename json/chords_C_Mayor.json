@@ -1,0 +1,69 @@
+{
+  "tonalidad": "C",
+  "escala": "Mayor",
+  "acordes": [
+    {
+      "numeral": "I",
+      "type": "major",
+      "notas": [
+        "C",
+        "E",
+        "G"
+      ]
+    },
+    {
+      "numeral": "ii",
+      "type": "minor",
+      "notas": [
+        "D",
+        "F",
+        "A"
+      ]
+    },
+    {
+      "numeral": "iii",
+      "type": "minor",
+      "notas": [
+        "E",
+        "G",
+        "B"
+      ]
+    },
+    {
+      "numeral": "IV",
+      "type": "major",
+      "notas": [
+        "F",
+        "A",
+        "C"
+      ]
+    },
+    {
+      "numeral": "V",
+      "type": "major",
+      "notas": [
+        "G",
+        "B",
+        "D"
+      ]
+    },
+    {
+      "numeral": "vi",
+      "type": "minor",
+      "notas": [
+        "A",
+        "C",
+        "E"
+      ]
+    },
+    {
+      "numeral": "vii°",
+      "type": "diminished",
+      "notas": [
+        "B",
+        "D",
+        "F"
+      ]
+    }
+  ]
+}
