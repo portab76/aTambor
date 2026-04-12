@@ -18,7 +18,7 @@ aTambor es una máquina de ritmos que:
 - 🎵 **Reproduce archivos MIDI** para crear composiciones completas
 - 📱 **Opera desde navegador web** conectado al ESP32 vía WebSocket
 - 💰 **Componentes de bajo costo** disponibles en AliExpress — DIY accesible
-
+- 🔗 **Ver videos en  tiktok :** https://www.tiktok.com/@pot5058
 ---
 
 ## ⚙️ Hardware: Componentes
