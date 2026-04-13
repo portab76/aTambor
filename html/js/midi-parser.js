@@ -52,6 +52,8 @@ function loadMIDIFile(binaryString) {
     ppqn = parsed.header.ticksPerBeat || 96;
     rawEvents = [];
     tempoMap  = [{ tick: 0, bpm: 120 }];
+    // Resetear compás antes de parsear (el meta-evento lo sobreescribirá si existe)
+    currentTimeSig = { numerator: 4, denominator: 4, stepsPerMeasure: 16, stepsPerBeat: 4 };
     const channelInstruments = {};
 
     // Cada pista usa deltaTime relativo → acumulamos ticks absolutos por pista
@@ -71,6 +73,18 @@ function loadMIDIFile(binaryString) {
                 }
             } else if (ev.type === 'meta' && ev.subtype === 'setTempo') {
                 tempoMap.push({ tick: absoluteTick, bpm: 60000000 / ev.microsecondsPerBeat });
+            } else if (ev.type === 'meta' && ev.subtype === 'timeSignature') {
+                // Guardamos el primer evento de compás encontrado
+                if (currentTimeSig.numerator === 4 && currentTimeSig.denominator === 4
+                    && absoluteTick === 0) {
+                    // jasmid ya convierte el denominador a valor real (4, 8, 16…)
+                    const num = ev.numerator;
+                    const den = ev.denominator;
+                    const spb = Math.round(16 / den);   // steps por tiempo
+                    const spm = num * spb;               // steps por compás
+                    currentTimeSig = { numerator: num, denominator: den,
+                                       stepsPerMeasure: spm, stepsPerBeat: spb };
+                }
             }
         }
     }
@@ -87,11 +101,21 @@ function loadMIDIFile(binaryString) {
     const channelsWithNotes = new Set();
     rawEvents.forEach(e => { if (e.type === 'noteOn') channelsWithNotes.add(e.channel); });
 
+    const bpm0 = Math.round(tempoMap[tempoMap.length > 1 ? 1 : 0]?.bpm || 120);
+    const bpmInput = document.getElementById('bpmInput');
+    if (bpmInput) bpmInput.value = bpm0;
     debugDiv.innerHTML =
         `<strong>MIDI parseado</strong><br>` +
-        `PPQN=${ppqn} | Duración: ${totalTicks} ticks | Pistas: ${parsed.tracks.length}<br>` +
+        `PPQN=${ppqn} | BPM: ${bpm0} | Compás: ${currentTimeSig.numerator}/${currentTimeSig.denominator} ` +
+        `(${currentTimeSig.stepsPerMeasure} pasos/compás) | ` +
+        `Duración: ${totalTicks} ticks | Pistas: ${parsed.tracks.length}<br>` +
         `Canales con notas: ${Array.from(channelsWithNotes).map(c => c + 1).join(', ')}<br>` +
         `Eventos totales: ${rawEvents.length}`;
+
+    // Actualizar etiqueta del ruler
+    const rulerLabel = document.getElementById('rulerTimeSigLabel');
+    if (rulerLabel) rulerLabel.textContent =
+        `${currentTimeSig.numerator} / ${currentTimeSig.denominator}`;
 
     midiData = { ppqn, totalTicks, rawEvents, tempoMap };
     enableInstrumentSelection();

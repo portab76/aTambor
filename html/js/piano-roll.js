@@ -137,10 +137,26 @@ function drawPianoRollWithPlayhead(playheadStep) {
 }
 
 /**
+ * Dibuja el piano roll con highlight de notas Y playhead simultáneamente.
+ * Usado durante la reproducción cuando el popup de acorde está visible.
+ */
+function drawPianoRollWithHighlightAndPlayhead(chordClasses, hlStartStep, hlEndStep, playheadStep) {
+    drawPianoRollWithHighlight(chordClasses, hlStartStep, hlEndStep);
+    if (playheadStep >= 0) {
+        const x = playheadStep * stepWidth;
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 230, 0, 0.9)";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        ctx.restore();
+    }
+}
+
+/**
  * Redibuja el piano roll resaltando las notas cuya clase esté en chordClasses.
  * @param {Array<number>} chordClasses - Clases de altura (0-11) a resaltar
  */
-function drawPianoRollWithHighlight(chordClasses) {
+function drawPianoRollWithHighlight(chordClasses, hlStartStep = null, hlEndStep = null) {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -161,7 +177,7 @@ function drawPianoRollWithHighlight(chordClasses) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
 
-    _drawNotes(chordClasses);
+    _drawNotes(chordClasses, hlStartStep, hlEndStep);
 }
 
 // ---- Columna de etiquetas de notas ----
@@ -368,7 +384,17 @@ function loadBlankGrid() {
 }
 
 // --- Función interna de dibujo de notas ---
-function _drawNotes(highlightClasses) {
+// Colores RGB base por octava — idénticos al panel de etiquetas de notas
+const _OCT_RGB = {
+    1: [255, 102, 102],   // rojo    (Do1 - graves)
+    2: [255, 153,  68],   // naranja (Do2)
+    3: [221, 221,  68],   // amarillo(Do3)
+    4: [ 68, 221,  68],   // verde   (Do4 - centro)
+    5: [ 68, 136, 255],   // azul    (Do5)
+    6: [187, 102, 255],   // violeta (Do6 - agudos)
+};
+
+function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
     for (const [key, cell] of Object.entries(gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const note     = parseInt(noteStr);
@@ -380,15 +406,35 @@ function _drawNotes(highlightClasses) {
         const x = step * stepWidth;
         const w = cell.duration * stepWidth;
         const h = rowHeight;
-        const intensity = Math.min(255, Math.floor(cell.velocity * 2));
 
-        const isHighlight = highlightClasses && highlightClasses.includes(note % 12);
-        ctx.fillStyle   = isHighlight
-            ? `rgb(255, 255, ${Math.max(80, 255 - intensity)})`
-            : `rgb(${intensity}, ${200 - intensity}, 100)`;
+        // Color base de la octava
+        const oct          = Math.max(1, Math.min(6, Math.floor(note / 12) - 1));
+        const [or, og, ob] = _OCT_RGB[oct];
+
+        // Degradado por velocidad: 0.20 (ppp muy suave) → 1.0 (fff muy fuerte)
+        const bright = 0.20 + (cell.velocity / 127) * 0.80;
+
+        const inRange     = hlStartStep === null || (step >= hlStartStep && step < hlEndStep);
+        const isHighlight = highlightClasses && highlightClasses.includes(note % 12) && inRange;
+
+        if (isHighlight) {
+            // Mezcla 55% color de octava + 45% amarillo dorado → nota reconocible pero destacada
+            const hr = Math.round(or * 0.55 + 255 * 0.45);
+            const hg = Math.round(og * 0.55 + 220 * 0.45);
+            const hb = Math.round(ob * 0.55 +  40 * 0.45);
+            ctx.fillStyle   = `rgb(${hr},${hg},${hb})`;
+            ctx.strokeStyle = 'gold';
+            ctx.lineWidth   = 2;
+        } else {
+            const r = Math.round(or * bright);
+            const g = Math.round(og * bright);
+            const b = Math.round(ob * bright);
+            ctx.fillStyle   = `rgb(${r},${g},${b})`;
+            ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+            ctx.lineWidth   = 0.5;
+        }
+
         ctx.fillRect(x, y, w, h);
-        ctx.strokeStyle = isHighlight ? "gold" : "rgba(255,255,255,0.4)";
-        ctx.lineWidth   = isHighlight ? 2 : 0.5;
         ctx.strokeRect(x, y, w, h);
     }
     ctx.lineWidth = 0.5;

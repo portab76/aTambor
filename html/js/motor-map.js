@@ -70,38 +70,32 @@ let MOTOR_MAP = [
   { note: _midiNote('A#',  2), name: 'A#2', motor: 26, homePwm: 375, vel: 60, inverted: false },
   { note: _midiNote('B',   2), name: 'B2',  motor: 27, homePwm: 375, vel: 60, inverted: false },
 
-  // ── PCA 2  (motores 32-43)  →  C3–B3  (MIDI 60–71) ─────────*/
-  { note: _midiNote('C',   3), name: 'C3',  motor: 0, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('C#',  3), name: 'C#3', motor: 1, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('D',   3), name: 'D3',  motor: 2, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('D#',  3), name: 'D#3', motor: 3, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('E',   3), name: 'E3',  motor: 4, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('F',   3), name: 'F3',  motor: 5, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('F#',  3), name: 'F#3', motor: 6, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('G',   3), name: 'G3',  motor: 7, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('G#',  3), name: 'G#3', motor: 8, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('A',   3), name: 'A3',  motor: 9, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('A#',  3), name: 'A#3', motor: 10, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('B',   3), name: 'B3',  motor: 11, homePwm: 375, vel: 60, inverted: false },
-/*
-12
-13
-14
-15
-*/
-  // ── PCA 3  (motores 48-59)  →  C4–B4  (MIDI 72–83) ─────────
-  { note: _midiNote('C',   4), name: 'C4',  motor: 16, homePwm: 375, vel: 60, inverted: false },
- // { note: _midiNote('C#',  4), name: 'C#4', motor: 17, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('D',   4), name: 'D4',  motor: 18, homePwm: 375, vel: 60, inverted: false },
- // { note: _midiNote('D#',  4), name: 'D#4', motor: 19, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('E',   4), name: 'E4',  motor: 20, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('F',   4), name: 'F4',  motor: 21, homePwm: 375, vel: 60, inverted: false },
-  //{ note: _midiNote('F#',  4), name: 'F#4', motor: 22, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('G',   4), name: 'G4',  motor: 23, homePwm: 375, vel: 60, inverted: false },
-  //{ note: _midiNote('G#',  4), name: 'G#4', motor: 24, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('A',   4), name: 'A4',  motor: 25, homePwm: 375, vel: 60, inverted: false },
-  /*{ note: _midiNote('A#',  4), name: 'A#4', motor: 26, homePwm: 375, vel: 60, inverted: false },
-  { note: _midiNote('B',   4), name: 'B4',  motor: 27, homePwm: 375, vel: 60, inverted: false },
+  // ── PCA 1  (motores 32-43)  →  C3–B3  (MIDI 60–71) ─────────*/
+  { note: _midiNote('C',   4), name: 'C',  motor: 0, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('C#',  4), name: 'C#', motor: 1, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('D',   4), name: 'D',  motor: 2, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('D#',  4), name: 'D#', motor: 3, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('E',   4), name: 'E',  motor: 4, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('F',   4), name: 'F',  motor: 5, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('F#',  4), name: 'F#', motor: 6, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('G',   4), name: 'G',  motor: 7, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('G#',  4), name: 'G#', motor: 8, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('A',   4), name: 'A',  motor: 9, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('A#',  4), name: 'A#', motor: 10, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('B',   4), name: 'B',  motor: 11, homePwm: 375, vel: 60, inverted: false },
+
+  { note: _midiNote('C',   5), name: 'C',  motor: 12, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('C#',  5), name: 'C#', motor: 13, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('D',   5), name: 'D',  motor: 14, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('D#',  5), name: 'D#', motor: 15, homePwm: 375, vel: 60, inverted: false },
+ /* { note: _midiNote('E',   4), name: 'E',  motor: 20, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('F',   4), name: 'F',  motor: 21, homePwm: 375, vel: 60, inverted: false },
+  //{ note: _midiNote('F#',  4), name: 'F#', motor: 22, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('G',   4), name: 'G',  motor: 23, homePwm: 375, vel: 60, inverted: false },
+  //{ note: _midiNote('G#',  4), name: 'G#', motor: 24, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('A',   4), name: 'A',  motor: 25, homePwm: 375, vel: 60, inverted: false },
+  /*{ note: _midiNote('A#',  4), name: 'A#', motor: 26, homePwm: 375, vel: 60, inverted: false },
+  { note: _midiNote('B',   4), name: 'B',  motor: 27, homePwm: 375, vel: 60, inverted: false },
 
   // ── PCA 4  (motores 64-75)  →  C5–B5  (MIDI 84–95) ─────────
   { note: _midiNote('C',   5), name: 'C5',  motor: 64, homePwm: 375, vel: 60, inverted: false },

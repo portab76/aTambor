@@ -29,6 +29,20 @@ let rowHeight   = 25;            // píxeles por fila de nota
 let reproduciendo = false;
 let pasoActual    = 0;
 
+// --- Compás (leído del MIDI) ---
+let currentTimeSig = {
+    numerator:      4,   // numerador: cuántos tiempos por compás
+    denominator:    4,   // denominador: valor de nota del tiempo (4=negra, 8=corchea…)
+    stepsPerMeasure: 16, // semicorcheas por compás = numerator × (16 / denominator)
+    stepsPerBeat:    4   // semicorcheas por tiempo  = 16 / denominator
+};
+
+// --- Highlight activo del popup (se mantiene durante la reproducción) ---
+let activeHighlight = null;  // { classes, startStep, endStep } o null
+
 // --- Análisis armónico ---
-let currentHarmonicSegments = [];
-let currentKey = "C";            // Tonalidad detectada como string, ej. "C", "Am"
+let currentHarmonicSegments = [];  // micro-segmentos originales (uno por cambio de nota)
+let currentFusedSegments    = [];  // segmentos fusionados por tiempo (vista musical)
+let currentPhraseSegments   = [];  // frases detectadas por cadencias (vista de pianista)
+let fusionStepsPerUnit      = 4;   // pasos por unidad de fusión: 4=negra, 8=blanca, 16=compás
+let currentKey = "C";              // Tonalidad detectada como string, ej. "C", "Am"

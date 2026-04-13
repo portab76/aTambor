@@ -4,6 +4,13 @@
 // Se carga el último, cuando todos los módulos ya están disponibles.
 // ============================================================
 
+// ---- Helper: devuelve el array de segmentos según nivel seleccionado ----
+function _activeSegmentsFor(level, analysis) {
+    if (level === 'frases'  && analysis?.phraseSegments?.length) return analysis.phraseSegments;
+    if (level === 'acordes' && analysis?.fusedSegments?.length)  return analysis.fusedSegments;
+    return analysis?.segments || currentHarmonicSegments;
+}
+
 // ---- Referencias al DOM (accesibles globalmente por todos los módulos) ----
 const fileInput         = document.getElementById('midiFileInput');
 const instrumentSelect  = document.getElementById('instrumentSelect');
@@ -25,6 +32,8 @@ gridScroll.addEventListener('scroll', () => {
     notesPanelScroll.scrollTop = gridScroll.scrollTop;
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) chordRow.scrollLeft = gridScroll.scrollLeft;
+    const ruler = document.getElementById('rulerScrollArea');
+    if (ruler) ruler.scrollLeft = gridScroll.scrollLeft;
 });
 
 // ---- Carga de archivo MIDI ----
@@ -63,6 +72,7 @@ loadInstrumentBtn.addEventListener('click', () => {
     if (reproduciendo) {
         // Reconstruir el grid con el nuevo canal sin parar el audio
         buildGridFromChannel(selectedChannel);
+        drawTimelineRuler();
 
         // Enviar al ESP32 solo los pasos que quedan por sonar
         if (typeof wsConnected !== 'undefined' && wsConnected) {
@@ -96,18 +106,37 @@ loadInstrumentBtn.addEventListener('click', () => {
     // H2: flujo normal (sin reproducción activa)
     statusSpan.innerText = `Construyendo grid para canal ${selectedChannel + 1}...`;
     buildGridFromChannel(selectedChannel);
+    drawTimelineRuler();
 
     // Análisis armónico
     const analysis = performHarmonicAnalysis(selectedChannel);
     if (analysis) {
         currentHarmonicSegments = analysis.segments;
+        currentFusedSegments    = analysis.fusedSegments;
+        currentPhraseSegments   = analysis.phraseSegments;
         currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
-        drawChordRow(currentHarmonicSegments, analysis.key);
+
+        // Habilitar select y opción frases
+        const sel = document.getElementById('viewLevelSelect');
+        sel.disabled = false;
+        sel.value = 'acordes';
+        sel.querySelector('option[value="frases"]').disabled = (currentPhraseSegments.length === 0);
+
+        drawChordRow(_activeSegmentsFor(sel.value, analysis), analysis.key);
+
+        // Conteo de cadencias por tipo
+        const cadCounts = currentPhraseSegments.reduce((acc, p) => {
+            acc[p.cadenceType] = (acc[p.cadenceType] || 0) + 1; return acc;
+        }, {});
+        const cadText = Object.entries(cadCounts)
+            .map(([t, n]) => `${n} ${t}`).join(', ') || '—';
 
         debugDiv.innerHTML +=
             `<br><strong>Análisis armónico:</strong> Tonalidad: ${currentKey} ` +
             `(correlación: ${analysis.key.correlation.toFixed(2)}) | ` +
-            `Segmentos: ${currentHarmonicSegments.length}`;
+            `Segmentos: ${currentHarmonicSegments.length} | ` +
+            `Bloques fusionados: ${currentFusedSegments.length} (cada ${fusionStepsPerUnit} pasos) | ` +
+            `Frases: ${currentPhraseSegments.length} (${cadText})`;
     }
 
     // Habilitar botón de notas activas
@@ -130,6 +159,17 @@ loadInstrumentBtn.addEventListener('click', () => {
         `Zoom=${stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
 });
 
+// ---- Select nivel de vista armónica ----
+document.getElementById('viewLevelSelect').addEventListener('change', function () {
+    if (!currentHarmonicSegments.length) return;
+    const key = { tonic: currentKey.replace('m', ''), mode: currentKey.endsWith('m') ? 'minor' : 'major', rootClass: 0 };
+    drawChordRow(_activeSegmentsFor(this.value, {
+        segments: currentHarmonicSegments,
+        fusedSegments: currentFusedSegments,
+        phraseSegments: currentPhraseSegments
+    }), key);
+});
+
 // ---- Botón notas activas ----
 document.getElementById('activeNotesBtn').addEventListener('click', function () {
     activeNotesPanelToggle();
@@ -141,6 +181,13 @@ playBtn.onclick  = play;
 pauseBtn.onclick = pause;
 stopBtn.onclick  = stop;
 loopBtn.onclick  = toggleLoop;
+
+// ---- BPM en caliente: reinicia el interval si ya está reproduciendo ----
+document.getElementById('bpmInput').addEventListener('change', () => {
+    if (!reproduciendo || !_playInterval) return;
+    clearInterval(_playInterval);
+    _playInterval = setInterval(_tick, MS_PER_STEP());
+});
 
 // ---- Botones de persistencia ----
 document.getElementById('exportMidiBtn')?.addEventListener('click', exportToMIDI);
@@ -182,3 +229,20 @@ function initMIDI() {
 }
 
 initMIDI();
+
+// ---- Modal de ayuda ----
+function showHelpModal() {
+    const m = document.getElementById('helpModal');
+    m.style.display = 'flex';
+    // Cerrar al pulsar fuera del panel interior
+    m.onclick = (e) => { if (e.target === m) closeHelpModal(); };
+}
+
+function closeHelpModal() {
+    document.getElementById('helpModal').style.display = 'none';
+}
+
+// Cerrar con Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeHelpModal();
+});

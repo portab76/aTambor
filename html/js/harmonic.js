@@ -81,8 +81,8 @@ function mergeSegments(segments) {
  */
 function roundSegmentsToSteps(segments, tps) {
     return segments.map(seg => {
-        let startStep = Math.round(seg.startTick / tps);
-        let endStep   = Math.round(seg.endTick   / tps);
+        let startStep = Math.floor(seg.startTick / tps);
+        let endStep   = Math.floor(seg.endTick   / tps);
         if (startStep === endStep) endStep = startStep + 1;
         return { startStep, endStep, activeNotes: seg.activeNotes, notesDetail: seg.notesDetail };
     });
@@ -169,56 +169,64 @@ function detectKey(channelEvents) {
 }
 
 
-// ---- RECONOCIMIENTO DE ACORDES ----
+// ---- RECONOCIMIENTO DE ACORDES (Tonal.js) ----
 
-const CHORD_PATTERNS = [
-    { intervals: [0,4,7],     name: "M",    quality: "major"      },
-    { intervals: [0,3,7],     name: "m",    quality: "minor"      },
-    { intervals: [0,4,7,10],  name: "7",    quality: "dominant7"  },
-    { intervals: [0,4,7,11],  name: "maj7", quality: "major7"     },
-    { intervals: [0,3,7,10],  name: "m7",   quality: "minor7"     },
-    { intervals: [0,3,6],     name: "dim",  quality: "diminished" },
-    { intervals: [0,4,8],     name: "aug",  quality: "augmented"  },
-    { intervals: [0,4,7,9],   name: "6",    quality: "major6"     },
-    { intervals: [0,3,7,9],   name: "m6",   quality: "minor6"     },
-    { intervals: [0,5,7],     name: "sus4", quality: "sus4"       },
-    { intervals: [0,2,7],     name: "sus2", quality: "sus2"       },
-];
+const _NOTE_NAMES_H = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
-function _noteClassesFromNotes(notes) {
-    return [...new Set(notes.map(n => n % 12))].sort((a, b) => a - b);
+/** Mapea el tipo de acorde de Tonal al formato interno usado en qualityMap del popup */
+function _mapTonalQuality(type) {
+    if (!type) return 'unknown';
+    const t = type.toLowerCase();
+    if (t === 'major seventh' || t === 'major/major seventh') return 'major7';
+    if (t === 'minor seventh')    return 'minor7';
+    if (t === 'dominant seventh') return 'dominant7';
+    if (t === 'diminished')       return 'diminished';
+    if (t === 'diminished seventh') return 'diminished';
+    if (t === 'augmented')        return 'augmented';
+    if (t === 'major sixth')      return 'major6';
+    if (t === 'minor sixth')      return 'minor6';
+    if (t === 'suspended fourth') return 'sus4';
+    if (t === 'suspended second') return 'sus2';
+    if (t === 'minor')            return 'minor';
+    if (t === 'major')            return 'major';
+    return 'unknown';
 }
 
 /**
  * Identifica el nombre del acorde a partir de las clases de nota activas.
+ * Usa Tonal.Chord.detect() — reconoce más de 100 tipos incluyendo
+ * extensiones (9ª, 11ª, 13ª), alteraciones y slash chords.
  */
 function findChord(noteClasses, bassNote = null) {
     if (noteClasses.length === 0) return { name: "—", root: null, quality: "none", tensions: [] };
 
-    const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-    const rootCandidate = bassNote !== null ? (bassNote % 12) : noteClasses[0];
-    const candidates = [...new Set([rootCandidate, ...noteClasses.slice(0, 3)])];
-
-    let bestMatch = null, bestScore = -1;
-
-    for (const root of candidates) {
-        const intervals = noteClasses.map(c => (c - root + 12) % 12).sort((a, b) => a - b);
-        for (const pattern of CHORD_PATTERNS) {
-            if (pattern.intervals.every(i => intervals.includes(i))) {
-                const tensions = intervals.filter(i => !pattern.intervals.includes(i) && i !== 0);
-                const score    = pattern.intervals.length - tensions.length;
-                if (score > bestScore) {
-                    bestScore = score;
-                    const rootName  = NOTE_NAMES[root];
-                    const chordName = pattern.name === "M"  ? rootName
-                                    : pattern.name === "m"  ? rootName + "m"
-                                    : rootName + pattern.name;
-                    bestMatch = { name: chordName, root, quality: pattern.quality, tensions };
-                }
-            }
-        }
+    // Construir array de nombres, poniendo el bajo primero para slash chords
+    let names = noteClasses.map(c => _NOTE_NAMES_H[c]);
+    if (bassNote !== null) {
+        const bassName = _NOTE_NAMES_H[bassNote % 12];
+        names = [bassName, ...names.filter(n => n !== bassName)];
     }
-    return bestMatch || { name: "?", root: noteClasses[0], quality: "unknown", tensions: [] };
+
+    const detected = Tonal.Chord.detect(names);
+    if (!detected || detected.length === 0) {
+        return { name: "?", root: noteClasses[0], quality: "unknown", tensions: [] };
+    }
+
+    // Preferir estado fundamental (sin slash) sobre inversiones
+    const best = detected.find(c => !c.includes('/')) || detected[0];
+    const info  = Tonal.Chord.get(best);
+    const root  = _NOTE_NAMES_H.indexOf(info.tonic);
+
+    return {
+        name:     best,
+        root:     root === -1 ? noteClasses[0] : root,
+        quality:  _mapTonalQuality(info.type),
+        tensions: []   // Tonal expone las tensiones en info.intervals si se necesitan
+    };
+}
+
+function _noteClassesFromNotes(notes) {
+    return [...new Set(notes.map(n => n % 12))].sort((a, b) => a - b);
 }
 
 /**
@@ -262,8 +270,199 @@ function analyzeChordsOnSegments(segments, key) {
 }
 
 /**
+ * Fusiona micro-segmentos en bloques de N pasos (negra, blanca, compás).
+ * Cada bloque resultante contiene:
+ *   - startStep / endStep  — rango del período
+ *   - chord / chordDisplay / chordFunction — acorde dominante (el que más pasos ocupa)
+ *   - activeNotes          — unión de todas las notas del período
+ *   - subSegments[]        — micro-segmentos originales dentro del bloque
+ *
+ * @param {Array}  segments      — micro-segmentos ya analizados (con chord, chordFunction…)
+ * @param {Object} key           — tonalidad detectada
+ * @param {number} stepsPerUnit  — tamaño del bloque en pasos (4=negra, 16=compás)
+ */
+function fuseSegments(segments, key, stepsPerUnit) {
+    if (!segments || segments.length === 0) return [];
+
+    // Agrupar segmentos por período de N pasos
+    const buckets = new Map(); // período → array de segmentos
+
+    for (const seg of segments) {
+        const period = Math.floor(seg.startStep / stepsPerUnit);
+        if (!buckets.has(period)) buckets.set(period, []);
+        buckets.get(period).push(seg);
+    }
+
+    const fused = [];
+
+    for (const [period, segs] of [...buckets.entries()].sort((a, b) => a[0] - b[0])) {
+        const startStep = period * stepsPerUnit;
+        const endStep   = startStep + stepsPerUnit;
+
+        // Contar pasos que ocupa cada acorde dentro del período (peso por duración)
+        const chordWeight = new Map(); // chordDisplay → pasos acumulados
+        const allNotes    = new Set();
+
+        for (const seg of segs) {
+            const duration = seg.endStep - seg.startStep;
+            const label    = seg.chordDisplay || '—';
+            chordWeight.set(label, (chordWeight.get(label) || 0) + duration);
+            seg.activeNotes.forEach(n => allNotes.add(n));
+        }
+
+        // Acorde dominante = el que más pasos acumula (excluir silencio "—")
+        let dominantLabel = '—', maxWeight = 0;
+        for (const [label, weight] of chordWeight.entries()) {
+            if (label !== '—' && weight > maxWeight) {
+                maxWeight     = weight;
+                dominantLabel = label;
+            }
+        }
+
+        // Buscar el segmento que lleva ese acorde para recuperar chord y chordFunction
+        const dominantSeg = segs.find(s => (s.chordDisplay || '—') === dominantLabel)
+                         || segs[0];
+
+        fused.push({
+            startStep,
+            endStep,
+            activeNotes:   [...allNotes].sort((a, b) => a - b),
+            chord:         dominantSeg.chord,
+            chordFunction: dominantSeg.chordFunction || '',
+            chordDisplay:  dominantLabel,
+            inversion:     dominantSeg.inversion || '',
+            subSegments:   segs
+        });
+    }
+
+    return fused;
+}
+
+/**
+ * Detecta frases musicales agrupando acordes por cadencias a nivel de compás.
+ *
+ * Proceso:
+ *   1. Agrupa los bloques fusionados (negras) en compases de 16 pasos
+ *      calculando el acorde dominante de cada compás.
+ *   2. Busca cadencias entre compases consecutivos:
+ *        V →I   auténtica  (cierre fuerte)
+ *        IV→I   plagal     (cierre suave)
+ *        V →vi  rota       (sorpresa)
+ *        I →V   semicadencia (pausa)
+ *   3. Agrupa los compases entre cadencias en frases.
+ *
+ * @param {Array}  fusedSegments — bloques por negra (salida de fuseSegments)
+ * @param {Object} key           — tonalidad { tonic, mode, rootClass }
+ */
+function detectPhrases(fusedSegments, key) {
+    if (!fusedSegments || fusedSegments.length < 2) return [];
+
+    const STEPS_PER_MEASURE = 16;
+
+    // ── Paso 1: fusionar negras en compases ───────────────────
+    const measureMap = new Map(); // compás → array de bloques de negra
+
+    for (const seg of fusedSegments) {
+        const m = Math.floor(seg.startStep / STEPS_PER_MEASURE);
+        if (!measureMap.has(m)) measureMap.set(m, []);
+        measureMap.get(m).push(seg);
+    }
+
+    // Para cada compás, calcular acorde dominante (el que más pasos acumula)
+    const measures = [];
+    for (const [m, segs] of [...measureMap.entries()].sort((a, b) => a[0] - b[0])) {
+        const chordWeight = new Map();
+        for (const s of segs) {
+            const label = s.chordDisplay || '—';
+            const dur   = s.endStep - s.startStep;
+            chordWeight.set(label, (chordWeight.get(label) || 0) + dur);
+        }
+        let domLabel = '—', maxW = 0;
+        for (const [label, w] of chordWeight) {
+            if (label !== '—' && w > maxW) { maxW = w; domLabel = label; }
+        }
+        const domSeg = segs.find(s => (s.chordDisplay || '—') === domLabel) || segs[0];
+        measures.push({
+            measureIndex: m,
+            startStep:    m * STEPS_PER_MEASURE,
+            endStep:      (m + 1) * STEPS_PER_MEASURE,
+            chord:        domSeg.chord,
+            chordDisplay: domLabel,
+            chordFunction: domSeg.chordFunction || '',
+            activeNotes:  [...new Set(segs.flatMap(s => s.activeNotes))].sort((a, b) => a - b),
+            beats:        segs       // negras que componen este compás
+        });
+    }
+
+    if (measures.length < 2) return [];
+
+    // ── Paso 2: calcular grado y detectar cadencias entre compases ──
+    function _degree(measure) {
+        if (!measure.chord || measure.chord.root === null) return null;
+        return (measure.chord.root - key.rootClass + 12) % 12;
+    }
+
+    function _cadenceType(dA, dB) {
+        if (dA === null || dB === null) return null;
+        if (dA === 7 && dB === 0) return 'auténtica';
+        if (dA === 7 && dB === 9) return 'rota';
+        if (dA === 5 && dB === 0) return 'plagal';
+        if (dA === 0 && dB === 7) return 'semicadencia';
+        return null;
+    }
+
+    function _degreeToRoman(d, chord) {
+        if (d === null) return '?';
+        const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+        const base  = ROMAN[Math.round(d / (12 / 7))] || `(${d})`;
+        const isMin = ['minor','minor7','diminished'].includes(chord?.quality);
+        return isMin ? base.toLowerCase() : base;
+    }
+
+    const cadences = [];
+    for (let i = 0; i < measures.length - 1; i++) {
+        const type = _cadenceType(_degree(measures[i]), _degree(measures[i + 1]));
+        if (type) cadences.push({ index: i + 1, type });
+    }
+
+    // ── Paso 3: agrupar compases entre cadencias en frases ────
+    const phrases = [];
+    let phraseStart = 0;
+    const boundaries = [...cadences, { index: measures.length, type: 'final' }];
+
+    for (const boundary of boundaries) {
+        const mSegs = measures.slice(phraseStart, boundary.index);
+        if (mSegs.length === 0) { phraseStart = boundary.index; continue; }
+
+        const allNotes   = [...new Set(mSegs.flatMap(m => m.activeNotes))].sort((a, b) => a - b);
+        const degrees    = mSegs.map(m => _degreeToRoman(_degree(m), m.chord));
+        const chordNames = mSegs.map(m => m.chordDisplay || '—');
+        const display    = degrees.join('–');
+
+        const lastMeasure = mSegs[mSegs.length - 1];
+
+        phrases.push({
+            startStep:    mSegs[0].startStep,
+            endStep:      lastMeasure.endStep,
+            activeNotes:  allNotes,
+            chords:       chordNames,
+            degrees,
+            cadenceType:  boundary.type,
+            chordDisplay: display,
+            chord:        lastMeasure.chord,
+            chordFunction: boundary.type,
+            subSegments:  mSegs.flatMap(m => m.beats)  // negras originales
+        });
+
+        phraseStart = boundary.index;
+    }
+
+    return phrases;
+}
+
+/**
  * Punto de entrada: análisis armónico completo de un canal.
- * @returns {{ key: Object, segments: Array }}
+ * @returns {{ key, segments, fusedSegments, phraseSegments }}
  */
 function performHarmonicAnalysis(channel) {
     const channelEvents = rawEvents.filter(
@@ -271,7 +470,11 @@ function performHarmonicAnalysis(channel) {
     );
     if (channelEvents.length === 0) return null;
 
-    const key      = detectKey(channelEvents);
-    const segments = getHarmonicSegments(channel);
-    return { key, segments: analyzeChordsOnSegments(segments, key) };
+    const key            = detectKey(channelEvents);
+    const segments       = getHarmonicSegments(channel);
+    const analyzed       = analyzeChordsOnSegments(segments, key);
+    const fusedSegments  = fuseSegments(analyzed, key, fusionStepsPerUnit);
+    const phraseSegments = detectPhrases(fusedSegments, key);
+
+    return { key, segments: analyzed, fusedSegments, phraseSegments };
 }

@@ -5,6 +5,32 @@
 
 const _NOTE_NAMES_CR = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
+// Bloque de la chord-row actualmente resaltado (selección del popup)
+let _activeChordBlock = null;
+
+function _highlightChordBlock(segIndex) {
+    // Quitar resaltado anterior
+    if (_activeChordBlock) {
+        _activeChordBlock.style.boxShadow = '';
+        _activeChordBlock.style.outline   = '';
+        _activeChordBlock = null;
+    }
+    // Buscar el bloque por idx
+    const block = document.querySelector(`#chordRowContainer [data-idx="${segIndex}"]`);
+    if (!block) return;
+    block.style.outline   = '2px solid #aaaaff';
+    block.style.boxShadow = '0 0 8px #7777ffaa';
+    _activeChordBlock = block;
+}
+
+function _clearChordBlockHighlight() {
+    if (_activeChordBlock) {
+        _activeChordBlock.style.outline   = '';
+        _activeChordBlock.style.boxShadow = '';
+        _activeChordBlock = null;
+    }
+}
+
 // ─────────────────────────────────────────────
 // Dibujo de la fila de bloques
 // ─────────────────────────────────────────────
@@ -26,8 +52,14 @@ function drawChordRow(segments, key) {
         const width = (seg.endStep - seg.startStep) * stepWidth;
         if (width <= 0) continue;
 
+        const isPhrase = Array.isArray(seg.degrees); // solo los segmentos de frase tienen degrees[]
+
         let chordName, chordFunc, chord;
-        if (seg.chordDisplay) {
+        if (isPhrase) {
+            chordName = seg.chordDisplay || '?';   // ej. "I–vi–IV–V"
+            chordFunc = seg.cadenceType  || '';
+            chord     = seg.chord        || null;
+        } else if (seg.chordDisplay) {
             chordName = seg.chordDisplay;
             chordFunc = seg.chordFunction || "";
             chord     = seg.chord || null;
@@ -38,17 +70,23 @@ function drawChordRow(segments, key) {
             chordFunc = key ? getChordFunction(chord, key) : "";
         }
 
-        const bgColor = _chordFunctionColor(chordFunc);
+        const bgColor = isPhrase ? _phraseCadenceColor(seg.cadenceType) : _chordFunctionColor(chordFunc);
         const block   = document.createElement('div');
+
+        // Las frases tienen dos líneas: progresión arriba, cadencia abajo
+        const blockHTML = isPhrase
+            ? `<div style="font-size:${width < 80 ? '9px' : '12px'};font-weight:bold;line-height:1.3;padding-top:6px">${chordName}</div>
+               <div style="font-size:9px;opacity:0.7;line-height:1.2">${seg.cadenceType || ''}</div>`
+            : '';
 
         block.style.cssText = [
             `display:inline-block`,
             `width:${width - 1}px`,
             `height:50px`,
             `background:${bgColor}`,
-            `border:1px solid #555`,
+            `border:1px solid ${isPhrase ? '#7a7aaa' : '#555'}`,
             `text-align:center`,
-            `line-height:50px`,
+            `line-height:${isPhrase ? '1' : '50px'}`,
             `color:white`,
             `font-size:${width < 50 ? '10px' : '13px'}`,
             `overflow:hidden`,
@@ -58,7 +96,11 @@ function drawChordRow(segments, key) {
             `transition:filter .1s`,
         ].join(';');
 
-        block.textContent   = chordName;
+        if (isPhrase) {
+            block.innerHTML = blockHTML;
+        } else {
+            block.textContent = chordName;
+        }
         block.dataset.idx   = i;
         block.dataset.start = seg.startStep;
         block.dataset.end   = seg.endStep;
@@ -67,7 +109,7 @@ function drawChordRow(segments, key) {
         block.addEventListener('mouseleave', () => { block.style.filter = ''; });
         block.addEventListener('click', (e) => {
             e.stopPropagation();
-            onChordBlockClick(e, seg, chordName, chordFunc, chord, key);
+            onChordBlockClick(e, seg, i, chordName, chordFunc, chord, key);
         });
 
         container.appendChild(block);
@@ -82,33 +124,65 @@ function _chordFunctionColor(fn) {
     return "#4a4a6a";
 }
 
+function _phraseCadenceColor(cadenceType) {
+    if (!cadenceType)                    return "#2a2a4a";
+    if (cadenceType === 'auténtica')     return "#1a4a2a";  // verde oscuro — cierre fuerte
+    if (cadenceType === 'plagal')        return "#1a3a4a";  // azul oscuro  — cierre suave
+    if (cadenceType === 'semicadencia')  return "#4a3a1a";  // naranja oscuro — pausa
+    if (cadenceType === 'rota')          return "#4a1a3a";  // morado oscuro — sorpresa
+    if (cadenceType === 'final')         return "#2a2a2a";  // gris — fin de pieza
+    return "#2a2a4a";
+}
+
+// ─────────────────────────────────────────────
+// Helper: array activo según estado del checkbox
+// ─────────────────────────────────────────────
+
+function _activeSegments() {
+    const sel = document.getElementById('viewLevelSelect');
+    const val = sel ? sel.value : 'pasos';
+    if (val === 'frases'  && typeof currentPhraseSegments !== 'undefined' && currentPhraseSegments.length)
+        return currentPhraseSegments;
+    if (val === 'acordes' && typeof currentFusedSegments  !== 'undefined' && currentFusedSegments.length)
+        return currentFusedSegments;
+    return currentHarmonicSegments;
+}
+
 // ─────────────────────────────────────────────
 // Click: popup + resaltado en el grid
 // ─────────────────────────────────────────────
 
-function onChordBlockClick(event, segment, chordName, chordFunc, chord, key) {
-    // Resaltar notas en el canvas
-    const rootClass  = chord?.root ?? _NOTE_NAMES_CR.indexOf((chordName.match(/^[A-G][#]?/) || [])[0]);
-    if (rootClass !== -1 && rootClass !== undefined) {
-        const isMinor    = /m(?!aj)/.test(chordName.slice(1));
-        const classes    = [rootClass, (rootClass + (isMinor ? 3 : 4)) % 12, (rootClass + 7) % 12];
-        if (chordName.includes("maj7")) classes.push((rootClass + 11) % 12);
-        else if (chordName.includes("7")) classes.push((rootClass + 10) % 12);
-        drawPianoRollWithHighlight([...new Set(classes)]);
+function onChordBlockClick(event, segment, segIndex, chordName, chordFunc, chord, key) {
+    // Resaltar exactamente las notas activas del segmento, solo dentro de su rango de pasos
+    const classes = [...new Set(segment.activeNotes.map(n => n % 12))];
+    if (classes.length > 0) {
+        drawPianoRollWithHighlight(classes, segment.startStep, segment.endStep);
+        activeHighlight = { classes, startStep: segment.startStep, endStep: segment.endStep };
+    }
+
+    // Centrar el grid en el inicio del segmento
+    const gridScroll = document.getElementById('gridScroll');
+    if (gridScroll && typeof stepWidth !== 'undefined') {
+        const x = segment.startStep * stepWidth;
+        const visibleWidth = gridScroll.clientWidth;
+        gridScroll.scrollLeft = Math.max(0, x - visibleWidth * 0.2);
     }
 
     // Construir y mostrar el popup
-    _showChordPopup(event, segment, chordName, chordFunc, chord, key);
+    _showChordPopup(event, segment, segIndex, chordName, chordFunc, chord, key);
 }
 
 // ─────────────────────────────────────────────
 // Popup de información armónica
 // ─────────────────────────────────────────────
 
-function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
+function _showChordPopup(event, seg, segIndex, chordName, chordFunc, chord, key) {
     // Eliminar popup anterior si existe
     const old = document.getElementById('chordInfoPopup');
     if (old) old.remove();
+
+    // ── Detectar si es un segmento de frase ──────────────────
+    const isPhrase = Array.isArray(seg.degrees);
 
     // ── Calcular datos a mostrar ──────────────────────────────
 
@@ -161,11 +235,35 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
     popup.id    = 'chordInfoPopup';
     popup.innerHTML = `
         <div class="cpop-header">
+            <button class="cpop-nav" id="cpop-prev" title="Anterior">&#8592;</button>
             <span class="cpop-chord">${chordName}</span>
-            <span class="cpop-quality">${quality}</span>
+            <span class="cpop-quality">${isPhrase ? (seg.cadenceType || '') : quality}</span>
+            <button class="cpop-nav" id="cpop-next" title="Siguiente">&#8594;</button>
             <button class="cpop-close" onclick="document.getElementById('chordInfoPopup').remove()">✕</button>
         </div>
         <div class="cpop-body">
+            ${isPhrase ? `
+            <div class="cpop-section">
+                <div class="cpop-row"><span class="cpop-lbl">Progresión</span>
+                    <span class="cpop-val" style="font-family:monospace">${seg.degrees ? seg.degrees.join(' – ') : '—'}</span></div>
+                <div class="cpop-row"><span class="cpop-lbl">Cadencia</span>
+                    <span class="cpop-val">${seg.cadenceType || '—'}</span></div>
+                <div class="cpop-row"><span class="cpop-lbl">Tonalidad</span>
+                    <span class="cpop-val">${key ? key.tonic + ' ' + (key.mode === 'major' ? 'Mayor' : 'Menor') : '—'}</span></div>
+                <div class="cpop-row"><span class="cpop-lbl">Duración</span>
+                    <span class="cpop-val">${steps} pasos · ${measures} compases</span></div>
+                <div class="cpop-row"><span class="cpop-lbl">Posición</span>
+                    <span class="cpop-val">${_stepToMusical(seg.startStep)} → ${_stepToMusical(seg.endStep)}</span></div>
+                <div class="cpop-row"><span class="cpop-lbl" style="color:#444466">Pasos</span>
+                    <span class="cpop-val" style="color:#666688;font-size:11px">${seg.startStep} → ${seg.endStep}</span></div>
+            </div>
+            <div class="cpop-section">
+                <div class="cpop-lbl" style="margin-bottom:4px">Acordes de la frase (${seg.chords ? seg.chords.length : 0})</div>
+                <div class="cpop-notes">${(seg.chords || []).map((c, i) =>
+                    `<span class="cpop-note" style="opacity:0.85">${seg.degrees?.[i] || ''}&nbsp;${c}</span>`
+                ).join('')}</div>
+            </div>
+            ` : `
             <div class="cpop-section">
                 <div class="cpop-row"><span class="cpop-lbl">Grado</span>
                     <span class="cpop-val">${romanDegree} ${chordFunc ? '— ' + chordFunc : ''}</span></div>
@@ -180,7 +278,9 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
                 <div class="cpop-row"><span class="cpop-lbl">Duración</span>
                     <span class="cpop-val">${steps} pasos · ${measures} compases</span></div>
                 <div class="cpop-row"><span class="cpop-lbl">Posición</span>
-                    <span class="cpop-val">Paso ${seg.startStep} → ${seg.endStep}</span></div>
+                    <span class="cpop-val">${_stepToMusical(seg.startStep)} → ${_stepToMusical(seg.endStep)}</span></div>
+                <div class="cpop-row"><span class="cpop-lbl" style="color:#444466">Pasos</span>
+                    <span class="cpop-val" style="color:#666688;font-size:11px">${seg.startStep} → ${seg.endStep}</span></div>
                 <div class="cpop-row"><span class="cpop-lbl">Notas fuera de escala</span>
                     <span class="cpop-val ${outOfScale.length ? 'cpop-warn' : ''}">${outOfScale.length ? outOfScale.join(', ') : '—'}</span></div>
             </div>
@@ -190,6 +290,7 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
                     `<span class="cpop-note" data-midi="${midi}" title="Click: nota · Shift+Click: acorde completo">${noteNames[i]}</span>`
                 ).join('')}</div>
             </div>
+            `}
         </div>
     `;
 
@@ -239,12 +340,43 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
         }
         #chordInfoPopup .cpop-note:hover  { background: #4a4a88; border-color: #8888cc; }
         #chordInfoPopup .cpop-note.ringing { background: #5a5aaa; transform: scale(1.1); }
+        #chordInfoPopup .cpop-nav {
+            background: #3a3a5a; border: 1px solid #5a5aaa; color: #aaa;
+            border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 14px; line-height: 1.4;
+        }
+        #chordInfoPopup .cpop-nav:hover:not(:disabled) { background: #5a5aaa; color: #fff; }
+        #chordInfoPopup .cpop-nav:disabled { opacity: 0.3; cursor: default; }
     `;
     popup.prepend(style);
 
     document.body.appendChild(popup);
 
-    // ── Botón de reproducción del acorde ──────────────────────
+    // ── Botones de navegación entre segmentos ─────────────────
+    const prevBtn  = popup.querySelector('#cpop-prev');
+    const nextBtn  = popup.querySelector('#cpop-next');
+    const segsArr  = _activeSegments();
+    const totalSegs = segsArr.length;
+
+    if (segIndex <= 0)              prevBtn.disabled = true;
+    if (segIndex >= totalSegs - 1)  nextBtn.disabled = true;
+
+    function _navTo(newIndex) {
+        const s = segsArr[newIndex];
+        // Resaltar notas del nuevo segmento dentro de su rango
+        const classes = [...new Set(s.activeNotes.map(n => n % 12))];
+        if (classes.length > 0) drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
+        // Centrar grid
+        const gs = document.getElementById('gridScroll');
+        if (gs) gs.scrollLeft = Math.max(0, s.startStep * stepWidth - gs.clientWidth * 0.2);
+        // Reabrir popup (siempre en la misma posición fija, no necesita fixedPos)
+        _showChordPopup(null, s, newIndex,
+            s.chordDisplay || s.chord?.name || '?',
+            s.chordFunction || '', s.chord, key);
+    }
+
+    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); _navTo(segIndex - 1); });
+    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); _navTo(segIndex + 1); });
+
     // ── Chips de notas: click = nota sola / Shift+click = acorde completo ──
     popup.querySelectorAll('.cpop-note').forEach(chip => {
         chip.addEventListener('click', (e) => {
@@ -260,18 +392,33 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
         });
     });
 
-    // ── Posicionar cerca del click sin salirse de la pantalla ──
-    const pw = 320, ph = 320;
-    let x = event.clientX + 12;
-    let y = event.clientY + 12;
-    if (x + pw > window.innerWidth)  x = event.clientX - pw - 12;
-    if (y + ph > window.innerHeight) y = event.clientY - ph - 12;
-    popup.style.left = `${x}px`;
-    popup.style.top  = `${y}px`;
+    // ── Posicionar ────────────────────────────────────────────
+    popup.style.left   = '90px';
+    popup.style.top    = '120px';
+    popup.style.bottom = 'auto';
 
-    // Cerrar al hacer clic fuera
+    // ── Resaltar el bloque correspondiente en el chord-row ───
+    _highlightChordBlock(segIndex);
+
+    // ── Posicionar el cursor de reproducción en el inicio del segmento ──
+    pasoActual = seg.startStep;
+    updateRulerPlayhead(pasoActual);
+
+    // ── Observer: limpiar resaltado y highlight cuando el popup desaparezca ─
+    const _popupObserver = new MutationObserver(() => {
+        if (!document.getElementById('chordInfoPopup')) {
+            _clearChordBlockHighlight();
+            activeHighlight = null;
+            _popupObserver.disconnect();
+        }
+    });
+    _popupObserver.observe(document.body, { childList: true });
+
+    // Cerrar al hacer clic fuera — excepto botones de transporte
+    const _TRANSPORT_IDS = new Set(['playBtn', 'pauseBtn', 'stopBtn', 'loopBtn']);
     setTimeout(() => {
         document.addEventListener('click', function _close(e) {
+            if (_TRANSPORT_IDS.has(e.target.id)) return;   // Play/Pause/Stop/Loop no cierran
             if (!popup.contains(e.target)) {
                 popup.remove();
                 document.removeEventListener('click', _close);
@@ -283,6 +430,18 @@ function _showChordPopup(event, seg, chordName, chordFunc, chord, key) {
 // ─────────────────────────────────────────────
 // Helpers armónicos para el popup
 // ─────────────────────────────────────────────
+
+/**
+ * Convierte un número de paso a posición musical legible.
+ * Ejemplo: paso 32 en 4/4 → "C3·T1"  (Compás 3, Tiempo 1)
+ */
+function _stepToMusical(step) {
+    const spm     = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
+    const spb     = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerBeat    : 4;
+    const measure = Math.floor(step / spm) + 1;
+    const beat    = Math.floor((step % spm) / spb) + 1;
+    return `C${measure}·T${beat}`;
+}
 
 function _romanDegree(chord, key) {
     if (!chord || chord.root === null || !key) return '?';
@@ -338,8 +497,9 @@ function _playNotes(notes, chips) {
 }
 
 function _scaleNotes(key) {
-    const MAJOR_INTERVALS = [0,2,4,5,7,9,11];
-    const MINOR_INTERVALS = [0,2,3,5,7,8,10];
-    const intervals = key.mode === 'major' ? MAJOR_INTERVALS : MINOR_INTERVALS;
-    return intervals.map(i => (key.rootClass + i) % 12);
+    if (!key) return [];
+    const scaleName = `${key.tonic} ${key.mode}`;
+    const scale = Tonal.Scale.get(scaleName);
+    if (scale.empty) return [];
+    return scale.notes.map(n => Tonal.Note.get(n).chroma);
 }

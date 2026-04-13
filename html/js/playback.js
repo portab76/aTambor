@@ -4,9 +4,16 @@
 // Depende de: state.js, piano-roll.js
 // ============================================================
 
-let loopEnabled    = false;
-let _playInterval  = null;   // handle del setInterval
-const MS_PER_STEP  = () => (60000 / (tempoMap[0]?.bpm || 120)) / 4; // ms por semicorchea
+let loopEnabled      = false;
+let _playInterval    = null;   // handle del setInterval
+let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
+
+/** ms por semicorchea, leyendo el BPM del input de la toolbar (o del MIDI si no existe). */
+const MS_PER_STEP = () => {
+    const el  = document.getElementById('bpmInput');
+    const bpm = el ? (parseFloat(el.value) || 120) : (tempoMap[0]?.bpm || 120);
+    return (60000 / bpm) / 4;
+};
 
 /**
  * Inicia la reproducción desde pasoActual.
@@ -26,10 +33,12 @@ function play() {
 
     const stepMs = MS_PER_STEP();
 
-    // ── G1: enviar secuencia completa al ESP32 ────────────────
+    // ── G1: enviar secuencia al ESP32 (completa o desde pasoActual si hay offset) ──
     console.log(`[play] wsConnected=${wsConnected}, ws.readyState=${ws ? ws.readyState : 'null'}`);
     if (typeof wsConnected !== 'undefined' && wsConnected) {
-        const seq = buildFullSequence(MOTOR_MAP);
+        const seq = pasoActual > 0
+            ? buildRemainingSequence(MOTOR_MAP, pasoActual)   // arranca desde el acorde seleccionado
+            : buildFullSequence(MOTOR_MAP);                    // arranca desde el principio
         if (!seq) {
             console.warn('[play] No hay notas mapeadas a motores — se omite comando PLAY al ESP32');
         } else {
@@ -70,8 +79,7 @@ function play() {
     }
 
     // ── G1: arrancar audio con offset de 20ms ─────────────────
-    // El offset absorbe la latencia WS (~1-5ms) y asegura que
-    // el firmware haya procesado el comando antes del primer tick.
+    _playStartOffset = pasoActual;   // recordar desde dónde empezamos
     setTimeout(_startPlaybackLoop, 20);
 }
 
@@ -106,11 +114,13 @@ function stop() {
     reproduciendo = false;
     clearInterval(_playInterval);
     _playInterval = null;
-    pasoActual    = 0;
+    pasoActual       = 0;
+    _playStartOffset = 0;
     playBtn.disabled  = false;
     pauseBtn.disabled = true;
     stopBtn.disabled  = true;
     drawPianoRollWithPlayhead(-1);
+    updateRulerPlayhead(-1);
     _clearChordHighlight();
     statusSpan.innerText = "Detenido.";
 
@@ -143,7 +153,7 @@ let _tickCount = 0;  // para limitar logs
 function _tick() {
     if (pasoActual >= totalSteps) {
         if (loopEnabled) {
-            pasoActual = 0;
+            pasoActual = _playStartOffset;   // vuelve al punto desde el que arrancó
         } else {
             stop();
             return;
@@ -174,7 +184,17 @@ function _tick() {
         _tickCount++;
     }
 
-    drawPianoRollWithPlayhead(pasoActual);
+    if (activeHighlight && document.getElementById('chordInfoPopup')) {
+        drawPianoRollWithHighlightAndPlayhead(
+            activeHighlight.classes,
+            activeHighlight.startStep,
+            activeHighlight.endStep,
+            pasoActual
+        );
+    } else {
+        drawPianoRollWithPlayhead(pasoActual);
+    }
+    updateRulerPlayhead(pasoActual);
     _autoScroll(pasoActual);
     _highlightCurrentChord(pasoActual);
     pasoActual++;
@@ -228,11 +248,13 @@ const _BEAT_DRIFT_TOLERANCE = 2;
 onBeatCallback = function(stepFromEsp32) {
     if (!reproduciendo) return;
 
-    const drift = stepFromEsp32 - pasoActual;
+    // El ESP32 siempre envía pasos desde 0; ajustamos con el offset de arranque
+    const adjustedStep = stepFromEsp32 + _playStartOffset;
+    const drift        = adjustedStep - pasoActual;
 
     if (Math.abs(drift) > _BEAT_DRIFT_TOLERANCE) {
-        console.log(`[beat] Corrección de deriva: pasoActual ${pasoActual} → ${stepFromEsp32} (drift=${drift})`);
-        pasoActual = stepFromEsp32;
+        console.log(`[beat] Corrección de deriva: pasoActual ${pasoActual} → ${adjustedStep} (drift=${drift})`);
+        pasoActual = adjustedStep;
         // Redibujar playhead en la posición corregida
         drawPianoRollWithPlayhead(pasoActual);
         _autoScroll(pasoActual);

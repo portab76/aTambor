@@ -8,6 +8,8 @@ El sistema cuenta con dos entornos de trabajo complementarios:
 
 ## 🥁 aTambor — Drum Machine
 
+🔗 **Demo online:** https://elper.es/aTambor/aTambor.html
+
 **Archivo:** `aTambor.html`
 
 Entorno orientado a la **composición de ritmos por canales**, al estilo de las clásicas cajas de ritmos (drum machines).
@@ -30,6 +32,8 @@ Entorno orientado a la **composición de ritmos por canales**, al estilo de las 
 ---
 
 ## 🎹 midiGrid — Secuenciador MIDI con Piano Roll
+
+🔗 **Demo online:** https://elper.es/aTambor/midiGrid.html
 
 **Archivo:** `midiGrid.html`
 
