@@ -4345,6 +4345,319 @@ function openChordConverterModal() {
 }
 
 // ============================================================
+// STANDARD MML PARSER  (MML@ format, multi-track)
+// ============================================================
+// Format reference:
+//   MML@track1,track2,...
+//   t<num>  tempo          l<num>[.] default note length
+//   o<num>  set octave     v<num>    volume (0-127)
+//   >       octave up      <         octave down
+//   [a-g][+#-][dur][.]     note with optional sharp/flat, duration, dot
+//   r[dur][.]              rest
+//   &                      tie (extend previous note)
+// Duration: 1=whole(16 steps), 2=half(8), 4=quarter(4), 8=eighth(2), 16=1
+// ============================================================
+
+const MML_NOTE_SEMI = { c:0, d:2, e:4, f:5, g:7, a:9, b:11 };
+
+function mmlDurToSteps(dur, dotted) {
+  // In 4/4 with stepsPerMeasure=16: whole=16, half=8, quarter=4, eighth=2, 16th=1
+  // Generic: steps = stepsPerMeasure / dur  (stepsPerMeasure = one measure = whole note)
+  const steps = Math.max(1, Math.round(stepsPerMeasure / (dur || 4)));
+  return dotted ? Math.max(1, Math.round(steps * 1.5)) : steps;
+}
+
+function parseMMLTrack(src) {
+  const events = [];
+  let i = 0;
+  let octave = 4, defaultLen = 4, defaultDot = false, vel = 100, tempo = 120;
+
+  const readInt = () => {
+    let s = '';
+    while (i < src.length && /\d/.test(src[i])) s += src[i++];
+    return s ? parseInt(s) : null;
+  };
+
+  while (i < src.length) {
+    const ch = src[i].toLowerCase();
+
+    if (/\s/.test(ch)) { i++; continue; }
+
+    // Tempo
+    if (ch === 't') { i++; const v = readInt(); if (v !== null) tempo = v; continue; }
+
+    // Volume
+    if (ch === 'v') { i++; const v = readInt(); if (v !== null) vel = v; continue; }
+
+    // Octave set
+    if (ch === 'o') { i++; const v = readInt(); if (v !== null) octave = v; continue; }
+
+    // Default note length: l<num>[.]
+    if (ch === 'l') {
+      i++;
+      const v = readInt();
+      if (v !== null) defaultLen = v;
+      defaultDot = (i < src.length && src[i] === '.') ? (i++, true) : false;
+      continue;
+    }
+
+    // Octave up/down
+    if (ch === '>') { octave = Math.min(8, octave + 1); i++; continue; }
+    if (ch === '<') { octave = Math.max(0, octave - 1); i++; continue; }
+
+    // Tie — extend duration of last note with same semitone
+    if (ch === '&') {
+      i++;
+      // consume optional note that follows (must match previous semitone)
+      const nc = src[i] ? src[i].toLowerCase() : '';
+      if (MML_NOTE_SEMI.hasOwnProperty(nc)) {
+        i++;
+        let semi = MML_NOTE_SEMI[nc];
+        if (i < src.length && (src[i] === '+' || src[i] === '#')) { semi++; i++; }
+        else if (i < src.length && src[i] === '-') { semi--; i++; }
+        const durN  = readInt();
+        const dotN  = (i < src.length && src[i] === '.') ? (i++, true) : false;
+        const dur   = durN !== null ? durN : defaultLen;
+        const dot   = dotN || (durN === null && defaultDot);
+        const normS = ((semi % 12) + 12) % 12;
+        const addSt = mmlDurToSteps(dur, dot);
+        // find last event with same semitone to extend
+        for (let k = events.length - 1; k >= 0; k--) {
+          if (events[k].semitone === normS) { events[k].steps += addSt; break; }
+        }
+      }
+      continue;
+    }
+
+    // Rest
+    if (ch === 'r') {
+      i++;
+      const durN = readInt();
+      const dot  = (i < src.length && src[i] === '.') ? (i++, true) : false;
+      const dur  = durN !== null ? durN : defaultLen;
+      const useDot = dot || (durN === null && defaultDot);
+      events.push({ type: 'rest', semitone: -1, steps: mmlDurToSteps(dur, useDot), vel: 0 });
+      continue;
+    }
+
+    // Note
+    if (MML_NOTE_SEMI.hasOwnProperty(ch)) {
+      i++;
+      let semi = MML_NOTE_SEMI[ch];
+      if (i < src.length && (src[i] === '+' || src[i] === '#')) { semi++; i++; }
+      else if (i < src.length && src[i] === '-')                { semi--; i++; }
+
+      const durN = readInt();
+      const dot  = (i < src.length && src[i] === '.') ? (i++, true) : false;
+      const dur  = durN !== null ? durN : defaultLen;
+      const useDot = dot || (durN === null && defaultDot);
+
+      const normS = ((semi % 12) + 12) % 12;
+      events.push({ type: 'note', semitone: normS, steps: mmlDurToSteps(dur, useDot), vel });
+      continue;
+    }
+
+    i++; // unknown char — skip
+  }
+
+  return { events, tempo };
+}
+
+function parseMML(text) {
+  let raw = text.trim();
+  // Strip MML@ prefix (case-insensitive)
+  if (raw.toUpperCase().startsWith('MML@')) raw = raw.slice(4);
+  // Split tracks on top-level commas
+  const trackTexts = raw.split(',');
+  const tracks = trackTexts.map(t => parseMMLTrack(t.trim()));
+  const tempo = tracks.find(t => t.tempo !== 120)?.tempo || tracks[0]?.tempo || 120;
+  return { tracks, tempo };
+}
+
+function mmlToFragment(parsed) {
+  const { tracks, tempo } = parsed;
+
+  // Total duration = max steps across all tracks
+  let maxSteps = 0;
+  for (const t of tracks) {
+    const s = t.events.reduce((a, e) => a + e.steps, 0);
+    if (s > maxSteps) maxSteps = s;
+  }
+  if (maxSteps === 0) return null;
+
+  const totalMeasures = Math.max(1, Math.ceil(maxSteps / stepsPerMeasure));
+  const gridSize      = totalMeasures * stepsPerMeasure;
+
+  const channels = DEFAULT_KEYS.map(key => ({
+    name: key.name, motor: key.motor, vel: 60, homePwm: 375,
+    muted: false, sustain: false, steps: new Array(gridSize).fill(0)
+  }));
+
+  for (const track of tracks) {
+    let pos = 0;
+    for (const ev of track.events) {
+      if (ev.type === 'note' && pos < gridSize) {
+        const ci = ev.semitone % 12;
+        // Only write if cell is empty (first track wins for simultaneous notes)
+        if (channels[ci].steps[pos] === 0) {
+          channels[ci].steps[pos] = ev.steps;
+        }
+      }
+      pos += ev.steps;
+    }
+  }
+
+  return { channels, totalMeasures, params: { tempo } };
+}
+
+// ---- MML Preview -------------------------------------------
+function updateMMLPreview() {
+  const ta  = document.getElementById('mmlInputText');
+  const pre = document.getElementById('mmlParsePreview');
+  if (!ta || !pre) return;
+  const text = ta.value.trim();
+  if (!text) { pre.textContent = '(pega aquí tu partitura MML para ver un resumen)'; return; }
+
+  try {
+    const { tracks, tempo } = parseMML(text);
+    if (!tracks.length || tracks.every(t => t.events.length === 0)) {
+      pre.textContent = 'No se reconocieron eventos. Verifica el formato MML.'; return;
+    }
+    const NM = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    let out = `BPM: ${tempo}  |  Pistas: ${tracks.length}\n`;
+    for (let ti = 0; ti < tracks.length; ti++) {
+      const { events } = tracks[ti];
+      const totalSt = events.reduce((a, e) => a + e.steps, 0);
+      const measures = Math.max(1, Math.ceil(totalSt / stepsPerMeasure));
+      const notes  = events.filter(e => e.type === 'note');
+      const rests  = events.filter(e => e.type === 'rest');
+      out += `\nPista ${ti + 1}: ${notes.length} notas, ${rests.length} silencios — ${measures} compás(es)\n`;
+      const preview = notes.slice(0, 12).map(e => NM[e.semitone]).join(' ');
+      if (preview) out += `  → ${preview}${notes.length > 12 ? ' …' : ''}\n`;
+    }
+    pre.textContent = out;
+  } catch(e) {
+    pre.textContent = 'Error: ' + e.message;
+  }
+}
+
+// ---- Add MML Fragment to sequencer -------------------------
+function addMMLToSequencer() {
+  const ta = document.getElementById('mmlInputText');
+  if (!ta || !ta.value.trim()) { alert('Pega una partitura MML primero.'); return; }
+  _pushUndo();
+
+  let parsed;
+  try { parsed = parseMML(ta.value); }
+  catch(e) { alert('Error de parser: ' + e.message); return; }
+
+  const frag = mmlToFragment(parsed);
+  if (!frag) { alert('No se encontraron notas válidas.'); return; }
+
+  const { channels, totalMeasures, params } = frag;
+  const NM = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const firstNotes = parsed.tracks.flatMap(t => t.events)
+    .filter(e => e.type === 'note').slice(0, 4)
+    .map(e => NM[e.semitone]).join('');
+  const fragmentName = `MML-${firstNotes || 'import'}-${Date.now().toString(36).slice(-4)}`;
+
+  songQueue.push({
+    id: 'mml-' + Date.now(),
+    name: fragmentName,
+    repeat: 1,
+    channels,
+    stepsPerMeasure,
+    numMeasures: totalMeasures,
+    tempo: params.tempo,
+    modified: false
+  });
+
+  renderSongQueue();
+  setStatus(`✓ MML importado: "${fragmentName}" — ${totalMeasures} compás(es) @ ${params.tempo} BPM`);
+  closeMMLModal();
+  const tab = document.querySelector('[data-tab="tab-cancion"]');
+  if (tab) tab.click();
+}
+
+// ---- MML Import Modal --------------------------------------
+function closeMMLModal() {
+  const m = document.getElementById('mmlImportModal');
+  if (m) m.remove();
+}
+
+function openMMLModal() {
+  closeMMLModal();
+
+  const ov = document.createElement('div');
+  ov.id = 'mmlImportModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;overflow:auto;padding:16px;';
+  ov.onclick = e => { if (e.target === ov) closeMMLModal(); };
+
+  const box = _mkModalBox();
+  box.style.width = 'min(640px,100%)';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;';
+  hdr.innerHTML = `<span style="color:#e67e22;font-weight:bold;font-size:13px;letter-spacing:2px">🎼 IMPORTAR MML ESTÁNDAR</span>
+    <button onclick="closeMMLModal()" style="background:transparent;border:1px solid #445;color:#888;border-radius:4px;padding:2px 8px;cursor:pointer;font-family:inherit;font-size:13px">✕</button>`;
+  box.appendChild(hdr);
+
+  // Info box
+  const info = document.createElement('div');
+  info.style.cssText = 'background:#1a1a0a;border:1px solid #665;border-radius:6px;padding:8px 12px;font-size:10px;color:#aa9;line-height:1.6;margin-bottom:8px;';
+  info.innerHTML = `<strong style="color:#e8d">Formato MML estándar</strong> — soporta múltiples pistas separadas por <code>,</code><br>
+Comandos: <code>t</code> tempo &nbsp; <code>l</code> duración base &nbsp; <code>o</code> octava &nbsp; <code>v</code> volumen &nbsp; <code>&lt; &gt;</code> subir/bajar octava &nbsp; <code>&amp;</code> ligadura<br>
+Notas: <code>c d e f g a b</code> con <code>+</code> o <code>-</code> para sostenido/bemol &nbsp; <code>r</code> silencio &nbsp; <code>.</code> nota con puntillo<br>
+<span style="color:#f90">Las octavas se ignoran — todas las notas se mapean a los 12 canales cromáticos del secuenciador.</span>`;
+  box.appendChild(info);
+
+  // Textarea
+  const ta = document.createElement('textarea');
+  ta.id = 'mmlInputText';
+  ta.placeholder = 'Pega aquí tu partitura MML, p.ej:\nMML@l4o4t120cdefgab>c,l4o3t120e4e4e4e4';
+  ta.style.cssText = 'width:100%;min-height:120px;background:#0d0d22;color:#ddd;border:1px solid #e67e22;border-radius:4px;padding:8px;font-size:11px;font-family:"Courier New",monospace;resize:vertical;box-sizing:border-box;';
+  ta.oninput = updateMMLPreview;
+  box.appendChild(ta);
+
+  // Preview
+  const pre = document.createElement('div');
+  pre.id = 'mmlParsePreview';
+  pre.style.cssText = 'background:#0d0d22;border:1px solid #334;border-radius:6px;padding:10px;font-size:11px;color:#aaa;line-height:1.7;min-height:60px;white-space:pre-wrap;word-wrap:break-word;max-height:160px;overflow-y:auto;margin-top:8px;';
+  pre.textContent = '(pega aquí tu partitura MML para ver un resumen)';
+  box.appendChild(pre);
+
+  // File import
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.txt,.mml';
+  fileInput.style.display = 'none';
+  fileInput.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { ta.value = ev.target.result; updateMMLPreview(); };
+    reader.readAsText(file, 'utf-8');
+    fileInput.value = '';
+  };
+  box.appendChild(fileInput);
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap;';
+  const importFileBtn = _mkModalBtn('📂 Abrir .mml/.txt', '#8860d0', () => fileInput.click());
+  importFileBtn.style.marginRight = 'auto';
+  footer.appendChild(importFileBtn);
+  footer.appendChild(_mkModalBtn('➕ Importar al secuenciador', '#e67e22', addMMLToSequencer));
+  footer.appendChild(_mkModalBtn('✕ Cerrar', '#666', closeMMLModal));
+  box.appendChild(footer);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
+  ta.focus();
+}
+
+// ============================================================
 // STAFF VIEW — VexFlow Phase 4 (full scope)
 // ============================================================
 let staffViewActive          = false;
@@ -5126,4 +5439,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btnOpenAcordes').onclick   = openAcordesModal;
   document.getElementById('btnOpenConverter').onclick = openChordConverterModal;
+  document.getElementById('btnOpenMML').onclick       = openMMLModal;
 });

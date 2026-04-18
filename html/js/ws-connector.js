@@ -115,8 +115,8 @@ function sendStop() {
 // ── D6 — helpers UI ───────────────────────────────────────────
 function _setWsStatus(state) {
     const dot = document.getElementById('esp32StatusDot');
-    const lbl = document.getElementById('esp32StatusLabel');
-    if (!dot || !lbl) return;
+    const lbl = document.getElementById('esp32StatusLabel');  // opcional
+    const msg = document.getElementById('statusMsg');
 
     const MAP = {
         connected:    { color: '#44dd88', text: 'ESP32 conectado'    },
@@ -124,6 +124,7 @@ function _setWsStatus(state) {
         connecting:   { color: '#ddaa33', text: 'Conectando...'      },
     };
     const s = MAP[state] || MAP.disconnected;
-    dot.style.color = s.color;
-    lbl.textContent = s.text;
+    if (dot) dot.style.color = s.color;
+    if (lbl) lbl.textContent = s.text;
+    if (msg) msg.textContent = s.text;
 }

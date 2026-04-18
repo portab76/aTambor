@@ -282,6 +282,15 @@ function initNoteLabelsEvents() {
         if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOn) {
             MIDI.noteOn(0, hit.note, 90, 0);
         }
+
+        // Disparar motor físico aplicando transposeOffset (motorForNote ya lo descuenta)
+        if (typeof motorForNote === 'function' && typeof sendCommand === 'function') {
+            const entry = motorForNote(hit.note);
+            if (entry) {
+                sendCommand(`e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${entry.vel}; t 150; v 0; p;`);
+            }
+        }
+
         _highlightLabelRow(hit.rowIndex, true);
     }
 
@@ -331,10 +340,24 @@ function _highlightLabelRow(rowIndex, on) {
 }
 
 // ============================================================
-// loadBlankGrid — Nuevo documento vacío de 1 compás
-// Usa las notas del MOTOR_MAP como rango visible.
-// ============================================================
-function loadBlankGrid() {
+// ── toggleNewGridPanel — abre/cierra el panel de selección ───
+function toggleNewGridPanel() {
+    const panel = document.getElementById('newGridPanel');
+    const btn   = document.getElementById('newGridBtn');
+    if (!panel) return;
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : '';
+    if (btn) btn.classList.toggle('btn-active', !visible);
+}
+
+// ── _doLoadBlankGrid — crea el grid con el nº de compases elegido ──
+function _doLoadBlankGrid(measures) {
+    // Cerrar el panel
+    const panel = document.getElementById('newGridPanel');
+    if (panel) panel.style.display = 'none';
+    const btn = document.getElementById('newGridBtn');
+    if (btn) btn.classList.remove('btn-active');
+
     // Confirmar si hay notas en el grid actual
     if (Object.keys(gridData.cells).length > 0) {
         if (!confirm('¿Descartar el grid actual y crear uno nuevo vacío?')) return;
@@ -347,17 +370,27 @@ function loadBlankGrid() {
         return;
     }
 
+    // Leer BPM del panel
+    const bpmInput = document.getElementById('newGridBpm');
+    const bpm = bpmInput ? Math.max(20, Math.min(400, parseInt(bpmInput.value) || 120)) : 120;
+
+    const spm = currentTimeSig.stepsPerMeasure;  // 16 en 4/4
+
     // Resetear estado
     gridData          = { cells: {} };
     noteRows          = motorNotes;
     ppqn              = 96;
-    ticksPerStep      = ppqn / 4;   // 24 ticks por semicorchea
-    totalSteps        = 16;          // 1 compás de 4/4
+    ticksPerStep      = ppqn / 4;
+    totalSteps        = measures * spm;
     stepWidth         = 40;
     midiData          = null;
     rawEvents         = [];
-    tempoMap          = [{ tick: 0, bpm: 120 }];
+    tempoMap          = [{ tick: 0, bpm }];
     pasoActual        = 0;
+
+    // Sincronizar BPM con el input de la toolbar
+    const toolbarBpm = document.getElementById('bpmInput');
+    if (toolbarBpm) toolbarBpm.value = bpm;
 
     // Limpiar análisis armónico
     currentHarmonicSegments = [];
@@ -373,14 +406,69 @@ function loadBlankGrid() {
 
     drawPianoRoll();
     drawNoteLabels();
+    drawTimelineRuler();
 
-    // Habilitar transporte
+    // Habilitar transporte y botones de compases
     playBtn.disabled  = false;
     loopBtn.disabled  = false;
     pauseBtn.disabled = true;
-    stopBtn.disabled  = true;
+    _enableMeasureButtons();
+    const abBtn = document.getElementById('abLoopBtn');
+    if (abBtn) abBtn.disabled = false;
+    statusSpan.innerText = `Grid vacío · ${motorNotes.length} notas · ${measures} compás${measures > 1 ? 'es' : ''} · ${bpm} BPM`;
+}
 
-    statusSpan.innerText = `Grid vacío · ${motorNotes.length} notas del Motor Map · 1 compás`;
+// Alias de compatibilidad por si algo lo llama directamente
+function loadBlankGrid() { toggleNewGridPanel(); }
+
+// ── addMeasures / removeMeasures ─────────────────────────────
+function _phraseMeasures() {
+    const sel = document.getElementById('phraseUnitSelect');
+    return sel ? parseInt(sel.value) : 4;
+}
+
+function _enableMeasureButtons() {
+    const a = document.getElementById('addMeasuresBtn');
+    const r = document.getElementById('removeMeasuresBtn');
+    if (a) a.disabled = false;
+    if (r) r.disabled = false;
+}
+
+function addMeasures(n) {
+    if (!totalSteps) return;
+    const m = n || _phraseMeasures();
+    totalSteps += m * currentTimeSig.stepsPerMeasure;
+    canvas.width       = totalSteps * stepWidth;
+    canvas.style.width = `${canvas.width}px`;
+    drawPianoRoll();
+    drawTimelineRuler();
+    statusSpan.innerText = `${Math.round(totalSteps / currentTimeSig.stepsPerMeasure)} compases`;
+}
+
+function removeMeasures(n) {
+    if (!totalSteps) return;
+    const m       = n || _phraseMeasures();
+    const spm     = currentTimeSig.stepsPerMeasure;
+    const cutStep = totalSteps - m * spm;
+    if (cutStep < spm) { statusSpan.innerText = 'Mínimo 1 compás'; return; }
+
+    // Avisar si hay notas en los compases a eliminar
+    const hasNotes = Object.keys(gridData.cells).some(k => parseInt(k.split(',')[1]) >= cutStep);
+    if (hasNotes && !confirm(`¿Eliminar los últimos ${m} compás${m > 1 ? 'es' : ''} con sus notas?`)) return;
+
+    // Borrar celdas fuera del nuevo rango
+    for (const key of Object.keys(gridData.cells)) {
+        if (parseInt(key.split(',')[1]) >= cutStep) delete gridData.cells[key];
+    }
+
+    totalSteps = cutStep;
+    if (pasoActual >= totalSteps) pasoActual = totalSteps - 1;
+
+    canvas.width       = totalSteps * stepWidth;
+    canvas.style.width = `${canvas.width}px`;
+    drawPianoRoll();
+    drawTimelineRuler();
+    statusSpan.innerText = `${Math.round(totalSteps / spm)} compases`;
 }
 
 // --- Función interna de dibujo de notas ---

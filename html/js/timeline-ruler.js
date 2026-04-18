@@ -101,8 +101,120 @@ function drawTimelineRuler() {
         }
     }
 
+    // ── Franja A-B ─────────────────────────────────────────
+    if (typeof loopAB !== 'undefined' && loopAB && loopA >= 0 && loopB > loopA) {
+        const xA = loopA * stepWidth;
+        const xB = Math.min(loopB * stepWidth, W);
+        rc.fillStyle = 'rgba(80,200,120,0.13)';
+        rc.fillRect(xA, 0, xB - xA, RULER_H);
+    }
+
+    // ── Marcadores A y B ───────────────────────────────────
+    function _drawMarker(step, color, label) {
+        if (step < 0 || step > totalSteps) return;
+        const x = step * stepWidth;
+        // Triángulo apuntando hacia abajo en la parte superior
+        rc.fillStyle = color;
+        rc.beginPath();
+        rc.moveTo(x - 5, 0);
+        rc.lineTo(x + 5, 0);
+        rc.lineTo(x,     9);
+        rc.closePath();
+        rc.fill();
+        // Línea vertical
+        rc.strokeStyle = color;
+        rc.lineWidth   = 1.5;
+        rc.beginPath();
+        rc.moveTo(x + 0.5, 0);
+        rc.lineTo(x + 0.5, RULER_H);
+        rc.stroke();
+        rc.lineWidth = 1;
+        // Etiqueta
+        rc.fillStyle = color;
+        rc.font      = 'bold 9px monospace';
+        rc.textAlign = 'left';
+        rc.fillText(label, x + 3, RULER_H - 4);
+    }
+
+    if (typeof loopA !== 'undefined' && loopA >= 0) _drawMarker(loopA, '#ffaa00', 'A');
+    if (typeof loopB !== 'undefined' && loopB >= 0) _drawMarker(loopB, '#44ddaa', 'B');
+
     // Sincronizar playhead con posición actual
     updateRulerPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
+}
+
+/**
+ * Registra el listener de click en la regla para hacer seek.
+ * Llamar una sola vez tras crear el canvas (al cargar la página).
+ */
+// _abNextClick: 'A' → siguiente click pone loopA; 'B' → pone loopB
+let _abNextClick = 'A';
+
+function initRulerSeek() {
+    const area = document.getElementById('rulerScrollArea');
+    if (!area) return;
+
+    area.addEventListener('click', function (e) {
+        if (!totalSteps || !stepWidth) return;
+        const rect = area.getBoundingClientRect();
+        const x    = e.clientX - rect.left + area.scrollLeft;
+        const step = Math.max(0, Math.min(totalSteps - 1, Math.floor(x / stepWidth)));
+
+        if (typeof loopAB !== 'undefined' && loopAB) {
+            // Modo A-B: primer click → A, segundo → B, tercero → resetea A, etc.
+            if (_abNextClick === 'A') {
+                loopA       = step;
+                loopB       = -1;   // limpiar B anterior
+                _abNextClick = 'B';
+            } else {
+                if (step > loopA) {
+                    loopB = step;
+                } else {
+                    // Click antes de A → recolocar A aquí
+                    loopA = step;
+                    loopB = -1;
+                }
+                _abNextClick = 'A';
+            }
+            drawTimelineRuler();
+            _updateAbBtn();
+        } else {
+            // Modo normal: seek
+            if (typeof seekToStep === 'function') seekToStep(step);
+        }
+    });
+
+    area.style.cursor = 'pointer';
+}
+
+function _updateAbBtn() {
+    const btn = document.getElementById('abLoopBtn');
+    if (!btn) return;
+    if (loopAB) {
+        const hasRange = loopA >= 0 && loopB > loopA;
+        btn.classList.add('btn-active');
+        btn.textContent = hasRange
+            ? `⇄ A–B`
+            : (loopA >= 0 ? '⇄ A… →B' : '⇄ →A');
+    } else {
+        btn.classList.remove('btn-active');
+        btn.textContent = '⇄ A-B';
+    }
+}
+
+function toggleLoopAB() {
+    loopAB = !loopAB;
+    if (!loopAB) {
+        // Al desactivar, limpiar rango y redibujar
+        loopA = loopB = -1;
+        _abNextClick = 'A';
+        drawTimelineRuler();
+    } else {
+        _abNextClick = 'A';
+    }
+    _updateAbBtn();
+    if (typeof statusSpan !== 'undefined')
+        statusSpan.innerText = loopAB ? 'Loop A-B: clic en regla para marcar inicio (A)' : 'Loop A-B desactivado';
 }
 
 /**

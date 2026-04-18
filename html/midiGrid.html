@@ -59,6 +59,12 @@
         }
         button:hover:not(:disabled) { background: #3a3a58; }
         button:disabled { opacity: 0.4; cursor: default; }
+        button.btn-active {
+            background: #2a3a5a;
+            border-color: #6688cc;
+            color: #aaccff;
+        }
+        button.btn-active:hover { background: #334466; }
 
         input[type="file"] {
             background: #2e2e42;
@@ -323,16 +329,19 @@
 <div class="toolbar">
     <span class="toolbar-title">🎹 MIDI Grid</span>
 
-    <!-- Nuevo documento vacío -->
-    <button onclick="loadBlankGrid()" title="Nuevo grid vacío (1 compás con notas del Motor Map)"
+    <!-- ── Grupo 1: Archivo ── -->
+    <button id="newGridBtn" onclick="toggleNewGridPanel()" title="Nuevo grid vacío"
             style="font-size:12px;">📄 Nuevo</button>
+    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
+    <button onclick="openMMLImportModal()" title="Importar partitura MML" style="font-size:12px;">🎼 MML</button>
+    <button id="saveProjectBtn" title="Guardar proyecto">💾 Guardar</button>
+    <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
+    <button id="loadProjectBtn" title="Cargar proyecto guardado">📂 Cargar</button>
+    <button id="exportMidiBtn" title="Exportar eventos a JSON">⬇ Export</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- Carga de archivo -->
-    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
-
-    <!-- Selección de instrumento -->
+    <!-- ── Grupo 2: Instrumento / Canal ── -->
     <select id="instrumentSelect" disabled>
         <option value="">-- Canal / Instrumento --</option>
     </select>
@@ -340,13 +349,14 @@
 
     <div class="toolbar-sep"></div>
 
-    <!-- Transporte -->
+    <!-- ── Grupo 3: Transporte ── -->
     <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
     <button id="pauseBtn" class="btn-transport" disabled title="Pause">⏸</button>
-    <button id="stopBtn"  class="btn-transport" disabled title="Stop">⏹</button>
-    <button id="loopBtn"  class="btn-transport" disabled title="Loop">🔁</button>
-
-    <!-- BPM -->
+    <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
+    <button id="loopBtn"  class="btn-transport" disabled title="Loop todo">🔁</button>
+    <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
+            title="Loop A-B: activa y marca inicio/fin en la regla"
+            style="font-size:11px;padding:4px 7px;white-space:nowrap;">⇄ A-B</button>
     <label for="bpmInput" style="font-size:11px;color:#7777aa;white-space:nowrap;">BPM</label>
     <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
            title="Tempo de reproducción (pulsaciones por minuto)"
@@ -355,44 +365,48 @@
 
     <div class="toolbar-sep"></div>
 
-    <!-- Notas activas -->
+    <!-- ── Compases ── -->
+    <button id="removeMeasuresBtn" onclick="removeMeasures()" title="Quitar compases al final"
+            disabled style="font-size:13px;padding:4px 8px;min-width:0;">−</button>
+    <select id="phraseUnitSelect" title="Unidad de frase"
+            style="width:52px;font-size:12px;background:#1e1e32;color:#aaa;
+                   border:1px solid #3a3a5a;border-radius:4px;padding:2px 4px;">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+    </select>
+    <button id="addMeasuresBtn" onclick="addMeasures()" title="Añadir compases al final"
+            disabled style="font-size:13px;padding:4px 8px;min-width:0;">+</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- ── Grupo 4: Herramientas ── -->
     <button id="activeNotesBtn" title="Ver notas activas del instrumento" disabled
             style="font-size:12px;">🎵 Notas</button>
-
-    <!-- Motor Map -->
     <button onclick="toggleMotorMapPanel()" title="Abrir/cerrar panel Motor Map"
             style="font-size:12px;">⚙ Motor Map</button>
+    <button id="transposePanelBtn" onclick="toggleTransposePanel()" title="Transposición de escala en tiempo real"
+            style="font-size:12px;">🎹 Escala</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- Persistencia -->
-    <button id="exportMidiBtn" title="Exportar eventos a JSON">⬇ Export</button>
-    <button id="saveProjectBtn" title="Guardar proyecto">💾 Guardar</button>
-    <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
-    <button id="loadProjectBtn" title="Cargar proyecto guardado">📂 Cargar</button>
-
-    <div class="toolbar-sep"></div>
-
-    <!-- Conexión ESP32 -->
+    <!-- ── Grupo 5: ESP32 ── -->
     <input id="esp32IpInput" value="192.168.1.128"
            title="IP del ESP32"
-           style="width:130px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
+           style="width:118px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
                   border-radius:4px;padding:3px 6px;font-size:12px;">
-    <button onclick="initWebSocket()"
-            title="Conectar con ESP32"
-            style="font-size:12px;">Conectar</button>
+    <button onclick="initWebSocket()" title="Conectar con ESP32" style="font-size:12px;">Conectar</button>
     <span id="esp32StatusDot" style="font-size:16px;line-height:1;color:#dd4444;">●</span>
-    <span id="esp32StatusLabel" style="font-size:11px;color:#888;">ESP32 desconectado</span>
+    <button onclick="openEsp32LogWindow()" title="Ver log del ESP32 en tiempo real"
+            style="font-size:12px;">📝 Log</button>
+
     <div class="toolbar-sep"></div>
 
-    <!-- Ayuda -->
+    <!-- ── Grupo 6: Ayuda / Estado ── -->
     <button onclick="showHelpModal()" title="Atajos y controles"
             style="font-size:13px;padding:3px 8px;">? Ayuda</button>
-
-    <div class="toolbar-sep"></div>
-
-    <!-- Estado MIDI -->
-    <span id="statusMsg">Esperando MIDI...</span>
+    <span id="statusMsg" style="font-size:11px;color:#888;white-space:nowrap;">Esperando MIDI...</span>
 </div>
 
 <!-- ══ Modal de Ayuda ══ -->
@@ -419,6 +433,18 @@
         <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
 
             <div class="help-section">
+                <div class="help-title">Archivo</div>
+                <table class="help-table">
+                    <tr><td class="help-key">📄 Nuevo</td><td>Abre panel para elegir nº de compases (1/2/4/8/16) y BPM inicial</td></tr>
+                    <tr><td class="help-key">Abrir MIDI</td><td>Importar archivo .mid / .midi</td></tr>
+                    <tr><td class="help-key">🎼 MML</td><td>Importar partitura en formato MML (texto)</td></tr>
+                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto como JSON</td></tr>
+                    <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado</td></tr>
+                    <tr><td class="help-key">⬇ Export</td><td>Exportar eventos MIDI a JSON</td></tr>
+                </table>
+            </div>
+
+            <div class="help-section">
                 <div class="help-title">Grid (piano roll)</div>
                 <table class="help-table">
                     <tr><td class="help-key">Click</td><td>Añadir / quitar nota</td></tr>
@@ -430,18 +456,32 @@
             <div class="help-section">
                 <div class="help-title">Teclado de notas (columna izquierda)</div>
                 <table class="help-table">
-                    <tr><td class="help-key">Click + mantener</td><td>Escuchar la nota</td></tr>
+                    <tr><td class="help-key">Click + mantener</td><td>Escuchar la nota por MIDI y mover el servo mapeado</td></tr>
                     <tr><td class="help-key">Arrastrar ↑ ↓</td><td>Deslizar entre notas sin soltar</td></tr>
+                    <tr><td class="help-key">Con 🎹 Escala activo</td><td>El servo que se mueve respeta el offset de transposición</td></tr>
                 </table>
             </div>
 
             <div class="help-section">
-                <div class="help-title">Transporte</div>
+                <div class="help-title">Transporte y compases</div>
                 <table class="help-table">
-                    <tr><td class="help-key">▶ Play</td><td>Iniciar reproducción desde posición actual</td></tr>
+                    <tr><td class="help-key">▶ Play</td><td>Iniciar reproducción (desde loopA si A-B está activo)</td></tr>
                     <tr><td class="help-key">⏸ Pause</td><td>Pausar conservando la posición</td></tr>
-                    <tr><td class="help-key">⏹ Stop</td><td>Detener y volver al inicio</td></tr>
-                    <tr><td class="help-key">🔁 Loop</td><td>Activar / desactivar repetición</td></tr>
+                    <tr><td class="help-key">⏹ Stop</td><td>Detener y volver al inicio (siempre habilitado)</td></tr>
+                    <tr><td class="help-key">🔁 Loop</td><td>Repetir toda la canción en bucle</td></tr>
+                    <tr><td class="help-key">⇄ A-B</td><td>Activar loop de rango: 1er clic en regla → punto A, 2º clic → punto B</td></tr>
+                    <tr><td class="help-key">Click en regla</td><td>Seek a ese compás / paso (o marcar A-B si el modo está activo)</td></tr>
+                    <tr><td class="help-key">− [n] +</td><td>Quitar / añadir N compases al final del grid</td></tr>
+                </table>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Herramientas</div>
+                <table class="help-table">
+                    <tr><td class="help-key">🎵 Notas</td><td>Panel de notas activas del instrumento</td></tr>
+                    <tr><td class="help-key">⚙ Motor Map</td><td>Mapeo nota MIDI → servo físico (motor, PWM, velocidad)</td></tr>
+                    <tr><td class="help-key">🎹 Escala</td><td>Transposición en tiempo real: desplaza qué notas activan los servos</td></tr>
+                    <tr><td class="help-key">Slider Escala</td><td>−32 … +24 st; hot-apply durante la reproducción vía ESP32 APPEND</td></tr>
                 </table>
             </div>
 
@@ -453,35 +493,19 @@
                     <tr><td class="help-key">Select frases</td><td>Vista de frases detectadas por cadencias (V→I, IV→I…)</td></tr>
                     <tr><td class="help-key">Click en bloque</td><td>Abrir popup con info del acorde / frase</td></tr>
                     <tr><td class="help-key">← → en popup</td><td>Navegar al segmento anterior / siguiente</td></tr>
+                    <tr><td class="help-key">Click en nota (popup)</td><td>Escuchar esa nota</td></tr>
+                    <tr><td class="help-key">Shift + Click (popup)</td><td>Escuchar el acorde completo</td></tr>
                 </table>
             </div>
 
             <div class="help-section">
-                <div class="help-title">Popup de acorde</div>
+                <div class="help-title">ESP32 y conexión</div>
                 <table class="help-table">
-                    <tr><td class="help-key">Click en nota</td><td>Escuchar esa nota</td></tr>
-                    <tr><td class="help-key">Shift + Click en nota</td><td>Escuchar el acorde completo</td></tr>
-                    <tr><td class="help-key">Click fuera</td><td>Cerrar el popup</td></tr>
-                </table>
-            </div>
-
-            <div class="help-section">
-                <div class="help-title">Proyecto y archivo</div>
-                <table class="help-table">
-                    <tr><td class="help-key">Nuevo</td><td>Crear grid vacío de 1 compás con notas del Motor Map</td></tr>
-                    <tr><td class="help-key">Abrir MIDI</td><td>Importar archivo .mid / .midi</td></tr>
-                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto como JSON</td></tr>
-                    <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado</td></tr>
-                    <tr><td class="help-key">⬇ Export</td><td>Exportar eventos MIDI a JSON</td></tr>
-                </table>
-            </div>
-
-            <div class="help-section">
-                <div class="help-title">Motor Map y ESP32</div>
-                <table class="help-table">
-                    <tr><td class="help-key">Motor Map</td><td>Abrir / cerrar panel de mapeo nota → servo</td></tr>
-                    <tr><td class="help-key">Conectar</td><td>Conectar con el ESP32 por WebSocket</td></tr>
-                    <tr><td class="help-key">▶ Play (con ESP32)</td><td>Envía secuencia completa al firmware y arranca audio</td></tr>
+                    <tr><td class="help-key">IP + Conectar</td><td>Conectar con el ESP32 por WebSocket (ws://IP:81)</td></tr>
+                    <tr><td class="help-key">● (punto)</td><td>Verde = conectado · Rojo = desconectado · Naranja = conectando</td></tr>
+                    <tr><td class="help-key">📝 Log</td><td>Abrir ventana con el log del ESP32 en tiempo real (polling /logs)</td></tr>
+                    <tr><td class="help-key">▶ Play (con ESP32)</td><td>Envía secuencia PLAY al firmware y sincroniza audio con servos</td></tr>
+                    <tr><td class="help-key">⇄ A-B (con ESP32)</td><td>Al llegar a B reenvía APPEND desde A para loop continuo en hardware</td></tr>
                 </table>
             </div>
 
@@ -490,6 +514,15 @@
 </div><!-- /helpModal -->
 
 <style>
+#newGridPanel, #transposePanel {
+    background:#22223a;border:1px solid #33335a;border-radius:5px;
+    padding:8px 10px;flex-shrink:0;
+}
+.tp-quick-btn {
+    background:#2a2a42;color:#ccc;border:1px solid #4a4a6a;
+    border-radius:4px;padding:4px 10px;cursor:pointer;font-size:13px;
+}
+.tp-quick-btn:hover { background:#3a3a58; }
 .help-section { background:#25253a;border-radius:6px;padding:10px 12px; }
 .help-title   { font-size:11px;text-transform:uppercase;letter-spacing:.6px;
                 color:#7777aa;margin-bottom:8px;font-weight:bold; }
@@ -507,6 +540,47 @@
     <!-- Log de información (oculto por defecto, toggle desde botón en chord-row) -->
     <div class="info" id="debugInfo" style="display:none;">
         <strong>Info MIDI:</strong> ningún archivo cargado.
+    </div>
+
+    <!-- Panel "Nuevo grid" (oculto por defecto, toggle desde botón 📄 Nuevo) -->
+    <div id="newGridPanel" style="display:none;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#9999cc;white-space:nowrap;">Compases:</span>
+            <div style="display:flex;gap:5px;">
+                <button class="tp-quick-btn" onclick="_doLoadBlankGrid(1)">1</button>
+                <button class="tp-quick-btn" onclick="_doLoadBlankGrid(2)">2</button>
+                <button class="tp-quick-btn" onclick="_doLoadBlankGrid(4)">4</button>
+                <button class="tp-quick-btn" onclick="_doLoadBlankGrid(8)">8</button>
+                <button class="tp-quick-btn" onclick="_doLoadBlankGrid(16)">16</button>
+            </div>
+            <div style="width:1px;height:20px;background:#3a3a5a;"></div>
+            <label style="font-size:12px;color:#9999cc;">BPM</label>
+            <input type="number" id="newGridBpm" min="20" max="400" value="120"
+                   style="width:58px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+                          border-radius:4px;padding:3px 6px;font-size:13px;text-align:center;">
+            <span style="font-size:11px;color:#555;">— pulsa el número de compases para crear</span>
+        </div>
+    </div>
+
+    <!-- Panel de transposición (oculto por defecto, toggle desde botón toolbar) -->
+    <div id="transposePanel" style="display:none;">
+        <div style="overflow-x:auto;border:1px solid #2a2a4a;border-radius:5px;background:#111;margin-bottom:6px;">
+            <canvas id="transposePianoCanvas" style="display:block;"></canvas>
+        </div>
+        <div id="transposeRangeLabel" style="font-size:11px;color:#7777aa;margin-bottom:5px;"></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button class="tp-quick-btn" onclick="_tpShift(-12)">−12</button>
+            <button class="tp-quick-btn" onclick="_tpShift(-1)">−1</button>
+            <input  type="range" id="transposeSlider" min="-24" max="24" step="1"
+                    value="0" oninput="_tpSlider(this.value)" style="flex:1;accent-color:#6666cc;">
+            <button class="tp-quick-btn" onclick="_tpShift(+1)">+1</button>
+            <button class="tp-quick-btn" onclick="_tpShift(+12)">+12</button>
+            <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
+                 min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
+                 border-radius:4px;padding:3px 6px;">0</div>
+            <button class="tp-quick-btn" onclick="_tpShift(0,true)"
+                    style="color:#88ffaa;border-color:#336633;">↺</button>
+        </div>
     </div>
 
     <!-- Regla de compases / tiempos (tipo DAW) -->
@@ -536,10 +610,10 @@
                     const d = document.getElementById('debugInfo');
                     const visible = d.style.display !== 'none';
                     d.style.display = visible ? 'none' : 'block';
-                    document.getElementById('infoToggleBtn').style.opacity = visible ? '0.4' : '1';
+                    document.getElementById('infoToggleBtn').classList.toggle('btn-active', !visible);
                 })()"
                 title="Mostrar/ocultar info MIDI"
-                style="font-size:11px;padding:2px 6px;opacity:0.4;min-width:0;width:58px;">
+                style="font-size:11px;padding:2px 6px;min-width:0;width:58px;">
                 ℹ Info
             </button>
             <select id="viewLevelSelect" disabled
@@ -640,6 +714,8 @@
 <script src="./js/playback.js"></script>
 <script src="./js/editor.js"></script>
 <script src="./js/persistence.js"></script>
+<script src="./js/mml-parser.js"></script>
+<script src="./js/transpose.js"></script>
 <script src="./js/midiGrid.js"></script>
 </body>
 </html>

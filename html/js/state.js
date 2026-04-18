@@ -40,6 +40,14 @@ let currentTimeSig = {
 // --- Highlight activo del popup (se mantiene durante la reproducción) ---
 let activeHighlight = null;  // { classes, startStep, endStep } o null
 
+// --- Transposición global de escala ---
+let transposeOffset = 0;     // semitonos aplicados a todos los lookups de motor (−24 … +24)
+
+// --- Loop A-B ---
+let loopA  = -1;    // paso de inicio del rango A-B (−1 = no definido)
+let loopB  = -1;    // paso de fin del rango A-B
+let loopAB = false; // modo A-B activo
+
 // --- Análisis armónico ---
 let currentHarmonicSegments = [];  // micro-segmentos originales (uno por cambio de nota)
 let currentFusedSegments    = [];  // segmentos fusionados por tiempo (vista musical)

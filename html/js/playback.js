@@ -33,12 +33,18 @@ function play() {
 
     const stepMs = MS_PER_STEP();
 
-    // ── G1: enviar secuencia al ESP32 (completa o desde pasoActual si hay offset) ──
+    // Si A-B está activo y hay rango, fijar pasoActual ANTES de construir la secuencia
+    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+    if (abActive) pasoActual = loopA;
+
+    // ── G1: enviar secuencia al ESP32 ─────────────────────────
     console.log(`[play] wsConnected=${wsConnected}, ws.readyState=${ws ? ws.readyState : 'null'}`);
     if (typeof wsConnected !== 'undefined' && wsConnected) {
-        const seq = pasoActual > 0
-            ? buildRemainingSequence(MOTOR_MAP, pasoActual)   // arranca desde el acorde seleccionado
-            : buildFullSequence(MOTOR_MAP);                    // arranca desde el principio
+        const seq = abActive
+            ? buildRangeSequence(MOTOR_MAP, loopA, loopB)     // solo el rango A-B
+            : pasoActual > 0
+                ? buildRemainingSequence(MOTOR_MAP, pasoActual)
+                : buildFullSequence(MOTOR_MAP);
         if (!seq) {
             console.warn('[play] No hay notas mapeadas a motores — se omite comando PLAY al ESP32');
         } else {
@@ -79,7 +85,7 @@ function play() {
     }
 
     // ── G1: arrancar audio con offset de 20ms ─────────────────
-    _playStartOffset = pasoActual;   // recordar desde dónde empezamos
+    _playStartOffset = pasoActual;   // pasoActual ya apunta a loopA si A-B activo
     setTimeout(_startPlaybackLoop, 20);
 }
 
@@ -118,7 +124,6 @@ function stop() {
     _playStartOffset = 0;
     playBtn.disabled  = false;
     pauseBtn.disabled = true;
-    stopBtn.disabled  = true;
     drawPianoRollWithPlayhead(-1);
     updateRulerPlayhead(-1);
     _clearChordHighlight();
@@ -139,6 +144,31 @@ function _clearChordHighlight() {
 }
 
 /**
+ * Salta a un paso concreto (seek desde la regla de compases).
+ * Si estaba reproduciendo, para y rearranea desde el nuevo punto.
+ * @param {number} step
+ */
+function seekToStep(step) {
+    const target = Math.max(0, Math.min(totalSteps - 1, step));
+    const wasPlaying = reproduciendo;
+
+    if (wasPlaying) {
+        reproduciendo = false;
+        clearInterval(_playInterval);
+        _playInterval = null;
+    }
+
+    pasoActual       = target;
+    _playStartOffset = target;
+
+    drawPianoRollWithPlayhead(target);
+    updateRulerPlayhead(target);
+    _clearChordHighlight();
+
+    if (wasPlaying) play();
+}
+
+/**
  * Activa/desactiva el loop.
  */
 function toggleLoop() {
@@ -151,9 +181,33 @@ function toggleLoop() {
 let _tickCount = 0;  // para limitar logs
 
 function _tick() {
-    if (pasoActual >= totalSteps) {
-        if (loopEnabled) {
-            pasoActual = _playStartOffset;   // vuelve al punto desde el que arrancó
+    // ── A-B loop tiene prioridad sobre loop normal ────────────
+    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+    if (abActive && pasoActual >= loopB) {
+        pasoActual = loopA;
+        // Reenviar el rango A-B al ESP32 como nueva secuencia PLAY (no APPEND, porque ya terminó)
+        if (typeof wsConnected !== 'undefined' && wsConnected) {
+            const seq = buildRangeSequence(MOTOR_MAP, loopA, loopB);
+            if (seq) {
+                let body = seq;
+                if (body.endsWith('p;\n')) body = body.slice(0, -3);
+                const blocks = validateSequenceSize(body);
+                const stepMs = Math.round(MS_PER_STEP());
+                sendCommand(`PLAY|midiGrid|${stepMs}\n` + blocks[0]);
+                let lastDelay = 0;
+                for (let i = 1; i < blocks.length; i++) {
+                    lastDelay = i * 200;
+                    const b = blocks[i];
+                    setTimeout(() => sendCommand('APPEND\n' + b), lastDelay);
+                }
+                setTimeout(() => sendCommand('p;'), blocks.length > 1 ? lastDelay + 300 : 50);
+            }
+        }
+    } else if (pasoActual >= totalSteps) {
+        if (abActive) {
+            pasoActual = loopA;
+        } else if (loopEnabled) {
+            pasoActual = _playStartOffset;
         } else {
             stop();
             return;
@@ -248,14 +302,26 @@ const _BEAT_DRIFT_TOLERANCE = 2;
 onBeatCallback = function(stepFromEsp32) {
     if (!reproduciendo) return;
 
-    // El ESP32 siempre envía pasos desde 0; ajustamos con el offset de arranque
-    const adjustedStep = stepFromEsp32 + _playStartOffset;
-    const drift        = adjustedStep - pasoActual;
+    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+
+    let adjustedStep;
+    if (abActive) {
+        // En modo A-B los pasos del ESP32 son relativos al rango (0..rangeLen-1).
+        // Si el ESP32 ya terminó el rango y manda step=0 del siguiente ciclo,
+        // NO aplicamos la corrección: dejamos que _tick() haga el wrap y reenvíe PLAY.
+        const rangeLen = loopB - loopA;
+        adjustedStep = (stepFromEsp32 % rangeLen) + loopA;
+        // Ignorar correcciones hacia atrás que cruzan loopB (son el inicio del ciclo siguiente)
+        if (adjustedStep < pasoActual - _BEAT_DRIFT_TOLERANCE) return;
+    } else {
+        adjustedStep = stepFromEsp32 + _playStartOffset;
+    }
+
+    const drift = adjustedStep - pasoActual;
 
     if (Math.abs(drift) > _BEAT_DRIFT_TOLERANCE) {
         console.log(`[beat] Corrección de deriva: pasoActual ${pasoActual} → ${adjustedStep} (drift=${drift})`);
         pasoActual = adjustedStep;
-        // Redibujar playhead en la posición corregida
         drawPianoRollWithPlayhead(pasoActual);
         _autoScroll(pasoActual);
     }

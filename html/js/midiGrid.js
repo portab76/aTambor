@@ -147,6 +147,9 @@ loadInstrumentBtn.addEventListener('click', () => {
 
     playBtn.disabled = false;
     loopBtn.disabled = false;
+    _enableMeasureButtons();
+    const abBtn = document.getElementById('abLoopBtn');
+    if (abBtn) abBtn.disabled = false;
 
     statusSpan.innerText =
         `Grid listo · Canal ${selectedChannel + 1} · ` +
@@ -204,6 +207,45 @@ initCanvasEvents();
 
 // ---- Inicializar eventos de la columna de notas (piano-roll.js) ----
 initNoteLabelsEvents();
+
+// ---- Seek en la regla de compases (timeline-ruler.js) ----
+initRulerSeek();
+
+// ---- Log ESP32 en ventana emergente ----
+function openEsp32LogWindow() {
+    const ip = document.getElementById('esp32IpInput')?.value?.trim() || ESP32_IP;
+    const w  = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
+    w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:monospace;background:#111122;color:#00ff88;display:flex;flex-direction:column;height:100vh;padding:8px;gap:6px;}
+#tb{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+button{background:#1a1a33;border:1px solid #445;color:#aaa;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;}
+button:hover{background:#2a2a55;color:#fff;}
+#L{flex:1;overflow-y:auto;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:#080816;border:1px solid #2a2a44;border-radius:4px;padding:8px;}
+</style></head><body>
+<div id="tb">
+  <span style="color:#ff4466;font-weight:bold;font-size:12px;letter-spacing:2px">ESP32 LOG</span>
+  <span style="font-size:10px;color:#556;">${ip}</span>
+  <button onclick="autoScroll=!autoScroll;this.textContent=autoScroll?'▼ Auto':'— Fijo'">▼ Auto</button>
+  <button onclick="document.getElementById('L').textContent='';seen=''">🗑 Limpiar</button>
+</div>
+<pre id="L"></pre>
+<script>
+var autoScroll=true,seen='';
+function u(){
+  fetch('http://${ip}/logs').then(r=>r.text()).then(d=>{
+    if(d===seen)return;
+    var l=document.getElementById('L');
+    if(d.startsWith(seen)){l.textContent+=d.slice(seen.length);}else{l.textContent=d;}
+    seen=d;
+    if(autoScroll)l.scrollTop=l.scrollHeight;
+  }).catch(function(){});
+}
+setInterval(u,600);u();
+<\/script></body></html>`);
+    w.document.close();
+}
 
 // ---- Inicializar MIDI.js y SoundFont ----
 function initMIDI() {

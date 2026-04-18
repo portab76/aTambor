@@ -43,6 +43,20 @@ function buildRemainingSequence(motorMap, fromStep) {
     return _buildSequence(motorMap, fromStep, totalSteps);
 }
 
+// ── F4 — buildRangeSequence ───────────────────────────────────
+/**
+ * Construye la secuencia solo para el rango [fromStep, toStep).
+ * Usado por el loop A-B para enviar al ESP32 únicamente ese fragmento.
+ *
+ * @param {Array}  motorMap
+ * @param {number} fromStep  — paso de inicio (loopA)
+ * @param {number} toStep    — paso de fin exclusivo (loopB)
+ * @returns {string}
+ */
+function buildRangeSequence(motorMap, fromStep, toStep) {
+    return _buildSequence(motorMap, fromStep, toStep);
+}
+
 // ── F3 — validateSequenceSize ─────────────────────────────────
 /**
  * Comprueba el tamaño del comando generado.
@@ -106,7 +120,8 @@ function _buildSequence(motorMap, startStep, endStep) {
         if (step < startStep || step >= endStep) continue;
 
         const midiNote = parseInt(noteStr);
-        const cfg      = motorMap ? motorMap.find(m => m.note === midiNote) : null;
+        const offset   = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const cfg      = motorMap ? motorMap.find(m => m.note === midiNote - offset) : null;
         if (!cfg) continue;  // nota sin motor asignado → ignorar
 
         if (!byMotor[cfg.motor]) {
