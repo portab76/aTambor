@@ -18,7 +18,6 @@ const loadInstrumentBtn = document.getElementById('loadInstrumentBtn');
 const debugDiv          = document.getElementById('debugInfo');
 const statusSpan        = document.getElementById('statusMsg');
 const playBtn           = document.getElementById('playBtn');
-const pauseBtn          = document.getElementById('pauseBtn');
 const stopBtn           = document.getElementById('stopBtn');
 const loopBtn           = document.getElementById('loopBtn');
 const canvas            = document.getElementById('pianoRollCanvas');
@@ -181,7 +180,6 @@ document.getElementById('activeNotesBtn').addEventListener('click', function () 
 
 // ---- Botones de reproducción ----
 playBtn.onclick  = play;
-pauseBtn.onclick = pause;
 stopBtn.onclick  = stop;
 loopBtn.onclick  = toggleLoop;
 

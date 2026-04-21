@@ -59,16 +59,18 @@ function editVelocity(step, note) {
 function _onCanvasClick(e) {
     const cell = _cellFromEvent(e);
     if (!cell) return;
-    if (e.ctrlKey) {
-        editVelocity(cell.step, cell.note);
-    } else if (!_dragging) {
-        toggleCell(cell.step, cell.note);
-    }
+    if (!_dragging) toggleCell(cell.step, cell.note);
 }
 
 function _onMouseDown(e) {
     const cell = _cellFromEvent(e);
     if (!cell) return;
+
+    if (e.ctrlKey) {
+        editVelocity(cell.step, cell.note);
+        return;
+    }
+
     _dragging        = true;
     _dragStartStep   = cell.step;
     _dragStartNote   = cell.note;

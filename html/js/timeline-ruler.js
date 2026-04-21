@@ -194,11 +194,11 @@ function _updateAbBtn() {
         const hasRange = loopA >= 0 && loopB > loopA;
         btn.classList.add('btn-active');
         btn.textContent = hasRange
-            ? `⇄ A–B`
-            : (loopA >= 0 ? '⇄ A… →B' : '⇄ →A');
+            ? `▶ A→B`
+            : (loopA >= 0 ? 'A→ …B' : '→A');
     } else {
         btn.classList.remove('btn-active');
-        btn.textContent = '⇄ A-B';
+        btn.textContent = 'A→B';
     }
 }
 

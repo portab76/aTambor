@@ -7,6 +7,7 @@
 let loopEnabled      = false;
 let _playInterval    = null;   // handle del setInterval
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
+let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
 
 /** ms por semicorchea, leyendo el BPM del input de la toolbar (o del MIDI si no existe). */
 const MS_PER_STEP = () => {
@@ -67,33 +68,32 @@ function play() {
             for (let i = 1; i < blocks.length; i++) {
                 lastDelay = i * 200;
                 const block = blocks[i];
-                setTimeout(() => {
+                _pendingTimers.push(setTimeout(() => {
                     console.log(`[play] APPEND bloque ${i + 1}/${blocks.length} (${block.length}B)`);
                     sendCommand('APPEND\n' + block);
-                }, lastDelay);
+                }, lastDelay));
             }
 
             // Comando PLAY final (p;) después de que todos los APPENDs hayan sido encolados
             if (hasPlayCmd) {
-                const playDelay = (blocks.length > 1 ? lastDelay + 300 : 50);  // esperar a que lleguen todos
-                setTimeout(() => {
+                const playDelay = (blocks.length > 1 ? lastDelay + 300 : 50);
+                _pendingTimers.push(setTimeout(() => {
                     console.log('[play] Enviando p; para ejecutar la secuencia completa');
                     sendCommand('p;');
-                }, playDelay);
+                }, playDelay));
             }
         }
     }
 
     // ── G1: arrancar audio con offset de 20ms ─────────────────
     _playStartOffset = pasoActual;   // pasoActual ya apunta a loopA si A-B activo
-    setTimeout(_startPlaybackLoop, 20);
+    _pendingTimers.push(setTimeout(_startPlaybackLoop, 20));
 }
 
 /** Arranca el setInterval de audio (separado para poder llamarlo desde play y resume) */
 function _startPlaybackLoop() {
     reproduciendo = true;
     playBtn.disabled  = true;
-    pauseBtn.disabled = false;
     stopBtn.disabled  = false;
     statusSpan.innerText = "Reproduciendo...";
     _playInterval = setInterval(_tick, MS_PER_STEP());
@@ -107,8 +107,9 @@ function pause() {
     reproduciendo = false;
     clearInterval(_playInterval);
     _playInterval = null;
+    _pendingTimers.forEach(clearTimeout);
+    _pendingTimers = [];
     playBtn.disabled  = false;
-    pauseBtn.disabled = true;
     statusSpan.innerText = "Pausado.";
 }
 
@@ -120,10 +121,11 @@ function stop() {
     reproduciendo = false;
     clearInterval(_playInterval);
     _playInterval = null;
+    _pendingTimers.forEach(clearTimeout);
+    _pendingTimers = [];
     pasoActual       = 0;
     _playStartOffset = 0;
     playBtn.disabled  = false;
-    pauseBtn.disabled = true;
     drawPianoRollWithPlayhead(-1);
     updateRulerPlayhead(-1);
     _clearChordHighlight();
@@ -184,28 +186,13 @@ function _tick() {
     // ── A-B loop tiene prioridad sobre loop normal ────────────
     const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
     if (abActive && pasoActual >= loopB) {
-        pasoActual = loopA;
-        // Reenviar el rango A-B al ESP32 como nueva secuencia PLAY (no APPEND, porque ya terminó)
-        if (typeof wsConnected !== 'undefined' && wsConnected) {
-            const seq = buildRangeSequence(MOTOR_MAP, loopA, loopB);
-            if (seq) {
-                let body = seq;
-                if (body.endsWith('p;\n')) body = body.slice(0, -3);
-                const blocks = validateSequenceSize(body);
-                const stepMs = Math.round(MS_PER_STEP());
-                sendCommand(`PLAY|midiGrid|${stepMs}\n` + blocks[0]);
-                let lastDelay = 0;
-                for (let i = 1; i < blocks.length; i++) {
-                    lastDelay = i * 200;
-                    const b = blocks[i];
-                    setTimeout(() => sendCommand('APPEND\n' + b), lastDelay);
-                }
-                setTimeout(() => sendCommand('p;'), blocks.length > 1 ? lastDelay + 300 : 50);
-            }
-        }
+        // Segmento A→B: reproducir una vez y parar
+        stop();
+        return;
     } else if (pasoActual >= totalSteps) {
         if (abActive) {
-            pasoActual = loopA;
+            stop();
+            return;
         } else if (loopEnabled) {
             pasoActual = _playStartOffset;
         } else {
@@ -304,18 +291,8 @@ onBeatCallback = function(stepFromEsp32) {
 
     const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
 
-    let adjustedStep;
-    if (abActive) {
-        // En modo A-B los pasos del ESP32 son relativos al rango (0..rangeLen-1).
-        // Si el ESP32 ya terminó el rango y manda step=0 del siguiente ciclo,
-        // NO aplicamos la corrección: dejamos que _tick() haga el wrap y reenvíe PLAY.
-        const rangeLen = loopB - loopA;
-        adjustedStep = (stepFromEsp32 % rangeLen) + loopA;
-        // Ignorar correcciones hacia atrás que cruzan loopB (son el inicio del ciclo siguiente)
-        if (adjustedStep < pasoActual - _BEAT_DRIFT_TOLERANCE) return;
-    } else {
-        adjustedStep = stepFromEsp32 + _playStartOffset;
-    }
+    // El ESP32 siempre envía pasos desde 0; ajustamos con el offset de arranque
+    const adjustedStep = stepFromEsp32 + _playStartOffset;
 
     const drift = adjustedStep - pasoActual;
 

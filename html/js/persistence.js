@@ -69,16 +69,7 @@ function loadProject(file) {
             currentHarmonicSegments = p.harmonicSegments || [];
             tempoMap                = p.tempoMap;
             ppqn                    = p.ppqn;
-            stepWidth               = p.stepWidth  || 40;
-            rowHeight               = p.rowHeight  || 25;
-
-            canvas.width        = totalSteps * stepWidth;
-            canvas.height       = noteRows.length * rowHeight;
-            canvas.style.width  = `${canvas.width}px`;
-            canvas.style.height = `${canvas.height}px`;
-
-            drawPianoRollWithPlayhead(-1);
-            if (currentHarmonicSegments.length) drawChordRow(currentHarmonicSegments, null);
+            applyZoom(p.stepWidth || 40, p.rowHeight || 25);
             statusSpan.innerText = "Proyecto cargado.";
         } catch (err) {
             console.error(err);

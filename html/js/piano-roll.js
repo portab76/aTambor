@@ -398,20 +398,12 @@ function _doLoadBlankGrid(measures) {
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) chordRow.innerHTML = '';
 
-    // Redimensionar canvas
-    canvas.width        = totalSteps * stepWidth;
-    canvas.height       = noteRows.length * rowHeight;
-    canvas.style.width  = `${canvas.width}px`;
-    canvas.style.height = `${canvas.height}px`;
-
-    drawPianoRoll();
-    drawNoteLabels();
-    drawTimelineRuler();
+    // Redimensionar canvas y redibujar (resetea zoom label al default 40/25)
+    applyZoom(40, 25);
 
     // Habilitar transporte y botones de compases
     playBtn.disabled  = false;
     loopBtn.disabled  = false;
-    pauseBtn.disabled = true;
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
@@ -420,6 +412,51 @@ function _doLoadBlankGrid(measures) {
 
 // Alias de compatibilidad por si algo lo llama directamente
 function loadBlankGrid() { toggleNewGridPanel(); }
+
+// ── Zoom ─────────────────────────────────────────────────────
+/**
+ * Aplica un nuevo zoom horizontal (stepWidth) y/o vertical (rowHeight).
+ * Redibujar todos los layers y restaura el scroll para que el punto
+ * central visible no salte.
+ */
+function applyZoom(newStepWidth, newRowHeight) {
+    if (!totalSteps || !noteRows.length) return;
+
+    const container = document.getElementById('gridScroll');
+    // Guardar el paso que está en el centro del viewport para restaurarlo
+    const centerStep = container
+        ? (container.scrollLeft + container.clientWidth / 2) / stepWidth
+        : 0;
+
+    stepWidth = Math.max(8,  Math.min(80, Math.round(newStepWidth)));
+    rowHeight = Math.max(10, Math.min(50, Math.round(newRowHeight)));
+
+    // Redibujar todos los layers (drawPianoRoll ya redimensiona el canvas)
+    drawPianoRollWithPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
+    drawNoteLabels();
+    drawTimelineRuler();
+
+    // Redibujar chord row si hay análisis armónico
+    if (currentHarmonicSegments && currentHarmonicSegments.length) {
+        const key = {
+            tonic: currentKey.replace('m', ''),
+            mode:  currentKey.endsWith('m') ? 'minor' : 'major',
+            rootClass: 0
+        };
+        drawChordRow(currentHarmonicSegments, key);
+    }
+
+    // Restaurar scroll centrado en el mismo paso
+    if (container) {
+        container.scrollLeft = Math.max(0, centerStep * stepWidth - container.clientWidth / 2);
+    }
+
+    // Actualizar indicador visual en toolbar
+    const lbl = document.getElementById('zoomLabel');
+    if (lbl) lbl.textContent = stepWidth;
+}
+
+function zoom(dir) { applyZoom(stepWidth + dir * 8, rowHeight + dir * 5); }
 
 // ── addMeasures / removeMeasures ─────────────────────────────
 function _phraseMeasures() {
