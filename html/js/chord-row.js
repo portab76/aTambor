@@ -415,7 +415,7 @@ function _showChordPopup(event, seg, segIndex, chordName, chordFunc, chord, key)
     _popupObserver.observe(document.body, { childList: true });
 
     // Cerrar al hacer clic fuera — excepto botones de transporte
-    const _TRANSPORT_IDS = new Set(['playBtn', 'stopBtn', 'loopBtn']);
+    const _TRANSPORT_IDS = new Set(['playBtn', 'stopBtn']);
     setTimeout(() => {
         document.addEventListener('click', function _close(e) {
             if (_TRANSPORT_IDS.has(e.target.id)) return;   // Play/Pause/Stop/Loop no cierran

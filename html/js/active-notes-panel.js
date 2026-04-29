@@ -209,10 +209,15 @@ function _anpRender(filterMode = 'all') {
 
         for (const { note, count } of notes) {
             const noteName = _NOTE_NAMES_ANP[note % 12];
-            const hasMotor = motorForNote(note) !== null;
+            const motorCfg = motorForNote(note);
+            const hasMotor = motorCfg !== null;
+            const col      = _mmOctaveColor(note);
 
             // Si filterMode=motor y no tiene motor → skip
             if (filterMode === 'motor' && !hasMotor) continue;
+
+            const chipBg     = hasMotor ? col.bg.replace('05','18').replace('0a','22') : col.bg;
+            const chipBorder = hasMotor ? col.border : col.stripe;
 
             const chip = document.createElement('div');
             chip.dataset.midi = note;
@@ -222,10 +227,10 @@ function _anpRender(filterMode = 'all') {
                 gap: 4px;
                 padding: 4px 8px;
                 border-radius: 4px;
-                background: ${hasMotor ? '#1a5f7a' : '#3a3a4a'};
-                border: 1px solid ${hasMotor ? '#3a8aaa' : '#555'};
+                background: ${chipBg};
+                border: 1px solid ${chipBorder};
                 font-size: 12px;
-                color: ${hasMotor ? '#aaffdd' : '#aaa'};
+                color: ${col.text};
                 cursor: pointer;
                 transition: filter 0.1s, transform 0.08s;
                 font-weight: bold;
@@ -237,22 +242,70 @@ function _anpRender(filterMode = 'all') {
 
             const countText = document.createElement('span');
             countText.textContent = `×${count}`;
-            countText.style.cssText = `
-                font-size: 10px;
-                opacity: 0.7;
-                flex-shrink: 0;
+            countText.style.cssText = 'font-size:10px;opacity:0.7;flex-shrink:0;';
+
+            // ── Input de motor ──
+            const motorLabel = document.createElement('span');
+            motorLabel.textContent = 'm:';
+            motorLabel.style.cssText = 'font-size:10px;opacity:0.6;flex-shrink:0;';
+
+            const motorInput = document.createElement('input');
+            motorInput.type  = 'number';
+            motorInput.min   = '0';
+            motorInput.max   = '127';
+            motorInput.value = hasMotor ? motorCfg.motor : '';
+            motorInput.placeholder = '—';
+            motorInput.style.cssText = `
+                width: 38px;
+                background: #0e0e1e;
+                color: #ffcc44;
+                border: 1px solid #3a3a5a;
+                border-radius: 3px;
+                padding: 1px 3px;
+                font-size: 11px;
+                font-weight: bold;
+                text-align: center;
             `;
+
+            motorInput.addEventListener('click',  e => e.stopPropagation());
+            motorInput.addEventListener('change', e => {
+                e.stopPropagation();
+                const newMotor = parseInt(motorInput.value);
+                if (isNaN(newMotor) || newMotor < 0 || newMotor > 127) return;
+
+                // Ajustar note por transposeOffset para buscar/crear en MOTOR_MAP
+                const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+                const mapNote = note - offset;
+
+                let entry = MOTOR_MAP.find(m => m.note === mapNote);
+                if (entry) {
+                    entry.motor = newMotor;
+                } else {
+                    // Crear nueva entrada con defaults
+                    MOTOR_MAP.push({ note: mapNote, name: `${noteName}${octave}`, motor: newMotor, homePwm: 375, vel: 100 });
+                }
+                _mmSaveToStorage();
+
+                // Actualizar apariencia del chip al estado "con motor"
+                chip.style.background  = col.bg.replace('05','18').replace('0a','22');
+                chip.style.borderColor = col.border;
+                chip.style.color       = col.text;
+
+                // Refrescar etiquetas del grid
+                drawNoteLabels();
+
+                // Refrescar panel Motor Map si está abierto
+                if (document.getElementById('motorMapTbody'))      _renderMotorMapRows();
+                if (document.getElementById('motorMapPanelTbody')) _renderMotorMapPanelRows();
+            });
 
             chip.appendChild(noteText);
             chip.appendChild(countText);
+            chip.appendChild(motorLabel);
+            chip.appendChild(motorInput);
 
-            chip.addEventListener('mouseenter', () => {
-                chip.style.filter = 'brightness(1.35)';
-            });
-            chip.addEventListener('mouseleave', () => {
-                chip.style.filter = '';
-            });
-
+            chip.addEventListener('mouseenter', () => { chip.style.filter = 'brightness(1.35)'; });
+            chip.addEventListener('mouseleave', () => { chip.style.filter = ''; });
             chip.addEventListener('click', (e) => {
                 e.stopPropagation();
                 _anpPlayNote(note, chip);

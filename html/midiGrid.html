@@ -348,7 +348,6 @@
     <button id="saveProjectBtn" title="Guardar proyecto">💾 Guardar</button>
     <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
     <button id="loadProjectBtn" title="Cargar proyecto guardado">📂 Cargar</button>
-    <button id="exportMidiBtn" title="Exportar eventos a JSON">⬇ Export</button>
 
     <div class="toolbar-sep"></div>
 
@@ -363,7 +362,6 @@
     <!-- ── Grupo 3: Transporte ── -->
     <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
     <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
-    <button id="loopBtn"  class="btn-transport" disabled title="Loop todo">🔁</button>
     <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
             title="Segmento A→B: activa y marca inicio/fin en la regla; Play reproduce ese tramo una vez">A→B</button>
     <label for="bpmInput" style="font-size:11px;color:#7777aa;white-space:nowrap;">BPM</label>
@@ -576,23 +574,41 @@
     </div>
 
     <!-- Panel de transposición (oculto por defecto, toggle desde botón toolbar) -->
-    <div id="transposePanel" style="display:none;">
-        <div style="overflow-x:auto;border:1px solid #2a2a4a;border-radius:5px;background:#111;margin-bottom:6px;">
-            <canvas id="transposePianoCanvas" style="display:block;"></canvas>
-        </div>
-        <div id="transposeRangeLabel" style="font-size:11px;color:#7777aa;margin-bottom:5px;"></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <button class="tp-quick-btn" onclick="_tpShift(-12)">−12</button>
-            <button class="tp-quick-btn" onclick="_tpShift(-1)">−1</button>
-            <input  type="range" id="transposeSlider" min="-24" max="24" step="1"
-                    value="0" oninput="_tpSlider(this.value)" style="flex:1;accent-color:#6666cc;">
-            <button class="tp-quick-btn" onclick="_tpShift(+1)">+1</button>
-            <button class="tp-quick-btn" onclick="_tpShift(+12)">+12</button>
-            <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
-                 min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
-                 border-radius:4px;padding:3px 6px;">0</div>
-            <button class="tp-quick-btn" onclick="_tpShift(0,true)"
-                    style="color:#88ffaa;border-color:#336633;">↺</button>
+    <div id="transposePanel" style="display:none;overflow-x:auto;">
+        <div style="min-width:max-content;">
+            <div style="border:1px solid #2a2a4a;border-radius:5px;background:#111;margin-bottom:4px;">
+                <canvas id="transposePianoCanvas" style="display:block;"></canvas>
+            </div>
+            <div id="transposeRangeLabel" style="font-size:11px;color:#7777aa;margin-bottom:4px;"></div>
+            <div style="display:flex;align-items:center;gap:8px;width:100%;">
+                <button class="tp-quick-btn" onclick="_tpShift(-12)">−12</button>
+                <button class="tp-quick-btn" onclick="_tpShift(-1)">−1</button>
+                <input  type="range" id="transposeSlider" min="-24" max="24" step="1"
+                        value="0" oninput="_tpSlider(this.value)" style="flex:1;accent-color:#6666cc;">
+                <button class="tp-quick-btn" onclick="_tpShift(+1)">+1</button>
+                <button class="tp-quick-btn" onclick="_tpShift(+12)">+12</button>
+                <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
+                     min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
+                     border-radius:4px;padding:3px 6px;">0</div>
+                <button class="tp-quick-btn" onclick="_tpShift(0,true)"
+                        style="color:#88ffaa;border-color:#336633;">↺</button>
+                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
+                               color:#aaaacc;white-space:nowrap;cursor:pointer;
+                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
+                               background:#1a1a2e;" title="Solo reproducir por MIDI.js las notas que tienen motor asignado (con el offset actual)">
+                    <input type="checkbox" id="motorOnlyCheckbox" style="cursor:pointer;accent-color:#6666cc;">
+                    Solo motores
+                </label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
+                               color:#aaaacc;white-space:nowrap;
+                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
+                               background:#1a1a2e;" title="Velocidad máxima al importar MIDI (1-127). Las notas se escalan proporcionalmente a este valor.">
+                    Vel. máx:
+                    <input type="number" id="midiImportMaxVel" min="1" max="127" value="40"
+                           style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
+                                  border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
+                </label>
+            </div>
         </div>
     </div>
 
@@ -664,8 +680,6 @@
                         <th>Nota</th>
                         <th>Motor</th>
                         <th>HomePWM</th>
-                        <th>Vel</th>
-                        <th>Inv</th>
                         <th>PCA/ch</th>
                     </tr>
                 </thead>

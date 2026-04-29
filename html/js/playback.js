@@ -4,7 +4,6 @@
 // Depende de: state.js, piano-roll.js
 // ============================================================
 
-let loopEnabled      = false;
 let _playInterval    = null;   // handle del setInterval
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
 let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
@@ -170,15 +169,6 @@ function seekToStep(step) {
     if (wasPlaying) play();
 }
 
-/**
- * Activa/desactiva el loop.
- */
-function toggleLoop() {
-    loopEnabled = !loopEnabled;
-    loopBtn.style.background = loopEnabled ? "#2a5a2a" : "";
-    statusSpan.innerText = loopEnabled ? "Loop ON." : "Loop OFF.";
-}
-
 // --- Tick interno ---
 let _tickCount = 0;  // para limitar logs
 
@@ -193,8 +183,6 @@ function _tick() {
         if (abActive) {
             stop();
             return;
-        } else if (loopEnabled) {
-            pasoActual = _playStartOffset;
         } else {
             stop();
             return;
@@ -210,6 +198,9 @@ function _tick() {
         const note       = parseInt(noteStr);
         const velocity   = cell.velocity;
         const delayOff   = (cell.duration * MS_PER_STEP()) / 1000; // segundos
+
+        const motorOnly = document.getElementById('motorOnlyCheckbox')?.checked;
+        if (motorOnly && !motorForNote(note)) continue;
 
         notasEnEstePaso++;
         if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {

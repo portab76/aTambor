@@ -106,6 +106,7 @@ function loadMIDIFile(binaryString) {
     if (bpmInput) bpmInput.value = bpm0;
     debugDiv.innerHTML =
         `<strong>MIDI parseado</strong><br>` +
+        (currentMidiFileName ? `<span style="color:#aaccff;word-break:break-all;">📄 ${currentMidiFileName}</span><br>` : '') +
         `PPQN=${ppqn} | BPM: ${bpm0} | Compás: ${currentTimeSig.numerator}/${currentTimeSig.denominator} ` +
         `(${currentTimeSig.stepsPerMeasure} pasos/compás) | ` +
         `Duración: ${totalTicks} ticks | Pistas: ${parsed.tracks.length}<br>` +

@@ -19,6 +19,11 @@ function buildGridFromChannel(channel) {
 
     for (const ev of channelEvents) {
         if (ev.type === 'noteOn' && ev.velocity > 0) {
+            if (pendingNotes.has(ev.note)) {
+                // Drum hit sin noteOff previo: cerrar la nota anterior con duración mínima (1 tick)
+                const prev = pendingNotes.get(ev.note);
+                notesList.push({ tickOn: prev.tickOn, tickOff: ev.tick || prev.tickOn + 1, note: ev.note, velocity: prev.velocity });
+            }
             pendingNotes.set(ev.note, { tickOn: ev.tick, velocity: ev.velocity });
         } else if (ev.type === 'noteOff' || (ev.type === 'noteOn' && ev.velocity === 0)) {
             if (pendingNotes.has(ev.note)) {
@@ -28,9 +33,9 @@ function buildGridFromChannel(channel) {
             }
         }
     }
-    // Notas sin noteOff → terminan al final de la canción
+    // Notas sin noteOff → duración mínima de 1 tick (drums sin cierre explícito)
     for (const [note, on] of pendingNotes) {
-        notesList.push({ tickOn: on.tickOn, tickOff: totalTicks, note, velocity: on.velocity });
+        notesList.push({ tickOn: on.tickOn, tickOff: on.tickOn + 1, note, velocity: on.velocity });
     }
 
     // Resolución: semicorchea = ppqn / 4
@@ -63,7 +68,8 @@ function buildGridFromChannel(channel) {
         const endStep   = Math.floor((n.tickOff - 1) / ticksPerStep);
         const duration  = endStep - startStep + 1;
         if (duration <= 0) continue;
-        gridData.cells[`${n.note},${startStep}`] = { duration, velocity: n.velocity };
+        const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
+        gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(1, Math.round(n.velocity / 127 * _maxVel)) };
     }
 
     // Redimensionar canvas
@@ -81,6 +87,10 @@ function buildGridFromChannel(channel) {
  */
 function drawPianoRoll() {
     if (!ctx) return;
+    canvas.width  = totalSteps * stepWidth;
+    canvas.height = noteRows.length * rowHeight;
+    canvas.style.width  = `${canvas.width}px`;
+    canvas.style.height = `${canvas.height}px`;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Fondo: notas negras del teclado (sostenidos/bemoles) en gris más oscuro
@@ -245,11 +255,25 @@ function drawNoteLabels() {
         const showLabel = rowHeight >= 10 || isC;
         if (!showLabel) continue;
 
-        lCtx.font         = isC ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`;
-        lCtx.fillStyle    = col.text;
+        const motorCfg = (typeof motorForNote === 'function') ? motorForNote(note) : null;
+
         lCtx.textAlign    = "right";
         lCtx.textBaseline = "middle";
-        lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + rowHeight / 2);
+
+        if (motorCfg !== null && rowHeight >= 16) {
+            // Nota con motor: nombre arriba, número de motor abajo
+            const halfSize = Math.max(7, Math.floor(fontSize * 0.75));
+            lCtx.font      = isC ? `bold ${halfSize}px monospace` : `${halfSize}px monospace`;
+            lCtx.fillStyle = col.text;
+            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + rowHeight * 0.32);
+            lCtx.font      = `bold ${halfSize}px monospace`;
+            lCtx.fillStyle = '#ffcc44';
+            lCtx.fillText(`m:${motorCfg.motor}`, _LABEL_W - 4, y + rowHeight * 0.72);
+        } else {
+            lCtx.font      = isC ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`;
+            lCtx.fillStyle = col.text;
+            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + rowHeight / 2);
+        }
     }
 }
 
@@ -403,7 +427,6 @@ function _doLoadBlankGrid(measures) {
 
     // Habilitar transporte y botones de compases
     playBtn.disabled  = false;
-    loopBtn.disabled  = false;
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;

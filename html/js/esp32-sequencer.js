@@ -157,10 +157,8 @@ function _buildSequence(motorMap, startStep, endStep) {
                 cmd += `t ${Math.round(restMs)}; v 0;\n`;
             }
 
-            // Velocidad real del golpe: escalar velocity MIDI (0-127) a rango 1-100
-            const velEsp32 = Math.max(1, Math.min(100,
-                Math.round((cfg.vel / 100) * (ev.velocity / 127) * 100)
-            ));
+            // Velocidad real del golpe: velocity de la nota escalada a rango 1-100
+            const velEsp32 = Math.max(1, Math.min(100, Math.round(ev.velocity / 127 * 100)));
 
             // Calcular duración del golpe teniendo en cuenta notas largas
             // (duration > 1 paso → el servo permanece más tiempo extendido)

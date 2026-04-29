@@ -30,7 +30,7 @@ function toggleCell(step, note) {
     if (gridData.cells[key]) {
         delete gridData.cells[key];
     } else {
-        gridData.cells[key] = { duration: 1, velocity: 100 };
+        gridData.cells[key] = { duration: 1, velocity: 40 };
     }
     drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
 }
@@ -57,6 +57,7 @@ function editVelocity(step, note) {
 // ---- Manejadores de eventos del canvas ----
 
 function _onCanvasClick(e) {
+    if (e.ctrlKey) return;
     const cell = _cellFromEvent(e);
     if (!cell) return;
     if (!_dragging) toggleCell(cell.step, cell.note);
@@ -94,7 +95,7 @@ function _onMouseUp(e) {
         const start    = Math.min(_dragStartStep, _dragCurrentStep);
         const duration = Math.abs(_dragCurrentStep - _dragStartStep) + 1;
         const key      = `${_dragStartNote},${start}`;
-        gridData.cells[key] = { duration, velocity: gridData.cells[key]?.velocity || 100 };
+        gridData.cells[key] = { duration, velocity: gridData.cells[key]?.velocity || 40 };
         drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
     }
 

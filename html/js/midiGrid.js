@@ -19,7 +19,6 @@ const debugDiv          = document.getElementById('debugInfo');
 const statusSpan        = document.getElementById('statusMsg');
 const playBtn           = document.getElementById('playBtn');
 const stopBtn           = document.getElementById('stopBtn');
-const loopBtn           = document.getElementById('loopBtn');
 const canvas            = document.getElementById('pianoRollCanvas');
 const ctx               = canvas.getContext('2d');
 
@@ -39,6 +38,7 @@ gridScroll.addEventListener('scroll', () => {
 fileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    currentMidiFileName = file.name;
     statusSpan.innerText = "Leyendo archivo...";
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -145,7 +145,6 @@ loadInstrumentBtn.addEventListener('click', () => {
     if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
     playBtn.disabled = false;
-    loopBtn.disabled = false;
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
@@ -181,7 +180,6 @@ document.getElementById('activeNotesBtn').addEventListener('click', function () 
 // ---- Botones de reproducción ----
 playBtn.onclick  = play;
 stopBtn.onclick  = stop;
-loopBtn.onclick  = toggleLoop;
 
 // ---- BPM en caliente: reinicia el interval si ya está reproduciendo ----
 document.getElementById('bpmInput').addEventListener('change', () => {
@@ -191,7 +189,6 @@ document.getElementById('bpmInput').addEventListener('change', () => {
 });
 
 // ---- Botones de persistencia ----
-document.getElementById('exportMidiBtn')?.addEventListener('click', exportToMIDI);
 document.getElementById('saveProjectBtn')?.addEventListener('click', saveProject);
 document.getElementById('loadProjectBtn')?.addEventListener('click', () => {
     document.getElementById('loadProjectInput').click();

@@ -54,3 +54,4 @@ let currentFusedSegments    = [];  // segmentos fusionados por tiempo (vista mus
 let currentPhraseSegments   = [];  // frases detectadas por cadencias (vista de pianista)
 let fusionStepsPerUnit      = 4;   // pasos por unidad de fusión: 4=negra, 8=blanca, 16=compás
 let currentKey = "C";              // Tonalidad detectada como string, ej. "C", "Am"
+let currentMidiFileName = '';      // Nombre del archivo MIDI cargado

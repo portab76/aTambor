@@ -4,33 +4,6 @@
 // ============================================================
 
 /**
- * Exporta los eventos del grid a un archivo JSON
- * (placeholder hasta integrar midi-writer-js para MIDI binario real).
- */
-function exportToMIDI() {
-    if (selectedChannel === null) {
-        alert("Selecciona un instrumento primero.");
-        return;
-    }
-    const tps    = ppqn / 4;
-    const events = [];
-
-    for (const [key, cell] of Object.entries(gridData.cells)) {
-        const [noteStr, stepStr] = key.split(',');
-        const note     = parseInt(noteStr);
-        const step     = parseInt(stepStr);
-        const tickOn   = step * tps;
-        const tickOff  = (step + cell.duration) * tps;
-        events.push({ tick: tickOn,  type: 'noteOn',  channel: selectedChannel, note, velocity: cell.velocity });
-        events.push({ tick: tickOff, type: 'noteOff', channel: selectedChannel, note, velocity: 0 });
-    }
-    events.sort((a, b) => a.tick - b.tick);
-
-    _downloadJSON(events, "midi_export.json");
-    statusSpan.innerText = "Eventos exportados a JSON.";
-}
-
-/**
  * Guarda el estado completo del proyecto en un archivo JSON.
  */
 function saveProject() {
@@ -41,7 +14,9 @@ function saveProject() {
         ticksPerStep: ppqn / 4,
         selectedChannel,
         currentKey,
-        harmonicSegments: currentHarmonicSegments,
+        harmonicSegments:       currentHarmonicSegments,
+        fusedSegments:          currentFusedSegments,
+        phraseSegments:         currentPhraseSegments,
         tempoMap,
         ppqn,
         stepWidth,
@@ -60,16 +35,58 @@ function loadProject(file) {
     reader.onload = (e) => {
         try {
             const p = JSON.parse(e.target.result);
+
+            // ── Restaurar estado ──────────────────────────────
             gridData                = p.gridData;
             noteRows                = p.noteRows;
             totalSteps              = p.totalSteps;
             ticksPerStep            = p.ticksPerStep;
             selectedChannel         = p.selectedChannel;
             currentKey              = p.currentKey;
-            currentHarmonicSegments = p.harmonicSegments || [];
+            currentHarmonicSegments = p.harmonicSegments   || [];
+            currentFusedSegments    = p.fusedSegments      || [];
+            currentPhraseSegments   = p.phraseSegments     || [];
             tempoMap                = p.tempoMap;
             ppqn                    = p.ppqn;
+
+            // ── BPM ───────────────────────────────────────────
+            const bpmEl = document.getElementById('bpmInput');
+            if (bpmEl && tempoMap?.[0]?.bpm) bpmEl.value = tempoMap[0].bpm;
+
+            // ── Canal en el selector ──────────────────────────
+            if (selectedChannel !== null) {
+                const sel = instrumentSelect;
+                // Añadir opción si no existe (proyecto cargado sin MIDI previo)
+                let opt = sel.querySelector(`option[value="${selectedChannel}"]`);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value       = selectedChannel;
+                    opt.textContent = `Canal ${selectedChannel + 1}`;
+                    sel.appendChild(opt);
+                }
+                sel.value    = selectedChannel;
+                sel.disabled = false;
+                loadInstrumentBtn.disabled = false;
+            }
+
+            // ── Redibujar ─────────────────────────────────────
             applyZoom(p.stepWidth || 40, p.rowHeight || 25);
+
+            // ── Habilitar botones de transporte y herramientas ─
+            playBtn.disabled = false;
+            _enableMeasureButtons();
+            const abBtn = document.getElementById('abLoopBtn');
+            if (abBtn) abBtn.disabled = false;
+            document.getElementById('activeNotesBtn').disabled = false;
+
+            // ── Selector de nivel armónico ────────────────────
+            const viewSel = document.getElementById('viewLevelSelect');
+            if (viewSel) {
+                viewSel.disabled = false;
+                viewSel.querySelector('option[value="frases"]').disabled =
+                    (currentPhraseSegments.length === 0);
+            }
+
             statusSpan.innerText = "Proyecto cargado.";
         } catch (err) {
             console.error(err);

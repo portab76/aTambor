@@ -8,14 +8,12 @@
 //   motorMapUI()         — abre/cierra el panel visual de edición
 //
 // Estructura de cada entrada:
-//   { note, name, motor, homePwm, vel, inverted }
+//   { note, name, motor, homePwm }
 //
 //   note     — número de nota MIDI (0-127)
 //   name     — nombre legible ("C4", "D#3"...)
 //   motor    — índice global del motor en el ESP32 (0-127)
 //   homePwm  — posición de reposo del servo (150-600, neutro=375)
-//   vel      — velocidad del golpe (1-100)
-//   inverted — invertir dirección del golpe (bool)
 //
 // MOTOR_MAP es el único lugar que hay que editar para cambiar
 // qué notas MIDI controlan qué solenoides físicos.
@@ -37,82 +35,21 @@ function _midiNote(noteName, octave) {
 }
 
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
-// Adaptación directa de DEFAULT_KEYS (script.js).
-// Valores por defecto: homePwm=375 (neutro), vel=60, inverted=false.
+// Estructura de cada entrada: { note, name, motor, homePwm }
 // Editar aquí o en tiempo real desde motorMapUI().
 let MOTOR_MAP = [
-
-  /*/ ── PCA 0  (motores 0-11)  →  C1–B1  (MIDI 36–47) ──────────
-  { note: _midiNote('C',   1), name: 'C1',  motor: 0,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('C#',  1), name: 'C#1', motor: 1,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D',   1), name: 'D1',  motor: 2,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D#',  1), name: 'D#1', motor: 3,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('E',   1), name: 'E1',  motor: 4,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F',   1), name: 'F1',  motor: 5,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F#',  1), name: 'F#1', motor: 6,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G',   1), name: 'G1',  motor: 7,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G#',  1), name: 'G#1', motor: 8,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A',   1), name: 'A1',  motor: 9,  homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A#',  1), name: 'A#1', motor: 10, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('B',   1), name: 'B1',  motor: 11, homePwm: 375, vel: 40, inverted: false },
-
-  // ── PCA 1  (motores 16-27)  →  C2–B2  (MIDI 48–59) ─────────
-  { note: _midiNote('C',   2), name: 'C2',  motor: 16, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('C#',  2), name: 'C#2', motor: 17, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D',   2), name: 'D2',  motor: 18, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D#',  2), name: 'D#2', motor: 19, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('E',   2), name: 'E2',  motor: 20, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F',   2), name: 'F2',  motor: 21, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F#',  2), name: 'F#2', motor: 22, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G',   2), name: 'G2',  motor: 23, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G#',  2), name: 'G#2', motor: 24, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A',   2), name: 'A2',  motor: 25, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A#',  2), name: 'A#2', motor: 26, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('B',   2), name: 'B2',  motor: 27, homePwm: 375, vel: 40, inverted: false },
-  // ── PCA 1  (motores 32-43)  →  C3–B3  (MIDI 60–71) ─────────*/
-  
- 
-  { note: _midiNote('G#',  3), name: 'G#', motor: 15, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('A',   3), name: 'A',  motor: 14, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('A#',  3), name: 'A#', motor: 13, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('B',   3), name: 'B',  motor: 12, homePwm: 375, vel: 100, inverted: false },
-  
-  { note: _midiNote('C',   4), name: 'C',  motor: 10, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('C#',  4), name: 'C#', motor: 11, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('D',   4), name: 'D',  motor: 8, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('D#',  4), name: 'D#', motor: 9, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('E',   4), name: 'E',  motor: 7, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('F',   4), name: 'F',  motor: 6, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('F#',  4), name: 'F#', motor: 5, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('G',   4), name: 'G',  motor: 4, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('G#',  4), name: 'G#', motor: 3, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('A',   4), name: 'A',  motor: 2, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('A#',  4), name: 'A#', motor: 1, homePwm: 375, vel: 100, inverted: false },
-  { note: _midiNote('B',   4), name: 'B',  motor: 0, homePwm: 375, vel: 100, inverted: false },
-/*
-  { note: _midiNote('C',   3), name: 'C',  motor: 12, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('C#',  3), name: 'C#', motor: 13, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D',   3), name: 'D',  motor: 14, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D#',  3), name: 'D#', motor: 15, homePwm: 375, vel: 40, inverted: false },
- { note: _midiNote('E',   4), name: 'E',  motor: 20, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F',   4), name: 'F',  motor: 21, homePwm: 375, vel: 40, inverted: false },
-  //{ note: _midiNote('F#',  4), name: 'F#', motor: 22, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G',   4), name: 'G',  motor: 23, homePwm: 375, vel: 40, inverted: false },
-  */
-/*
-  // ── PCA 4  (motores 64-75)  →  C5–B5  (MIDI 84–95) ─────────
-  { note: _midiNote('C',   5), name: 'C5',  motor: 64, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('C#',  5), name: 'C#5', motor: 65, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D',   5), name: 'D5',  motor: 66, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('D#',  5), name: 'D#5', motor: 67, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('E',   5), name: 'E5',  motor: 68, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F',   5), name: 'F5',  motor: 69, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('F#',  5), name: 'F#5', motor: 70, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G',   5), name: 'G5',  motor: 71, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('G#',  5), name: 'G#5', motor: 72, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A',   5), name: 'A5',  motor: 73, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('A#',  5), name: 'A#5', motor: 74, homePwm: 375, vel: 40, inverted: false },
-  { note: _midiNote('B',   5), name: 'B5',  motor: 75, homePwm: 375, vel: 40, inverted: false },*/
+  { note: _midiNote('C',   4), name: 'C',  motor: 0,  homePwm: 375 },
+  { note: _midiNote('C#',  4), name: 'C#', motor: 10, homePwm: 375 },
+  { note: _midiNote('D',   4), name: 'D',  motor: 1,  homePwm: 375 },
+  { note: _midiNote('D#',  4), name: 'D#', motor: 11, homePwm: 375 },
+  { note: _midiNote('E',   4), name: 'E',  motor: 2,  homePwm: 375 },
+  { note: _midiNote('F',   4), name: 'F',  motor: 3,  homePwm: 375 },
+  { note: _midiNote('F#',  4), name: 'F#', motor: 7,  homePwm: 375 },
+  { note: _midiNote('G',   4), name: 'G',  motor: 4,  homePwm: 375 },
+  { note: _midiNote('G#',  4), name: 'G#', motor: 8,  homePwm: 375 },
+  { note: _midiNote('A',   4), name: 'A',  motor: 5,  homePwm: 375 },
+  { note: _midiNote('A#',  4), name: 'A#', motor: 9,  homePwm: 375 },
+  { note: _midiNote('B',   4), name: 'B',  motor: 6,  homePwm: 375 },
 ];
 
 // ── Persistencia en localStorage ─────────────────────────────
@@ -131,8 +68,6 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
             if (!entry) return;
             if (saved.motor   !== undefined) entry.motor   = saved.motor;
             if (saved.homePwm !== undefined) entry.homePwm = saved.homePwm;
-            if (saved.vel     !== undefined) entry.vel     = saved.vel;
-            if (saved.inverted !== undefined) entry.inverted = saved.inverted;
         });
         console.log('[motor-map] Configuración restaurada desde localStorage');
     } catch(e) {
@@ -179,8 +114,6 @@ function motorMapImport() {
                     if (!entry) return;
                     if (saved.motor    !== undefined) entry.motor    = saved.motor;
                     if (saved.homePwm  !== undefined) entry.homePwm  = saved.homePwm;
-                    if (saved.vel      !== undefined) entry.vel      = saved.vel;
-                    if (saved.inverted !== undefined) entry.inverted = saved.inverted;
                 });
                 _mmSaveToStorage();
                 _renderMotorMapRows();
@@ -272,8 +205,6 @@ function motorMapUI() {
                 <th style="padding:4px 6px;text-align:left;">Nota</th>
                 <th style="padding:4px 6px;text-align:left;">Motor</th>
                 <th style="padding:4px 6px;text-align:left;">HomePWM</th>
-                <th style="padding:4px 6px;text-align:left;">Vel</th>
-                <th style="padding:4px 6px;text-align:left;">Inv</th>
                 <th style="padding:4px 6px;text-align:left;">PCA/ch</th>
             </tr>
         </thead>
@@ -290,7 +221,7 @@ function motorMapUI() {
         const m = MOTOR_MAP[_mmSelectedIdx];
         const hit  = 80;
         const gap  = 150;
-        const cmd  = `e; m ${m.motor}; o ${m.homePwm}; t ${hit}; v ${m.vel}; t ${gap}; v 0; p;`;
+        const cmd  = `e; m ${m.motor}; o ${m.homePwm}; t ${hit}; v 80; t${gap}; v 0; p;`;
         if (typeof sendCommand === 'function') sendCommand(cmd);
     });
 }
@@ -319,12 +250,6 @@ function _renderMotorMapRows() {
             <td style="padding:3px 6px;font-weight:bold;color:#ddeeff;">${m.name}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'motor',   m.motor,   0, 127)}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'homePwm', m.homePwm, 150, 600)}</td>
-            <td style="padding:3px 6px;">${_editCell(i, 'vel',     m.vel,     1, 100)}</td>
-            <td style="padding:3px 6px;text-align:center;">
-                <input type="checkbox" ${m.inverted ? 'checked' : ''}
-                    onchange="MOTOR_MAP[${i}].inverted=this.checked"
-                    style="cursor:pointer;">
-            </td>
             <td style="padding:3px 6px;color:#666;font-size:11px;">PCA${pca}/ch${ch}</td>`;
         tbody.appendChild(tr);
     });
@@ -561,14 +486,6 @@ function _renderMotorMapPanelRows() {
             <td><input class="mm-input" type="number" value="${m.homePwm}" min="150" max="600"
                 onchange="MOTOR_MAP[${i}].homePwm=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
-            <td><input class="mm-input" type="number" value="${m.vel}" min="1" max="100"
-                onchange="MOTOR_MAP[${i}].vel=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
-                onclick="event.stopPropagation();"></td>
-            <td style="text-align:center;">
-                <input type="checkbox" ${m.inverted ? 'checked' : ''}
-                    onchange="MOTOR_MAP[${i}].inverted=this.checked;_mmSaveToStorage();"
-                    onclick="event.stopPropagation();" style="cursor:pointer;">
-            </td>
             <td style="color:${col.border};font-size:10px;">PCA${pca}/ch${ch}</td>`;
         tbody.appendChild(tr);
     });
@@ -589,7 +506,7 @@ function _mmFireNote(canvas, note) {
     // 2. Motor ESP32 (solo si tiene motor asignado)
     const entry = MOTOR_MAP.find(m => m.note === note);
     if (entry && typeof sendCommand === 'function') {
-        const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${entry.vel}; t 150; v 0; p;`;
+        const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v 80; t150; v 0; p;`;
         sendCommand(cmd);
     }
 
@@ -668,6 +585,6 @@ function _mmPanelTest() {
         return;
     }
     const m   = MOTOR_MAP[_mmPanelSelectedIdx];
-    const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v ${m.vel}; t 150; v 0; p;`;
+    const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v 80; t150; v 0; p;`;
     if (typeof sendCommand === 'function') sendCommand(cmd);
 }
