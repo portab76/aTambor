@@ -18,6 +18,7 @@ aTambor es una máquina de ritmos que:
 - 🎵 **Reproduce archivos MIDI** para crear composiciones completas
 - 📱 **Opera desde navegador web** conectado al ESP32 vía WebSocket
 - 💰 **Componentes de bajo costo** disponibles en AliExpress — DIY accesible
+- 🖨️ **Piezas STL disponibles para descargar** en Printables: [Piano Robot - Synchronized Servo Motion for MIDI Playing](https://www.printables.com/model/1658534-piano-robot-synchronized-servo-motion-for-midi-pla)
 - 🔗 **Ver videos en  tiktok :** https://www.tiktok.com/@pot5058
 ---
 
