@@ -93,6 +93,9 @@ loadInstrumentBtn.addEventListener('click', () => {
             drawChordRow(currentHarmonicSegments, analysis.key);
         }
 
+        // Recalcular heat map en modo hot-swap
+        _refreshHeatMap();
+
         // Refrescar panel de notas activas si está abierto
         if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
@@ -105,7 +108,12 @@ loadInstrumentBtn.addEventListener('click', () => {
     // H2: flujo normal (sin reproducción activa)
     statusSpan.innerText = `Construyendo grid para canal ${selectedChannel + 1}...`;
     buildGridFromChannel(selectedChannel);
+    pasoActual = 0;
     drawTimelineRuler();
+
+    // Volver al inicio del grid al cargar un nuevo canal
+    const _gs = document.getElementById('gridScroll');
+    if (_gs) _gs.scrollLeft = 0;  // el listener de scroll sincroniza chordRow y ruler
 
     // Análisis armónico
     const analysis = performHarmonicAnalysis(selectedChannel);
@@ -148,6 +156,16 @@ loadInstrumentBtn.addEventListener('click', () => {
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
+
+    // Calcular heat map y habilitar botón
+    _refreshHeatMap();
+    const heatBtn = document.getElementById('heatMapBtn');
+    if (heatBtn) heatBtn.disabled = false;
+    if (heatMapActive) drawPianoRollWithPlayhead(-1);
+
+    // Habilitar botón del panel de acordes
+    const chordPanelBtn = document.getElementById('chordPanelBtn');
+    if (chordPanelBtn) chordPanelBtn.disabled = false;
 
     statusSpan.innerText =
         `Grid listo · Canal ${selectedChannel + 1} · ` +

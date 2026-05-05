@@ -3,31 +3,346 @@
 // Depende de: state.js, harmonic.js, piano-roll.js
 // ============================================================
 
+// Segmentos por lote: equilibrio entre gap de reset y acumulación de drift I2C
+const BATCH_SIZE = 8;
+
+
 const _NOTE_NAMES_CR = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
-// Bloque de la chord-row actualmente resaltado (selección del popup)
+// Bloque de la chord-row actualmente resaltado
 let _activeChordBlock = null;
 
+// Índice del segmento centrado en el panel de acordes (-1 = sin selección)
+let _chordPanelIndex = -1;
+
+// Ancho mínimo de cada columna del panel (px) — adaptativo al ancho disponible
+const _CHORD_COL_MIN_W = 200;
+
+// Key handler activo para atajo Enter en el panel
+let _panelKeyHandler = null;
+
+// ─────────────────────────────────────────────
+// Helper: extrae metadatos de un segmento
+// (evita duplicar la misma lógica en drawChordRow, _renderChordPanel, etc.)
+// ─────────────────────────────────────────────
+function _chordMeta(seg) {
+    const isPhrase = Array.isArray(seg.degrees);
+    let chordName, chordFunc, chord;
+    if (isPhrase) {
+        chordName = seg.chordDisplay || '?';
+        chordFunc = seg.cadenceType  || '';
+        chord     = seg.chord        || null;
+    } else if (seg.chordDisplay) {
+        chordName = seg.chordDisplay;
+        chordFunc = seg.chordFunction || '';
+        chord     = seg.chord        || null;
+    } else {
+        const nc  = [...new Set(seg.activeNotes.map(n => n % 12))].sort((a, b) => a - b);
+        chord     = findChord(nc, seg.activeNotes[0] || null);
+        chordName = chord.name;
+        chordFunc = currentKey ? getChordFunction(chord, currentKey) : '';
+    }
+    return { isPhrase, chordName, chordFunc, chord };
+}
+
+// ─────────────────────────────────────────────
+// Toggle del panel de acordes
+// ─────────────────────────────────────────────
+function toggleChordPanel() {
+    const panel = document.getElementById('chordPanel');
+    const btn   = document.getElementById('chordPanelBtn');
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    if (btn) btn.classList.toggle('btn-active', isOpen);
+    if (isOpen) {
+        if (_chordPanelIndex >= 0) _renderChordPanel(_chordPanelIndex);
+        if (!_panelKeyHandler) {
+            _panelKeyHandler = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); _playAndAdvance(); }
+            };
+            document.addEventListener('keydown', _panelKeyHandler);
+        }
+    } else {
+        autoAdvanceActive = false;
+        activeHighlight   = null;
+        if (_panelKeyHandler) {
+            document.removeEventListener('keydown', _panelKeyHandler);
+            _panelKeyHandler = null;
+        }
+        drawPianoRollWithPlayhead(typeof reproduciendo !== 'undefined' && reproduciendo ? pasoActual : -1);
+    }
+}
+
 function _highlightChordBlock(segIndex) {
-    // Quitar resaltado anterior
     if (_activeChordBlock) {
         _activeChordBlock.style.boxShadow = '';
         _activeChordBlock.style.outline   = '';
+        _activeChordBlock.style.zIndex    = '';
         _activeChordBlock = null;
     }
-    // Buscar el bloque por idx
     const block = document.querySelector(`#chordRowContainer [data-idx="${segIndex}"]`);
     if (!block) return;
-    block.style.outline   = '2px solid #aaaaff';
-    block.style.boxShadow = '0 0 8px #7777ffaa';
+    block.classList.add('chord-block-selected');
     _activeChordBlock = block;
+
+    // Sincronizar scroll del chord row y el grid para que el bloque quede visible
+    const startStep = parseInt(block.dataset.start);
+    const gs = document.getElementById('gridScroll');
+    const cr = document.getElementById('chordRowContainer');
+    if (gs && typeof stepWidth !== 'undefined') {
+        const blockX  = startStep * stepWidth;
+        const visible = gs.clientWidth;
+        const cur     = gs.scrollLeft;
+        if (blockX < cur || blockX + block.offsetWidth > cur + visible) {
+            const next = Math.max(0, blockX - visible * 0.2);
+            gs.scrollLeft = next;
+            if (cr) cr.scrollLeft = next;   // forzar sync inmediato (no esperar evento scroll)
+        }
+    }
 }
 
 function _clearChordBlockHighlight() {
     if (_activeChordBlock) {
-        _activeChordBlock.style.outline   = '';
-        _activeChordBlock.style.boxShadow = '';
+        _activeChordBlock.classList.remove('chord-block-selected');
         _activeChordBlock = null;
+    }
+}
+
+// ─────────────────────────────────────────────
+// Renderizado del panel de acordes
+// ─────────────────────────────────────────────
+
+const _QUALITY_MAP = {
+    major:'Mayor', minor:'Menor', dominant7:'Dominante 7ª', major7:'Mayor 7ª (maj7)',
+    minor7:'Menor 7ª', diminished:'Disminuido', augmented:'Aumentado',
+    major6:'Mayor 6ª', minor6:'Menor 6ª', sus4:'Suspendido 4ª', sus2:'Suspendido 2ª',
+    unknown:'Desconocido', none:'—'
+};
+
+function _renderChordPanel(centerIndex) {
+    const slider  = document.getElementById('chordColsSlider');
+    const content = document.getElementById('chordPanelContent');
+    if (!slider || !content) return;
+
+    const segs = _activeSegments();
+    if (!segs.length) return;
+    _chordPanelIndex = Math.max(0, Math.min(segs.length - 1, centerIndex));
+
+    // Actualizar highlight de notas en el piano roll
+    const _currSeg = segs[_chordPanelIndex];
+    const _hClasses = [...new Set(_currSeg.activeNotes.map(n => n % 12))];
+    if (_hClasses.length) {
+        activeHighlight = { classes: _hClasses, startStep: _currSeg.startStep, endStep: _currSeg.endStep };
+        if ((typeof reproduciendo === 'undefined' || !reproduciendo) && typeof drawPianoRollWithHighlight === 'function') {
+            drawPianoRollWithHighlight(_hClasses, _currSeg.startStep, _currSeg.endStep);
+        }
+    }
+    _highlightChordBlock(_chordPanelIndex);
+
+    // Columnas adaptativas al ancho disponible
+    const availW  = content.clientWidth || 800;
+    const numCols = Math.max(2, Math.floor(availW / _CHORD_COL_MIN_W));
+    const colW    = Math.floor(availW / numCols);
+
+    // 1 anterior (si existe) + actual + siguientes
+    const hasPrev  = _chordPanelIndex > 0;
+    const nextSlots = numCols - (hasPrev ? 1 : 0) - 1;
+    const indices  = [];
+    if (hasPrev) indices.push(_chordPanelIndex - 1);
+    indices.push(_chordPanelIndex);
+    for (let i = 1; i <= nextSlots; i++) {
+        if (_chordPanelIndex + i < segs.length) indices.push(_chordPanelIndex + i);
+    }
+
+    // Columna fija de etiquetas (se actualiza según tipo del segmento actual)
+    const labelsCol  = document.getElementById('chordLabelsCol');
+    const currSeg    = segs[_chordPanelIndex];
+    const isCurrPhrase = Array.isArray(currSeg.degrees);
+    if (labelsCol) {
+        labelsCol.innerHTML = isCurrPhrase ? `
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-lbl">Progresión</span></div>
+                <div class="cp-row"><span class="cp-lbl">Cadencia</span></div>
+                <div class="cp-row"><span class="cp-lbl">Tonalidad</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-lbl">Duración</span></div>
+                <div class="cp-row"><span class="cp-lbl">Posición</span></div>
+                <div class="cp-row cp-dim"><span class="cp-lbl">Pasos</span></div>
+            </div>
+            <div class="cp-section">
+
+            </div>` : `
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-lbl">Grado</span></div>
+                <div class="cp-row"><span class="cp-lbl">Inversión</span></div>
+                <div class="cp-row"><span class="cp-lbl">Tonalidad</span></div>
+                <div class="cp-row"><span class="cp-lbl">Tensiones</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-lbl">Duración</span></div>
+                <div class="cp-row"><span class="cp-lbl">Posición</span></div>
+                <div class="cp-row cp-dim"><span class="cp-lbl">Pasos</span></div>
+            </div>
+            <div class="cp-section">
+
+            </div>`;
+    }
+
+    slider.innerHTML = indices.map(idx => {
+        const seg    = segs[idx];
+        const meta   = _chordMeta(seg);
+        const isCurr = idx === _chordPanelIndex;
+        const isPrev = idx === _chordPanelIndex - 1;
+        const colCls = isPrev ? 'cp-prev' : isCurr ? 'cp-current' : 'cp-next';
+
+        // Grado romano + función
+        const degree  = meta.isPhrase
+            ? (seg.degrees ? seg.degrees.join(' – ') : '')
+            : _romanDegree(meta.chord, currentKey);
+        const funcStr = meta.chordFunc ? ` — ${meta.chordFunc}` : '';
+
+        // Inversión
+        const inv = meta.isPhrase ? '—' : (
+            seg.inversion ||
+            (seg.activeNotes.length && meta.chord?.root !== undefined
+                ? (typeof detectInversion === 'function' ? detectInversion(seg.activeNotes, meta.chord.root) : '') : '')
+            || 'Estado fundamental'
+        );
+
+        // Tonalidad
+        const key    = (typeof currentKey !== 'undefined') ? currentKey : null;
+        const keyStr = key
+            ? (typeof key === 'object'
+                ? key.tonic + ' ' + (key.mode === 'major' ? 'Mayor' : 'Menor')
+                : String(key))
+            : '—';
+
+        // Tensiones
+        const tensionNames = (meta.chord?.tensions || []).map(i => {
+            const tm = {1:'b9',2:'9',3:'#9',5:'11',6:'#11',8:'b13',9:'13',10:'7',11:'maj7'};
+            return tm[i] || `+${i}`;
+        });
+        const tensionStr = tensionNames.length ? tensionNames.join(', ') : 'Ninguna';
+
+        // Duración / posición
+        const steps    = seg.endStep - seg.startStep;
+        const spm      = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
+        const measures = (steps / spm).toFixed(2);
+        const posStr   = _stepToMusical(seg.startStep) + ' → ' + _stepToMusical(seg.endStep);
+
+        // Chips de notas
+        const noteChips = seg.activeNotes.map(n =>
+            `<span class="cp-chip">${_NOTE_NAMES_CR[n % 12]}${Math.floor(n / 12) - 1} (${n})</span>`
+        ).join('');
+
+        const bgColor = isCurr ? '#141430' : _chordFunctionColor(meta.chordFunc);
+
+        const bodyHtml = meta.isPhrase ? `
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-val cp-mono">${seg.degrees ? seg.degrees.join(' – ') : '—'}</span></div>
+                <div class="cp-row"><span class="cp-val">${seg.cadenceType || '—'}</span></div>
+                <div class="cp-row"><span class="cp-val">${keyStr}</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-val">${steps} pasos · ${measures} compases</span></div>
+                <div class="cp-row"><span class="cp-val">${posStr}</span></div>
+                <div class="cp-row cp-dim"><span class="cp-val">${seg.startStep} → ${seg.endStep}</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-chips">${(seg.chords || []).map((c, i) =>
+                    `<span class="cp-chip">${seg.degrees?.[i] ? seg.degrees[i] + ' ' : ''}${c}</span>`
+                ).join('')}</div>
+            </div>` : `
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-val">${degree}${funcStr}</span></div>
+                <div class="cp-row"><span class="cp-val">${inv}</span></div>
+                <div class="cp-row"><span class="cp-val">${keyStr}</span></div>
+                <div class="cp-row"><span class="cp-val">${tensionStr}</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-row"><span class="cp-val">${steps} pasos · ${measures} compases</span></div>
+                <div class="cp-row"><span class="cp-val">${posStr}</span></div>
+                <div class="cp-row cp-dim"><span class="cp-val">${seg.startStep} → ${seg.endStep}</span></div>
+            </div>
+            <div class="cp-section">
+                <div class="cp-chips">${noteChips}</div>
+            </div>`;
+
+        return `<div class="chord-col ${colCls}" data-idx="${idx}" style="width:${colW}px;background:${bgColor};">
+            <div class="cp-counter">${idx + 1} / ${segs.length}</div>
+            ${bodyHtml}
+            ${isCurr ? '<div class="chord-col-progress" id="chordColProgress"></div>' : ''}
+        </div>`;
+    }).join('');
+
+    // Click en columna → esa pasa a ser ACTUAL
+    slider.querySelectorAll('.chord-col').forEach(col => {
+        col.addEventListener('click', () => {
+            const idx = parseInt(col.dataset.idx);
+            const s   = segs[idx];
+            // Highlight notas en piano roll
+            const classes = [...new Set(s.activeNotes.map(n => n % 12))];
+            if (classes.length) {
+                drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
+                activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
+            }
+            _highlightChordBlock(idx);
+            if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
+                pasoActual = s.startStep;
+                if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(s.startStep);
+            }
+            _renderChordPanel(idx);
+        });
+    });
+
+    // Actualizar estado de navegación (usado por auto-avance y _playAndAdvance)
+    const curr = segs[_chordPanelIndex];
+    window._cpopNavTo     = (idx) => _renderChordPanel(idx);
+    window._cpopSegIndex  = _chordPanelIndex;
+    window._cpopTotalSegs = segs.length;
+    window._cpopStartStep = curr.startStep;
+    window._cpopEndStep   = curr.endStep;
+
+    // Footer: habilitar botones
+    const loopBtn = document.getElementById('cpanel-loop-btn');
+    const autoBtn = document.getElementById('cpanel-auto-btn');
+    if (loopBtn) loopBtn.disabled = false;
+    if (autoBtn) {
+        autoBtn.disabled = (_chordPanelIndex >= segs.length - 1);
+        autoBtn.classList.toggle('cpop-auto-on',
+            typeof autoAdvanceActive !== 'undefined' && autoAdvanceActive);
+    }
+}
+
+/** Reproduce en loop el segmento actualmente centrado en el panel. */
+function _cpanelPlayLoop() {
+    const segs = _activeSegments();
+    const seg  = segs[_chordPanelIndex];
+    if (seg) _playSegmentLoop(seg.startStep, seg.endStep);
+}
+
+/** Actualiza el panel durante la reproducción (llamado desde _tick). */
+function _updateChordPanelFromPlayback() {
+    const panel = document.getElementById('chordPanel');
+    if (!panel || !panel.classList.contains('open')) return;
+
+    const segs = _activeSegments();
+    const idx  = segs.findIndex(s =>
+        typeof pasoActual !== 'undefined' && pasoActual >= s.startStep && pasoActual < s.endStep
+    );
+
+    // Re-renderizar solo si cambió el segmento activo
+    if (idx >= 0 && idx !== _chordPanelIndex) _renderChordPanel(idx);
+
+    // Siempre actualizar barra de progreso
+    if (idx >= 0) {
+        const bar = document.getElementById('chordColProgress');
+        if (bar) {
+            const seg = segs[idx];
+            const pct = (pasoActual - seg.startStep) / (seg.endStep - seg.startStep) * 100;
+            bar.style.width = Math.min(100, Math.max(0, pct)).toFixed(1) + '%';
+        }
     }
 }
 
@@ -109,7 +424,7 @@ function drawChordRow(segments, key) {
         block.addEventListener('mouseleave', () => { block.style.filter = ''; });
         block.addEventListener('click', (e) => {
             e.stopPropagation();
-            onChordBlockClick(e, seg, i, chordName, chordFunc, chord, key);
+            onChordBlockClick(seg, i);
         });
 
         container.appendChild(block);
@@ -152,279 +467,146 @@ function _activeSegments() {
 // Click: popup + resaltado en el grid
 // ─────────────────────────────────────────────
 
-function onChordBlockClick(event, segment, segIndex, chordName, chordFunc, chord, key) {
-    // Resaltar exactamente las notas activas del segmento, solo dentro de su rango de pasos
+function onChordBlockClick(segment, segIndex, openPanel = true) {
+    // Highlight de notas en el piano roll
     const classes = [...new Set(segment.activeNotes.map(n => n % 12))];
     if (classes.length > 0) {
         drawPianoRollWithHighlight(classes, segment.startStep, segment.endStep);
         activeHighlight = { classes, startStep: segment.startStep, endStep: segment.endStep };
     }
 
-    // Centrar el grid en el inicio del segmento
-    const gridScroll = document.getElementById('gridScroll');
-    if (gridScroll && typeof stepWidth !== 'undefined') {
-        const x = segment.startStep * stepWidth;
-        const visibleWidth = gridScroll.clientWidth;
-        gridScroll.scrollLeft = Math.max(0, x - visibleWidth * 0.2);
-    }
-
-    // Construir y mostrar el popup
-    _showChordPopup(event, segment, segIndex, chordName, chordFunc, chord, key);
-}
-
-// ─────────────────────────────────────────────
-// Popup de información armónica
-// ─────────────────────────────────────────────
-
-function _showChordPopup(event, seg, segIndex, chordName, chordFunc, chord, key) {
-    // Eliminar popup anterior si existe
-    const old = document.getElementById('chordInfoPopup');
-    if (old) old.remove();
-
-    // ── Detectar si es un segmento de frase ──────────────────
-    const isPhrase = Array.isArray(seg.degrees);
-
-    // ── Calcular datos a mostrar ──────────────────────────────
-
-    // Notas MIDI + nombres
-    const noteNames = seg.activeNotes.map(n =>
-        `${_NOTE_NAMES_CR[n % 12]}${Math.floor(n / 12) - 1} (${n})`
-    );
-
-    // Calidad del acorde en texto legible
-    const qualityMap = {
-        major:'Mayor', minor:'Menor', dominant7:'Dominante 7ª',
-        major7:'Mayor 7ª (maj7)', minor7:'Menor 7ª', diminished:'Disminuido',
-        augmented:'Aumentado', major6:'Mayor 6ª', minor6:'Menor 6ª',
-        sus4:'Suspendido 4ª', sus2:'Suspendido 2ª', unknown:'Desconocido', none:'—'
-    };
-    const quality = qualityMap[chord?.quality] || chord?.quality || '?';
-
-    // Tensiones
-    const tensionNames = (chord?.tensions || []).map(i => {
-        const map = {1:'b9',2:'9',3:'#9',5:'11',6:'#11',8:'b13',9:'13',10:'7',11:'maj7'};
-        return map[i] || `+${i}st`;
-    });
-
-    // Inversión
-    const invText = seg.inversion || (
-        seg.activeNotes.length > 0 && chord?.root !== undefined
-            ? detectInversion(seg.activeNotes, chord.root)
-            : ''
-    ) || 'Estado fundamental';
-
-    // Grado romano
-    const romanDegree = _romanDegree(chord, key);
-
-    // Duración en pasos y compases
-    const steps    = seg.endStep - seg.startStep;
-    const measures = (steps / 16).toFixed(2);  // 16 semicorcheas = 1 compás 4/4
-
-    // Escala relativa
-    const scaleNotes = key ? _scaleNotes(key) : [];
-
-    // Notas del acorde que están fuera de la escala (cromatismos)
-    const outOfScale = chord?.root !== undefined
-        ? seg.activeNotes.filter(n => !scaleNotes.includes(n % 12))
-                         .map(n => _NOTE_NAMES_CR[n % 12])
-        : [];
-
-    // ── Construir HTML del popup ──────────────────────────────
-
-    const popup = document.createElement('div');
-    popup.id    = 'chordInfoPopup';
-    popup.innerHTML = `
-        <div class="cpop-header">
-            <button class="cpop-nav" id="cpop-prev" title="Anterior">&#8592;</button>
-            <span class="cpop-chord">${chordName}</span>
-            <span class="cpop-quality">${isPhrase ? (seg.cadenceType || '') : quality}</span>
-            <button class="cpop-nav" id="cpop-next" title="Siguiente">&#8594;</button>
-            <button class="cpop-close" onclick="document.getElementById('chordInfoPopup').remove()">✕</button>
-        </div>
-        <div class="cpop-body">
-            ${isPhrase ? `
-            <div class="cpop-section">
-                <div class="cpop-row"><span class="cpop-lbl">Progresión</span>
-                    <span class="cpop-val" style="font-family:monospace">${seg.degrees ? seg.degrees.join(' – ') : '—'}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Cadencia</span>
-                    <span class="cpop-val">${seg.cadenceType || '—'}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Tonalidad</span>
-                    <span class="cpop-val">${key ? key.tonic + ' ' + (key.mode === 'major' ? 'Mayor' : 'Menor') : '—'}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Duración</span>
-                    <span class="cpop-val">${steps} pasos · ${measures} compases</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Posición</span>
-                    <span class="cpop-val">${_stepToMusical(seg.startStep)} → ${_stepToMusical(seg.endStep)}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl" style="color:#444466">Pasos</span>
-                    <span class="cpop-val" style="color:#666688;font-size:11px">${seg.startStep} → ${seg.endStep}</span></div>
-            </div>
-            <div class="cpop-section">
-                <div class="cpop-lbl" style="margin-bottom:4px">Acordes de la frase (${seg.chords ? seg.chords.length : 0})</div>
-                <div class="cpop-notes">${(seg.chords || []).map((c, i) =>
-                    `<span class="cpop-note" style="opacity:0.85">${seg.degrees?.[i] || ''}&nbsp;${c}</span>`
-                ).join('')}</div>
-            </div>
-            ` : `
-            <div class="cpop-section">
-                <div class="cpop-row"><span class="cpop-lbl">Grado</span>
-                    <span class="cpop-val">${romanDegree} ${chordFunc ? '— ' + chordFunc : ''}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Inversión</span>
-                    <span class="cpop-val">${invText}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Tonalidad</span>
-                    <span class="cpop-val">${key ? key.tonic + ' ' + (key.mode === 'major' ? 'Mayor' : 'Menor') : '—'}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Tensiones</span>
-                    <span class="cpop-val">${tensionNames.length ? tensionNames.join(', ') : 'Ninguna'}</span></div>
-            </div>
-            <div class="cpop-section">
-                <div class="cpop-row"><span class="cpop-lbl">Duración</span>
-                    <span class="cpop-val">${steps} pasos · ${measures} compases</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Posición</span>
-                    <span class="cpop-val">${_stepToMusical(seg.startStep)} → ${_stepToMusical(seg.endStep)}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl" style="color:#444466">Pasos</span>
-                    <span class="cpop-val" style="color:#666688;font-size:11px">${seg.startStep} → ${seg.endStep}</span></div>
-                <div class="cpop-row"><span class="cpop-lbl">Notas fuera de escala</span>
-                    <span class="cpop-val ${outOfScale.length ? 'cpop-warn' : ''}">${outOfScale.length ? outOfScale.join(', ') : '—'}</span></div>
-            </div>
-            <div class="cpop-section">
-                <div class="cpop-lbl" style="margin-bottom:4px">Notas sonando (${seg.activeNotes.length})</div>
-                <div class="cpop-notes">${seg.activeNotes.map((midi, i) =>
-                    `<span class="cpop-note" data-midi="${midi}" title="Click: nota · Shift+Click: acorde completo">${noteNames[i]}</span>`
-                ).join('')}</div>
-            </div>
-            `}
-        </div>
-    `;
-
-    // ── Estilos inline (sin necesidad de CSS externo) ─────────
-    popup.style.cssText = `
-        position: fixed;
-        z-index: 9999;
-        background: #1e1e32;
-        border: 1px solid #5a5aaa;
-        border-radius: 8px;
-        box-shadow: 0 8px 32px #00000088;
-        width: 320px;
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 13px;
-        color: #ddd;
-        user-select: none;
-    `;
-
-    // Estilos de los sub-elementos
-    const style = document.createElement('style');
-    style.textContent = `
-        #chordInfoPopup .cpop-header {
-            display: flex; align-items: center; gap: 8px;
-            background: #2a2a48; padding: 10px 14px;
-            border-radius: 8px 8px 0 0; border-bottom: 1px solid #3a3a5a;
-        }
-        #chordInfoPopup .cpop-chord  { font-size: 20px; font-weight: bold; color: #fff; }
-        #chordInfoPopup .cpop-quality{ font-size: 12px; color: #aaaadd; flex: 1; }
-#chordInfoPopup .cpop-close  {
-            background: none; border: none; color: #888; font-size: 16px;
-            cursor: pointer; padding: 2px 6px; border-radius: 4px;
-        }
-        #chordInfoPopup .cpop-close:hover { background: #aa3333; color: #fff; }
-        #chordInfoPopup .cpop-body   { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
-        #chordInfoPopup .cpop-section{ background: #25253a; border-radius: 5px; padding: 8px 10px; }
-        #chordInfoPopup .cpop-row    { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        #chordInfoPopup .cpop-row:last-child { margin-bottom: 0; }
-        #chordInfoPopup .cpop-lbl    { color: #7777aa; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
-        #chordInfoPopup .cpop-val    { color: #ddeeff; font-size: 12px; text-align: right; max-width: 60%; }
-        #chordInfoPopup .cpop-warn   { color: #ffaa44; }
-        #chordInfoPopup .cpop-notes  { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-        #chordInfoPopup .cpop-note   {
-            background: #333355; border: 1px solid #5555aa;
-            border-radius: 4px; padding: 2px 7px; font-size: 11px;
-            font-family: monospace; color: #aaddff;
-            cursor: pointer; transition: background .1s, transform .08s;
-        }
-        #chordInfoPopup .cpop-note:hover  { background: #4a4a88; border-color: #8888cc; }
-        #chordInfoPopup .cpop-note.ringing { background: #5a5aaa; transform: scale(1.1); }
-        #chordInfoPopup .cpop-nav {
-            background: #3a3a5a; border: 1px solid #5a5aaa; color: #aaa;
-            border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 14px; line-height: 1.4;
-        }
-        #chordInfoPopup .cpop-nav:hover:not(:disabled) { background: #5a5aaa; color: #fff; }
-        #chordInfoPopup .cpop-nav:disabled { opacity: 0.3; cursor: default; }
-    `;
-    popup.prepend(style);
-
-    document.body.appendChild(popup);
-
-    // ── Botones de navegación entre segmentos ─────────────────
-    const prevBtn  = popup.querySelector('#cpop-prev');
-    const nextBtn  = popup.querySelector('#cpop-next');
-    const segsArr  = _activeSegments();
-    const totalSegs = segsArr.length;
-
-    if (segIndex <= 0)              prevBtn.disabled = true;
-    if (segIndex >= totalSegs - 1)  nextBtn.disabled = true;
-
-    function _navTo(newIndex) {
-        const s = segsArr[newIndex];
-        // Resaltar notas del nuevo segmento dentro de su rango
-        const classes = [...new Set(s.activeNotes.map(n => n % 12))];
-        if (classes.length > 0) drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
-        // Centrar grid
-        const gs = document.getElementById('gridScroll');
-        if (gs) gs.scrollLeft = Math.max(0, s.startStep * stepWidth - gs.clientWidth * 0.2);
-        // Reabrir popup (siempre en la misma posición fija, no necesita fixedPos)
-        _showChordPopup(null, s, newIndex,
-            s.chordDisplay || s.chord?.name || '?',
-            s.chordFunction || '', s.chord, key);
-    }
-
-    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); _navTo(segIndex - 1); });
-    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); _navTo(segIndex + 1); });
-
-    // ── Chips de notas: click = nota sola / Shift+click = acorde completo ──
-    popup.querySelectorAll('.cpop-note').forEach(chip => {
-        chip.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (e.shiftKey) {
-                // Shift+click → todas las notas del segmento a la vez
-                _playNotes(seg.activeNotes, popup.querySelectorAll('.cpop-note'));
-            } else {
-                // Click simple → solo esta nota
-                const midi = parseInt(chip.dataset.midi);
-                _playNotes([midi], [chip]);
-            }
-        });
-    });
-
-    // ── Posicionar ────────────────────────────────────────────
-    popup.style.left   = '90px';
-    popup.style.top    = '120px';
-    popup.style.bottom = 'auto';
-
-    // ── Resaltar el bloque correspondiente en el chord-row ───
+    // Highlight del bloque en el chord row
     _highlightChordBlock(segIndex);
 
-    // ── Posicionar el cursor de reproducción en el inicio del segmento ──
-    pasoActual = seg.startStep;
-    updateRulerPlayhead(pasoActual);
+    // Mover playhead si no está reproduciendo
+    if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
+        pasoActual = segment.startStep;
+        if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(segment.startStep);
+    }
 
-    // ── Observer: limpiar resaltado y highlight cuando el popup desaparezca ─
-    const _popupObserver = new MutationObserver(() => {
-        if (!document.getElementById('chordInfoPopup')) {
-            _clearChordBlockHighlight();
-            activeHighlight = null;
-            _popupObserver.disconnect();
+    // Abrir/actualizar el panel de acordes
+    const panel = document.getElementById('chordPanel');
+    if (panel) {
+        const wasOpen = panel.classList.contains('open');
+        if (openPanel && !wasOpen) {
+            panel.classList.add('open');
+            const btn = document.getElementById('chordPanelBtn');
+            if (btn) btn.classList.add('btn-active');
         }
-    });
-    _popupObserver.observe(document.body, { childList: true });
+        if (wasOpen || openPanel) _renderChordPanel(segIndex);
+    }
 
-    // Cerrar al hacer clic fuera — excepto botones de transporte
-    const _TRANSPORT_IDS = new Set(['playBtn', 'stopBtn']);
-    setTimeout(() => {
-        document.addEventListener('click', function _close(e) {
-            if (_TRANSPORT_IDS.has(e.target.id)) return;   // Play/Pause/Stop/Loop no cierran
-            if (!popup.contains(e.target)) {
-                popup.remove();
-                document.removeEventListener('click', _close);
-            }
-        });
-    }, 50);
+    // Registrar Enter → avanzar acorde (si no está ya activo)
+    if (!_panelKeyHandler) {
+        _panelKeyHandler = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); _playAndAdvance(); }
+        };
+        document.addEventListener('keydown', _panelKeyHandler);
+    }
+}
+
+// -------------------------------------------
+// _showChordPopup removed � replaced by chord panel accordion
+// -------------------------------------------
+
+
+
+/**
+ * Activa/desactiva el modo APPEND predictivo (auto-avance compás a compás).
+ * Si no hay reproducción activa, arranca el primer segmento.
+ */
+function _toggleAutoAdvance() {
+    autoAdvanceActive = !autoAdvanceActive;
+
+    const btn = document.getElementById('cpanel-auto-btn');
+    if (btn) btn.classList.toggle('cpop-auto-on', autoAdvanceActive);
+
+    if (!autoAdvanceActive) return;
+
+    if (!reproduciendo) {
+        _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
+    } else {
+        // Ya reproduciendo (Loop activo): inicializar _batchStartSegIdx desde
+        // el segmento actual del panel y expandir loopB al final del lote.
+        const segs    = _activeSegments();
+        const idx     = typeof _chordPanelIndex !== 'undefined' ? _chordPanelIndex : 0;
+        _batchStartSegIdx = idx;
+        const batchLast   = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
+        loopB = segs[batchLast].endStep;
+        if (typeof _updateAbBtn      === 'function') _updateAbBtn();
+        if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    }
+}
+
+/**
+ * Reproduce el segmento actual en bucle y avanza el popup al siguiente.
+ * Orden: 1) play en bucle del segmento actual  2) navega al siguiente.
+ */
+function _playAndAdvance(startStep, endStep) {
+    const idxToNav = window._cpopSegIndex + 1;
+    if (typeof window._cpopNavTo === 'function' && idxToNav < window._cpopTotalSegs) {
+        window._cpopNavTo(idxToNav);
+        // Tras navegar, _cpopStartStep/_cpopEndStep apuntan al nuevo segmento
+        _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
+    }
+}
+
+/**
+ * Fija el rango A→B al segmento indicado y lanza la reproducción en bucle.
+ * Equivale a: activar A→B + marcar A y B manualmente + pulsar Play.
+ */
+function _playSegmentLoop(startStep, endStep) {
+    // Detener si hay reproducción en curso
+    if (typeof reproduciendo !== 'undefined' && reproduciendo) {
+        if (typeof stop === 'function') stop();
+    }
+
+    // Con auto-advance activo, expandir loopB al final del batch
+    let batchEndStep = endStep;
+    if (typeof autoAdvanceActive !== 'undefined' && autoAdvanceActive) {
+        const segs = _activeSegments();
+        const idx  = segs.findIndex(s => s.startStep === startStep);
+        if (idx >= 0) {
+            _batchStartSegIdx = idx;   // guardar índice de inicio — no cambia durante el lote
+            const batchLast = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
+            batchEndStep = segs[batchLast].endStep;
+            console.log(`[batch] Lote ${idx + 1}–${batchLast + 1}/${segs.length} [${startStep}–${batchEndStep})`);
+        }
+    }
+
+    // Fijar rango A→B al lote
+    loopAB = true;
+    loopA  = startStep;
+    loopB  = batchEndStep;
+    pasoActual = startStep;
+
+    // Actualizar UI del botón A→B y la regla
+    if (typeof _updateAbBtn    === 'function') _updateAbBtn();
+    if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    updateRulerPlayhead(startStep);
+
+    // Lanzar reproducción
+    if (typeof play === 'function') play();
+}
+
+/**
+ * Para el lote actual, resetea las colas del ESP32 y arranca el siguiente lote.
+ * El reset elimina el drift I2C acumulado — se acepta un gap breve entre lotes.
+ */
+function _startNextBatch() {
+    // Avanzar exactamente BATCH_SIZE desde el inicio del lote actual.
+    // No usar findIndex por step — _chordPanelIndex puede haber avanzado
+    // durante la reproducción y distorsionaría el cálculo.
+    const nextIdx = _batchStartSegIdx + BATCH_SIZE;
+    const segs    = _activeSegments();
+    if (_batchStartSegIdx < 0 || nextIdx >= segs.length) {
+        if (typeof stop === 'function') stop();
+        return;
+    }
+    if (typeof stop === 'function') stop();
+    autoAdvanceActive = true;              // stop() lo pone a false, restaurar
+    if (typeof window._cpopNavTo === 'function') window._cpopNavTo(nextIdx);
+    _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
 }
 
 // ─────────────────────────────────────────────
@@ -494,6 +676,17 @@ function _playNotes(notes, chips) {
         chip.classList.add('ringing');
         setTimeout(() => chip.classList.remove('ringing'), DURATION_S * 1000);
     });
+}
+
+/**
+ * Selecciona el segmento armónico que contiene el paso dado:
+ * resalta su bloque en el chord row y abre el popup de info.
+ * Llamado desde seekToStep() cuando el usuario clica en el ruler.
+ */
+function _selectChordAtStep(step) {
+    const segs = _activeSegments();
+    const idx  = segs.findIndex(s => step >= s.startStep && step < s.endStep);
+    if (idx >= 0) onChordBlockClick(segs[idx], idx, false);
 }
 
 function _scaleNotes(key) {

@@ -22,27 +22,37 @@
         .toolbar {
             background: #16162a;
             border-bottom: 1px solid #3a3a5a;
-            padding: 6px 14px;
+            padding: 4px 10px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             flex-wrap: wrap;
             flex-shrink: 0;
         }
 
         .toolbar-title {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 600;
-            color: #a0a0cc;
-            margin-right: 8px;
+            color: #7070aa;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .toolbar-sep {
             width: 1px;
-            height: 24px;
+            height: 20px;
             background: #3a3a5a;
-            margin: 0 4px;
+            margin: 0 2px;
+            flex-shrink: 0;
+        }
+
+        /* Etiqueta de grupo */
+        .tb-group-label {
+            font-size: 9px;
+            color: #555580;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: .4px;
             flex-shrink: 0;
         }
 
@@ -58,17 +68,26 @@
             white-space: nowrap;
         }
 
-        /* Todos los botones de la toolbar: mismo ancho y alto */
+        /* Botones de la toolbar: ancho automático */
         .toolbar button {
-            height: 28px;
-            width: 78px;
+            height: 26px;
+            width: auto;
+            min-width: 0;
             font-size: 11px;
-            padding: 0 4px;
+            padding: 0 8px;
             text-align: center;
-            overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap;
+            flex-shrink: 0;
         }
+
+        /* Botón estrecho: solo símbolo (±, zoom) */
+        .toolbar .btn-narrow {
+            width: 22px;
+            padding: 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
         button:hover:not(:disabled) { background: #3a3a58; }
         button:disabled { opacity: 0.4; cursor: default; }
         button.btn-active {
@@ -82,20 +101,21 @@
             background: #2e2e42;
             color: #ddd;
             border: 1px solid #4a4a6a;
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 11px;
             cursor: pointer;
-            max-width: 200px;
+            width: 140px;
+            flex-shrink: 0;
         }
 
         select { max-width: 220px; }
 
         /* Botones de transporte con iconos más grandes */
         .btn-transport {
-            padding: 5px 10px;
+            padding: 0 8px;
             font-size: 15px;
-            min-width: 36px;
+            min-width: 30px;
         }
 
         /* Botón notas activas */
@@ -105,16 +125,6 @@
             color: #aaccff;
         }
 
-        /* Estado/mensaje */
-        #statusMsg {
-            font-size: 12px;
-            color: #8888aa;
-            margin-left: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 280px;
-        }
 
         /* ── Área de contenido (info + grid) ── */
         .content {
@@ -166,6 +176,7 @@
         .grid-scroll {
             flex: 1;
             overflow: auto;
+            position: relative;
         }
 
         canvas {
@@ -235,6 +246,14 @@
             min-height: 52px;
         }
 
+        /* Bloque seleccionado por el popup (clase, inmune a inline-style clear del playback) */
+        #chordRowContainer .chord-block-selected {
+            outline:    3px solid #ffdd44 !important;
+            box-shadow: 0 0 12px rgba(255,220,0,0.75), inset 0 0 8px rgba(255,200,0,0.15) !important;
+            position:   relative !important;
+            z-index:    2 !important;
+        }
+
         /* ── Panel Motor Map colapsable ── */
         .motor-map-panel {
             flex-shrink: 0;
@@ -281,6 +300,45 @@
             z-index: 1001;
         }
         .motor-map-toggle:hover { background: #22223a; color: #aaaacc; }
+
+        /* ── Panel de acordes colapsable ── */
+        .chord-panel { flex-shrink:0; background:#12122a; border-top:1px solid #2a2a4a; max-height:0; overflow:hidden; transition:max-height .28s ease; }
+        .chord-panel.open { max-height:320px; }
+        .chord-panel-body { display:flex; flex-direction:column; height:290px; }
+        .chord-panel-columns { display:flex; flex:1; min-height:0; }
+        .chord-panel-spacer { width:75px; flex-shrink:0; background:#0e0e1e; border-right:1px solid #2a2a4a; }
+        .chord-panel-content { flex:1; overflow:hidden; display:flex; }
+        #chordColsSlider { display:flex; width:100%; height:100%; }
+        .chord-labels-col { width:100px; flex-shrink:0; background:#0a0a1a; border-right:1px solid #2a2a4a; padding:8px 6px 6px 8px; box-sizing:border-box; overflow:hidden; }
+        .chord-labels-col .cp-section { background:transparent; padding:5px 0; margin-bottom:4px; }
+        .chord-labels-col .cp-row { justify-content:flex-start; }
+        .chord-col { flex-shrink:0; padding:6px 10px 4px; border-right:1px solid #1e1e32; cursor:pointer; position:relative; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; transition:filter .1s; }
+        .chord-col:last-child { border-right:none; }
+        .chord-col:hover { filter:brightness(1.15); }
+        .chord-col.cp-current { border-top:2px solid #4488ff; }
+        .chord-col.cp-prev { opacity:.45; }
+        .chord-col-progress { position:sticky; bottom:0; left:0; height:3px; background:linear-gradient(90deg,#4488ff,#88aaff); width:0%; pointer-events:none; margin-top:4px; }
+        /* filas etiqueta/valor estilo popup */
+        .cp-section { background:rgba(0,0,0,.25); border-radius:4px; padding:4px 8px; margin-bottom:3px; }
+        .cp-row { display:flex; justify-content:flex-start; align-items:baseline; min-height:17px; margin-bottom:2px; gap:6px; }
+        .cp-row:last-child { margin-bottom:0; }
+        .cp-lbl { color:#5555aa; font-size:10px; text-transform:uppercase; letter-spacing:.4px; flex-shrink:0; white-space:nowrap; }
+        .cp-val { color:#ddeeff; font-size:11px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; }
+        .cp-mono { font-family:monospace; }
+        .cp-dim .cp-lbl, .cp-dim .cp-val { color:#3a3a5a !important; font-size:10px; }
+
+        .cp-chips { display:flex; flex-wrap:wrap; gap:3px; }
+        .cp-chip { background:#333355; border:1px solid #5555aa; border-radius:4px; padding:2px 7px; font-size:10px; font-family:monospace; color:#aaddff; }
+        .cp-counter { font-size:9px; color:#3a3a5a; text-align:right; margin-bottom:2px; letter-spacing:.3px; }
+        .chord-col.cp-current .cp-counter { color:#4488ff; }
+        .chord-panel-footer { display:flex; align-items:center; gap:8px; padding:3px 8px 3px 83px; border-top:1px solid #2a2a4a; background:#0e0e1e; flex-shrink:0; height:30px; box-sizing:border-box; }
+        .cpanel-btn { background:#1a4a2a; border:1px solid #2a8a4a; color:#aaffcc; border-radius:4px; padding:2px 12px; cursor:pointer; font-size:12px; font-weight:600; transition:background .12s; }
+        .cpanel-btn:hover:not(:disabled) { background:#236335; color:#ccffdd; }
+        .cpanel-btn:active { background:#0d3a1a; }
+        .cpanel-btn:disabled { opacity:.35; cursor:default; }
+        .cpanel-btn-auto { background:#1a2a4a; border-color:#2a5a8a; color:#aaccff; }
+        .cpanel-btn-auto:hover:not(:disabled) { background:#1e3a6a; }
+        .cpanel-btn-auto.cpop-auto-on { background:#0d3a7a; border-color:#4488ff; color:#fff; box-shadow:0 0 8px rgba(68,136,255,.5); }
         .motor-map-panel.open ~ .motor-map-toggle {
             position: fixed;
             bottom: 10px;
@@ -339,85 +397,113 @@
 
 <!-- ══════════════ BARRA DE HERRAMIENTAS ══════════════ -->
 <div class="toolbar">
-    <span class="toolbar-title">🎹 MIDI Grid</span>
-
-    <!-- ── Grupo 1: Archivo ── -->
-    <button id="newGridBtn" onclick="toggleNewGridPanel()" title="Nuevo grid vacío">📄 Nuevo</button>
-    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
-    <button onclick="openMMLImportModal()" title="Importar partitura MML">🎼 MML</button>
-    <button id="saveProjectBtn" title="Guardar proyecto">💾 Guardar</button>
-    <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
-    <button id="loadProjectBtn" title="Cargar proyecto guardado">📂 Cargar</button>
+    <span class="toolbar-title">🎹 MidiGrid</span>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Grupo 2: Instrumento / Canal ── -->
-    <button id="loadInstrumentBtn" disabled>Mostrar Grid</button>
-    <select id="instrumentSelect" disabled>
-        <option value="">-- Canal / Instrumento --</option>
+    <!-- ── Archivo ── -->
+    <span class="tb-group-label">Archivo</span>
+    <button id="newGridBtn" onclick="toggleNewGridPanel()" title="Nuevo grid vacío">Nuevo</button>
+    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
+    <button onclick="openMMLImportModal()" title="Importar partitura MML">MML</button>
+    <button id="saveProjectBtn" title="Guardar proyecto">Guardar</button>
+    <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
+    <button id="loadProjectBtn" title="Cargar proyecto guardado">Cargar</button>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- ── Canal ── -->
+    <span class="tb-group-label">Canal</span>
+    <button id="loadInstrumentBtn" disabled title="Mostrar el grid del canal seleccionado">Grid</button>
+    <select id="instrumentSelect" disabled style="font-size:11px;height:26px;padding:0 4px;max-width:160px;">
+        <option value="">-- Canal --</option>
     </select>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Grupo 3: Transporte ── -->
+    <!-- ── Transporte ── -->
+    <span class="tb-group-label">Play</span>
     <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
     <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
-    <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
-            title="Segmento A→B: activa y marca inicio/fin en la regla; Play reproduce ese tramo una vez">A→B</button>
-    <label for="bpmInput" style="font-size:11px;color:#7777aa;white-space:nowrap;">BPM</label>
+    <label for="bpmInput" style="font-size:10px;color:#555580;white-space:nowrap;">BPM</label>
     <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
-           title="Tempo de reproducción (pulsaciones por minuto)"
-           style="width:58px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
-                  border-radius:4px;padding:3px 6px;font-size:13px;text-align:center;">
+           title="Tempo de reproducción"
+           style="width:50px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+                  border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
+
+    <div class="toolbar-sep"></div>
+
+    <!-- ── Segmento A→B ── -->
+    <span class="tb-group-label">A→B</span>
+    <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
+            title="Activa modo A→B: clic en regla para marcar inicio y fin del fragmento">A→B</button>
+    <button id="copyFragBtn"   onclick="copyFragment()"   disabled title="Copiar fragmento A→B">⎘</button>
+    <button id="pasteFragBtn"  onclick="pasteFragment()"  disabled title="Pegar en posición del playhead">⎗</button>
+    <button id="deleteFragBtn" onclick="deleteFragment()"  disabled title="Eliminar fragmento y desplazar">✕</button>
 
     <div class="toolbar-sep"></div>
 
     <!-- ── Compases ── -->
-    <button id="removeMeasuresBtn" onclick="removeMeasures()" title="Quitar compases al final"
-            disabled>−</button>
-    <select id="phraseUnitSelect" title="Unidad de frase"
-            style="width:52px;font-size:12px;background:#1e1e32;color:#aaa;
-                   border:1px solid #3a3a5a;border-radius:4px;padding:2px 4px;">
+    <span class="tb-group-label">Compases</span>
+    <button id="removeMeasuresBtn" class="btn-narrow" onclick="removeMeasures()"
+            title="Quitar compases al final" disabled>−</button>
+    <select id="phraseUnitSelect" title="Número de compases a añadir/quitar"
+            style="width:44px;font-size:11px;height:26px;background:#1e1e32;color:#aaa;
+                   border:1px solid #3a3a5a;border-radius:4px;padding:0 2px;flex-shrink:0;">
         <option value="1">1</option>
         <option value="2">2</option>
         <option value="4" selected>4</option>
         <option value="8">8</option>
     </select>
-    <button id="addMeasuresBtn" onclick="addMeasures()" title="Añadir compases al final"
-            disabled>+</button>
+    <button id="addMeasuresBtn" class="btn-narrow" onclick="addMeasures()"
+            title="Añadir compases al final" disabled>+</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Grupo 4: Herramientas ── -->
-    <button id="activeNotesBtn" title="Ver notas activas del instrumento" disabled>🎵 Notas</button>
-    <button onclick="toggleMotorMapPanel()" title="Abrir/cerrar panel Motor Map">⚙ Motor Map</button>
-    <button id="transposePanelBtn" onclick="toggleTransposePanel()" title="Transposición de escala en tiempo real">🎹 Escala</button>
+    <!-- ── Herramientas ── -->
+    <span class="tb-group-label">Vista</span>
+    <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
+    <button id="heatMapBtn" onclick="toggleHeatMap()" disabled
+            title="Notas de calor: resaltar notas dominantes (Motor de Atención)">Calor</button>
+    <button onclick="toggleMotorMapPanel()" title="Panel Motor Map">Motor</button>
+    <button id="transposePanelBtn" onclick="toggleTransposePanel()" title="Transposición / Escala">Escala</button>
+    <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
 
     <div class="toolbar-sep"></div>
 
     <!-- ── Zoom ── -->
-    <span style="font-size:10px;color:#7777aa;white-space:nowrap;">Zoom</span>
-    <button onclick="zoom(-1)" title="Reducir zoom">−</button>
+    <span class="tb-group-label">Zoom</span>
+    <button class="btn-narrow" onclick="zoom(-1)" title="Reducir zoom">−</button>
     <span id="zoomLabel"
-          style="font-size:10px;color:#aaa;min-width:32px;text-align:center;white-space:nowrap;">40</span>
-    <button onclick="zoom(+1)" title="Aumentar zoom">+</button>
+          style="font-size:10px;color:#aaa;min-width:26px;text-align:center;white-space:nowrap;flex-shrink:0;">40</span>
+    <button class="btn-narrow" onclick="zoom(+1)" title="Aumentar zoom">+</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Grupo 5: ESP32 ── -->
+    <!-- ── ESP32 ── -->
+    <span class="tb-group-label">ESP32</span>
     <input id="esp32IpInput" value="192.168.1.128"
            title="IP del ESP32"
-           style="width:118px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
-                  border-radius:4px;padding:3px 6px;font-size:12px;">
+           style="width:110px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
+                  border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
     <button onclick="initWebSocket()" title="Conectar con ESP32">Conectar</button>
-    <span id="esp32StatusDot" style="font-size:16px;line-height:1;color:#dd4444;">●</span>
-    <button onclick="openEsp32LogWindow()" title="Ver log del ESP32 en tiempo real">📝 Log</button>
+    <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
+    <button onclick="openEsp32LogWindow()" title="Ver log ESP32">Log</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Grupo 6: Ayuda / Estado ── -->
-    <button onclick="showHelpModal()" title="Atajos y controles">? Ayuda</button>
-    <span id="statusMsg" style="font-size:11px;color:#888;white-space:nowrap;">Esperando MIDI...</span>
+    <!-- ── Ayuda ── -->
+    <button onclick="showHelpModal()" title="Atajos y controles">?</button>
+</div>
+
+<!-- ── Estado fijo: esquina inferior derecha ── -->
+<div id="statusBar" style="position:fixed;bottom:8px;right:12px;text-align:right;
+     pointer-events:none;z-index:9000;line-height:1.5;">
+    <div id="motorMapSummaryBar" style="font-size:11px;color:#6666aa;"></div>
+    <div style="display:flex;align-items:baseline;gap:10px;justify-content:flex-end;">
+        <span id="streamingBuffer" style="font-size:11px;font-family:monospace;display:none;"></span>
+        <div id="statusMsg" style="font-size:10px;color:#3d3d5a;">Esperando MIDI...</div>
+    </div>
 </div>
 
 <!-- ══ Modal de Ayuda ══ -->
@@ -602,6 +688,15 @@
                 <label style="display:flex;align-items:center;gap:4px;font-size:11px;
                                color:#aaaacc;white-space:nowrap;
                                border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
+                               background:#1a1a2e;" title="Velocidad mínima al importar MIDI (1-127). Las notas más suaves se mapean a este valor.">
+                    Vel. mín:
+                    <input type="number" id="midiImportMinVel" min="1" max="127" value="35"
+                           style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
+                                  border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
+                </label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
+                               color:#aaaacc;white-space:nowrap;
+                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
                                background:#1a1a2e;" title="Velocidad máxima al importar MIDI (1-127). Las notas se escalan proporcionalmente a este valor.">
                     Vel. máx:
                     <input type="number" id="midiImportMaxVel" min="1" max="127" value="40"
@@ -628,6 +723,8 @@
         </div>
         <div id="gridScroll" class="grid-scroll">
             <canvas id="pianoRollCanvas" width="800" height="400"></canvas>
+            <div id="abDragLine" style="display:none;position:absolute;top:0;bottom:0;
+                 width:2px;background:#ffff00;opacity:0.75;pointer-events:none;z-index:10;"></div>
         </div>
     </div>
 
@@ -657,6 +754,25 @@
         <div id="chordRowContainer"></div>
     </div>
 
+    <!-- Panel de acordes colapsable -->
+    <div class="chord-panel" id="chordPanel">
+        <div class="chord-panel-body">
+            <div class="chord-panel-columns">
+                <div class="chord-panel-spacer"></div>
+                <div class="chord-labels-col" id="chordLabelsCol"></div>
+                <div class="chord-panel-content" id="chordPanelContent">
+                    <div id="chordColsSlider"></div>
+                </div>
+            </div>
+            <div class="chord-panel-footer">
+                <button class="cpanel-btn" id="cpanel-loop-btn"
+                        onclick="_cpanelPlayLoop()" disabled>▶ Loop</button>
+                <button class="cpanel-btn cpanel-btn-auto" id="cpanel-auto-btn"
+                        onclick="_toggleAutoAdvance()" disabled>▶▶ Auto</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toggle colapsable del panel Motor Map -->
     <div class="motor-map-toggle" id="motorMapToggle" onclick="toggleMotorMapPanel()">
         <span class="mm-arrow">▲</span>
@@ -681,6 +797,7 @@
                         <th>Motor</th>
                         <th>HomePWM</th>
                         <th>PCA/ch</th>
+                        <th title="Silenciar motor y nota">Mute</th>
                     </tr>
                 </thead>
                 <tbody id="motorMapPanelTbody"></tbody>
@@ -743,6 +860,7 @@
 <script src="./js/persistence.js"></script>
 <script src="./js/mml-parser.js"></script>
 <script src="./js/transpose.js"></script>
+<script src="./js/heat.js"></script>
 <script src="./js/midiGrid.js"></script>
 </body>
 </html>

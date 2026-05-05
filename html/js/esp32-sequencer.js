@@ -122,7 +122,7 @@ function _buildSequence(motorMap, startStep, endStep) {
         const midiNote = parseInt(noteStr);
         const offset   = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
         const cfg      = motorMap ? motorMap.find(m => m.note === midiNote - offset) : null;
-        if (!cfg) continue;  // nota sin motor asignado → ignorar
+        if (!cfg || cfg.muted) continue;  // nota sin motor o muteada → ignorar
 
         if (!byMotor[cfg.motor]) {
             byMotor[cfg.motor] = { cfg, events: [] };
@@ -160,10 +160,10 @@ function _buildSequence(motorMap, startStep, endStep) {
             // Velocidad real del golpe: velocity de la nota escalada a rango 1-100
             const velEsp32 = Math.max(1, Math.min(100, Math.round(ev.velocity / 127 * 100)));
 
-            // Calcular duración del golpe teniendo en cuenta notas largas
-            // (duration > 1 paso → el servo permanece más tiempo extendido)
-            const holdMs   = Math.max(0, (ev.duration - 1) * stepMs);
             const actualHit = Math.min(HIT_MS, stepMs - 10);
+            // holdMs llena todo el tiempo disponible de la nota menos el golpe y la retracción.
+            // Así notas de 1 paso también se prolongan a BPM lentos (igual que duration > 1).
+            const holdMs = Math.max(0, ev.duration * stepMs - actualHit - RETRACT_MS);
 
             cmd += `t ${actualHit}; v ${velEsp32};\n`;
 
@@ -181,6 +181,16 @@ function _buildSequence(motorMap, startStep, endStep) {
         if (remaining > 0) {
             cmd += `t ${Math.round(remaining)}; v 0;\n`;
         }
+    }
+
+    // ── Marcadores de sincronía en límites de compás ─────────────
+    // El firmware mide el drift I2C acumulado en cada compás y
+    // corrige los timestamps de eventos futuros en consecuencia.
+    const stepsPerMeasure = (typeof currentTimeSig !== 'undefined' && currentTimeSig)
+        ? currentTimeSig.stepsPerMeasure : 16;
+    const firstBoundary = Math.ceil((startStep + 1) / stepsPerMeasure) * stepsPerMeasure;
+    for (let s = firstBoundary; s < endStep; s += stepsPerMeasure) {
+        cmd += `c ${Math.round((s - startStep) * stepMs)};\n`;
     }
 
     cmd += 'p;\n';

@@ -68,8 +68,9 @@ function buildGridFromChannel(channel) {
         const endStep   = Math.floor((n.tickOff - 1) / ticksPerStep);
         const duration  = endStep - startStep + 1;
         if (duration <= 0) continue;
+        const _minVel = parseInt(document.getElementById('midiImportMinVel')?.value) || 1;
         const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
-        gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(1, Math.round(n.velocity / 127 * _maxVel)) };
+        gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel)) };
     }
 
     // Redimensionar canvas
@@ -135,7 +136,11 @@ function drawPianoRoll() {
  * @param {number} playheadStep - Paso del playhead, o -1 para no dibujarlo.
  */
 function drawPianoRollWithPlayhead(playheadStep) {
-    drawPianoRoll();
+    if (typeof activeHighlight !== 'undefined' && activeHighlight) {
+        drawPianoRollWithHighlight(activeHighlight.classes, activeHighlight.startStep, activeHighlight.endStep);
+    } else {
+        drawPianoRoll();
+    }
     if (playheadStep >= 0) {
         const x = playheadStep * stepWidth;
         ctx.save();
@@ -542,6 +547,53 @@ const _OCT_RGB = {
     6: [187, 102, 255],   // violeta (Do6 - agudos)
 };
 
+/**
+ * Paleta heat map de alto contraste: azul → verde → naranja → rojo
+ * En modo heat ignoramos el brillo de velocity para que las notas
+ * comprimidas (velocity baja) no queden todas oscuras.
+ * heat=0.0 → azul oscuro   rgb(15, 30, 120)  — nota subordinada
+ * heat=0.3 → cian-verde     rgb(10, 130, 140)
+ * heat=0.6 → verde-amarillo rgb(60, 200, 50)
+ * heat=0.8 → naranja        rgb(255, 140, 0)
+ * heat=1.0 → rojo brillante rgb(255, 30, 0)  — nota dominante
+ */
+function _heatColor(heat, or, og, ob, bright) {
+    // Paleta de 5 puntos de control (cold → hot)
+    const stops = [
+        [15,  30, 120],   // 0.0 azul
+        [10, 130, 140],   // 0.25 cian
+        [60, 200,  50],   // 0.5  verde
+        [255, 140,  0],   // 0.75 naranja
+        [255,  30,  0],   // 1.0  rojo
+    ];
+    const t = Math.max(0, Math.min(1, heat));
+    const seg = t * (stops.length - 1);
+    const lo  = Math.floor(seg);
+    const hi  = Math.min(lo + 1, stops.length - 1);
+    const f   = seg - lo;
+    return [
+        Math.round(stops[lo][0] + (stops[hi][0] - stops[lo][0]) * f),
+        Math.round(stops[lo][1] + (stops[hi][1] - stops[lo][1]) * f),
+        Math.round(stops[lo][2] + (stops[hi][2] - stops[lo][2]) * f),
+    ];
+}
+
+/**
+ * Dibuja un marcador de calor (punto brillante) sobre una nota dominante
+ */
+function _drawHeatSymbol(ctx, x, y, w, h, heat) {
+    ctx.save();
+    // Punto blanco-amarillento, tamaño proporcional al heat
+    const r = Math.min(3, Math.max(1.5, heat * 4));
+    const cx = x + r + 2;   // Posición en extremo izquierdo de la nota
+    const cy = y + h / 2;   // Centrado verticalmente
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 200, ${0.5 + heat * 0.5})`;
+    ctx.fill();
+    ctx.restore();
+}
+
 function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
     for (const [key, cell] of Object.entries(gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
@@ -573,7 +625,16 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
             ctx.fillStyle   = `rgb(${hr},${hg},${hb})`;
             ctx.strokeStyle = 'gold';
             ctx.lineWidth   = 2;
+        } else if (heatMapActive && heatMapData) {
+            // Modo heat map: interpolar frío-caliente según score de dominancia
+            const heat       = heatMapData.get(key) ?? 0.5;
+            const [fr, fg, fb] = _heatColor(heat, or, og, ob, bright);
+            ctx.fillStyle    = `rgb(${fr},${fg},${fb})`;
+            // Borde más grueso y coloreado para notas muy calientes
+            ctx.strokeStyle  = heat > 0.75 ? 'rgba(255,60,0,0.9)' : 'rgba(0,0,0,0.35)';
+            ctx.lineWidth    = heat > 0.75 ? 1.5 : 0.5;
         } else {
+            // Modo normal: color por octava + brillo por velocity
             const r = Math.round(or * bright);
             const g = Math.round(og * bright);
             const b = Math.round(ob * bright);
@@ -584,6 +645,12 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
 
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
+
+        // Dibuja símbolo de calor sobre notas muy dominantes
+        if (heatMapActive && heatMapData && w >= 8) {
+            const heat = heatMapData.get(key) ?? 0;
+            if (heat > 0.80) _drawHeatSymbol(ctx, x, y, w, h, heat);
+        }
     }
     ctx.lineWidth = 0.5;
 }

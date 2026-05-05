@@ -34,22 +34,28 @@ function _midiNote(noteName, octave) {
     return (octave + 1) * 12 + semi;
 }
 
+// console.log(buildFullSequence(MOTOR_MAP)) <- para ver los comandos de los esp a los motores
+
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
 // Estructura de cada entrada: { note, name, motor, homePwm }
 // Editar aquí o en tiempo real desde motorMapUI().
 let MOTOR_MAP = [
-  { note: _midiNote('C',   4), name: 'C',  motor: 0,  homePwm: 375 },
-  { note: _midiNote('C#',  4), name: 'C#', motor: 10, homePwm: 375 },
-  { note: _midiNote('D',   4), name: 'D',  motor: 1,  homePwm: 375 },
-  { note: _midiNote('D#',  4), name: 'D#', motor: 11, homePwm: 375 },
-  { note: _midiNote('E',   4), name: 'E',  motor: 2,  homePwm: 375 },
-  { note: _midiNote('F',   4), name: 'F',  motor: 3,  homePwm: 375 },
-  { note: _midiNote('F#',  4), name: 'F#', motor: 7,  homePwm: 375 },
-  { note: _midiNote('G',   4), name: 'G',  motor: 4,  homePwm: 375 },
-  { note: _midiNote('G#',  4), name: 'G#', motor: 8,  homePwm: 375 },
-  { note: _midiNote('A',   4), name: 'A',  motor: 5,  homePwm: 375 },
-  { note: _midiNote('A#',  4), name: 'A#', motor: 9,  homePwm: 375 },
-  { note: _midiNote('B',   4), name: 'B',  motor: 6,  homePwm: 375 },
+  { note: _midiNote('A',   2), name: 'A',  motor: 12, homePwm: 375, muted: false },
+  { note: _midiNote('B',   2), name: 'B',  motor: 13, homePwm: 375, muted: false },
+  { note: _midiNote('C',   3), name: 'C',  motor: 0,  homePwm: 375, muted: false },
+  { note: _midiNote('C#',  3), name: 'C#', motor: 10, homePwm: 375, muted: false },
+  { note: _midiNote('D',   3), name: 'D',  motor: 1,  homePwm: 375, muted: false },
+  { note: _midiNote('D#',  3), name: 'D#', motor: 11, homePwm: 375, muted: false },
+  { note: _midiNote('E',   3), name: 'E',  motor: 2,  homePwm: 375, muted: false },
+  { note: _midiNote('F',   3), name: 'F',  motor: 3,  homePwm: 375, muted: false },
+  { note: _midiNote('F#',  3), name: 'F#', motor: 7,  homePwm: 375, muted: false },
+  { note: _midiNote('G',   3), name: 'G',  motor: 4,  homePwm: 375, muted: false },
+  { note: _midiNote('G#',  3), name: 'G#', motor: 8,  homePwm: 375, muted: false },
+  { note: _midiNote('A',   3), name: 'A',  motor: 5,  homePwm: 375, muted: false },
+  { note: _midiNote('A#',  3), name: 'A#', motor: 9,  homePwm: 375, muted: false },
+  { note: _midiNote('B',   3), name: 'B',  motor: 6,  homePwm: 375, muted: false },
+  { note: _midiNote('C',   4), name: 'C',  motor: 14, homePwm: 375, muted: false },
+  { note: _midiNote('D',   4), name: 'D',  motor: 15, homePwm: 375, muted: false },
 ];
 
 // ── Persistencia en localStorage ─────────────────────────────
@@ -68,6 +74,7 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
             if (!entry) return;
             if (saved.motor   !== undefined) entry.motor   = saved.motor;
             if (saved.homePwm !== undefined) entry.homePwm = saved.homePwm;
+            if (saved.muted   !== undefined) entry.muted   = saved.muted;
         });
         console.log('[motor-map] Configuración restaurada desde localStorage');
     } catch(e) {
@@ -114,6 +121,7 @@ function motorMapImport() {
                     if (!entry) return;
                     if (saved.motor    !== undefined) entry.motor    = saved.motor;
                     if (saved.homePwm  !== undefined) entry.homePwm  = saved.homePwm;
+                    if (saved.muted    !== undefined) entry.muted    = saved.muted;
                 });
                 _mmSaveToStorage();
                 _renderMotorMapRows();
@@ -206,6 +214,7 @@ function motorMapUI() {
                 <th style="padding:4px 6px;text-align:left;">Motor</th>
                 <th style="padding:4px 6px;text-align:left;">HomePWM</th>
                 <th style="padding:4px 6px;text-align:left;">PCA/ch</th>
+                <th style="padding:4px 6px;text-align:center;" title="Silenciar motor y nota">Mute</th>
             </tr>
         </thead>
         <tbody id="motorMapTbody"></tbody>`;
@@ -245,12 +254,19 @@ function _renderMotorMapRows() {
         const pca = Math.floor(m.motor / 16);
         const ch  = m.motor % 16;
 
+        tr.style.opacity = m.muted ? '0.4' : '1';
         tr.innerHTML = `
             <td style="padding:3px 6px;color:#aaaadd;">${m.note}</td>
             <td style="padding:3px 6px;font-weight:bold;color:#ddeeff;">${m.name}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'motor',   m.motor,   0, 127)}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'homePwm', m.homePwm, 150, 600)}</td>
-            <td style="padding:3px 6px;color:#666;font-size:11px;">PCA${pca}/ch${ch}</td>`;
+            <td style="padding:3px 6px;color:#666;font-size:11px;">PCA${pca}/ch${ch}</td>
+            <td style="padding:3px 6px;text-align:center;">
+                <input type="checkbox" ${m.muted ? 'checked' : ''}
+                    title="Silenciar este motor y nota"
+                    onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapRows();_renderMotorMapPanelRows();"
+                    onclick="event.stopPropagation();">
+            </td>`;
         tbody.appendChild(tr);
     });
 }
@@ -448,6 +464,8 @@ function _renderMotorMapPanelRows() {
 
     const summary = document.getElementById('motorMapSummary');
     if (summary) summary.textContent = `${MOTOR_MAP.length} motores mapeados`;
+    const summaryBar = document.getElementById('motorMapSummaryBar');
+    if (summaryBar) summaryBar.textContent = `${MOTOR_MAP.length} motores mapeados`;
 
     tbody.innerHTML = '';
     MOTOR_MAP.forEach((m, i) => {
@@ -477,6 +495,7 @@ function _renderMotorMapPanelRows() {
             _mmHighlightKey(m.note, false);
         });
 
+        tr.style.opacity = m.muted ? '0.4' : '1';
         tr.innerHTML = `
             <td style="color:${col.text};font-size:11px;">${m.note}</td>
             <td style="font-weight:bold;color:${col.text};">${m.name}</td>
@@ -486,7 +505,13 @@ function _renderMotorMapPanelRows() {
             <td><input class="mm-input" type="number" value="${m.homePwm}" min="150" max="600"
                 onchange="MOTOR_MAP[${i}].homePwm=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
-            <td style="color:${col.border};font-size:10px;">PCA${pca}/ch${ch}</td>`;
+            <td style="color:${col.border};font-size:10px;">PCA${pca}/ch${ch}</td>
+            <td style="text-align:center;">
+                <input type="checkbox" ${m.muted ? 'checked' : ''}
+                    title="Silenciar este motor y nota"
+                    onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapPanelRows();_renderMotorMapRows();"
+                    onclick="event.stopPropagation();">
+            </td>`;
         tbody.appendChild(tr);
     });
 

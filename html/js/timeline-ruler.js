@@ -139,6 +139,20 @@ function drawTimelineRuler() {
     if (typeof loopA !== 'undefined' && loopA >= 0) _drawMarker(loopA, '#ffaa00', 'A');
     if (typeof loopB !== 'undefined' && loopB >= 0) _drawMarker(loopB, '#44ddaa', 'B');
 
+    // ── Línea de preview durante drag de marcador ──────────────
+    if (typeof _abDragPreviewStep !== 'undefined' && _abDragPreviewStep >= 0) {
+        const xP = _abDragPreviewStep * stepWidth;
+        rc.save();
+        rc.strokeStyle = '#ffff00';
+        rc.lineWidth   = 2;
+        rc.setLineDash([4, 3]);
+        rc.beginPath();
+        rc.moveTo(xP + 0.5, 0);
+        rc.lineTo(xP + 0.5, RULER_H);
+        rc.stroke();
+        rc.restore();
+    }
+
     // Sincronizar playhead con posición actual
     updateRulerPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
 }
@@ -148,29 +162,96 @@ function drawTimelineRuler() {
  * Llamar una sola vez tras crear el canvas (al cargar la página).
  */
 // _abNextClick: 'A' → siguiente click pone loopA; 'B' → pone loopB
-let _abNextClick = 'A';
+let _abNextClick      = 'A';
+let _abDragging       = null;   // 'A' | 'B' | null — marcador que se está arrastrando
+let _abDragPreviewStep = -1;    // paso de la línea de preview amarilla
+let _abDragMoved      = false;  // true si hubo movimiento real durante el drag
+
+function _rulerStepFromEvent(e, area) {
+    const rect = area.getBoundingClientRect();
+    const x    = e.clientX - rect.left + area.scrollLeft;
+    return { x, step: Math.max(0, Math.min(totalSteps - 1, Math.floor(x / stepWidth))) };
+}
 
 function initRulerSeek() {
     const area = document.getElementById('rulerScrollArea');
     if (!area) return;
 
-    area.addEventListener('click', function (e) {
+    // ── Mousemove: hover cursor + preview de drag ─────────────
+    area.addEventListener('mousemove', function (e) {
         if (!totalSteps || !stepWidth) return;
-        const rect = area.getBoundingClientRect();
-        const x    = e.clientX - rect.left + area.scrollLeft;
-        const step = Math.max(0, Math.min(totalSteps - 1, Math.floor(x / stepWidth)));
+        const { x, step } = _rulerStepFromEvent(e, area);
+
+        if (_abDragging) {
+            _abDragPreviewStep = step;
+            _abDragMoved       = true;
+            _updateAbDragLine(x);
+            drawTimelineRuler();
+            return;
+        }
+
+        // Cambiar cursor si se está sobre un marcador A o B
+        if (loopAB) {
+            const HIT = Math.max(8, stepWidth * 0.4);
+            const nearA = loopA >= 0 && Math.abs(x - loopA * stepWidth) <= HIT;
+            const nearB = loopB >= 0 && Math.abs(x - loopB * stepWidth) <= HIT;
+            area.style.cursor = (nearA || nearB) ? 'pointer' : 'default';
+        } else {
+            area.style.cursor = 'default';
+        }
+    });
+
+    // ── Mousedown: iniciar drag de marcador ──────────────────
+    area.addEventListener('mousedown', function (e) {
+        if (!loopAB || !totalSteps || !stepWidth) return;
+        const { x } = _rulerStepFromEvent(e, area);
+        const HIT   = Math.max(8, stepWidth * 0.4);
+
+        const nearA = loopA >= 0 && Math.abs(x - loopA * stepWidth) <= HIT;
+        const nearB = loopB >= 0 && Math.abs(x - loopB * stepWidth) <= HIT;
+
+        if (nearA || nearB) {
+            _abDragging        = nearB ? 'B' : 'A';  // B tiene prioridad si coinciden
+            _abDragPreviewStep = nearB ? loopB : loopA;
+            _abDragMoved       = false;
+            e.preventDefault();
+        }
+    });
+
+    // ── Mouseup en document: soltar marcador ─────────────────
+    document.addEventListener('mouseup', function (e) {
+        if (!_abDragging) return;
+        const { step } = _rulerStepFromEvent(e, area);
+
+        if (_abDragging === 'A') {
+            loopA = step;
+            if (loopB >= 0 && loopB <= loopA) loopB = -1;
+        } else {
+            loopB = step > loopA ? step : -1;
+        }
+
+        _abDragging        = null;
+        _abDragPreviewStep = -1;
+        _hideAbDragLine();
+        drawTimelineRuler();
+        _updateAbBtn();
+    });
+
+    // ── Click: colocar A/B o hacer seek ──────────────────────
+    area.addEventListener('click', function (e) {
+        if (_abDragMoved) { _abDragMoved = false; return; }   // ignorar si fue drag
+        if (!totalSteps || !stepWidth) return;
+        const { step } = _rulerStepFromEvent(e, area);
 
         if (typeof loopAB !== 'undefined' && loopAB) {
-            // Modo A-B: primer click → A, segundo → B, tercero → resetea A, etc.
             if (_abNextClick === 'A') {
-                loopA       = step;
-                loopB       = -1;   // limpiar B anterior
+                loopA        = step;
+                loopB        = -1;
                 _abNextClick = 'B';
             } else {
                 if (step > loopA) {
                     loopB = step;
                 } else {
-                    // Click antes de A → recolocar A aquí
                     loopA = step;
                     loopB = -1;
                 }
@@ -179,12 +260,31 @@ function initRulerSeek() {
             drawTimelineRuler();
             _updateAbBtn();
         } else {
-            // Modo normal: seek
             if (typeof seekToStep === 'function') seekToStep(step);
         }
     });
 
     area.style.cursor = 'pointer';
+}
+
+function _updateAbDragLine(clientX) {
+    const line = document.getElementById('abDragLine');
+    if (!line || !stepWidth) return;
+    // clientX es la posición relativa al rulerScrollArea; el gridScroll tiene el mismo scroll
+    const gridScroll = document.getElementById('gridScroll');
+    const rulerArea  = document.getElementById('rulerScrollArea');
+    if (!gridScroll || !rulerArea) return;
+    // Posición relativa al contenido del grid (no al viewport)
+    const scrollOffset = rulerArea.scrollLeft;
+    const rulerRect    = rulerArea.getBoundingClientRect();
+    const xInContent   = clientX - rulerRect.left + scrollOffset;
+    line.style.left    = (xInContent - 1) + 'px';
+    line.style.display = 'block';
+}
+
+function _hideAbDragLine() {
+    const line = document.getElementById('abDragLine');
+    if (line) line.style.display = 'none';
 }
 
 function _updateAbBtn() {
@@ -200,6 +300,7 @@ function _updateAbBtn() {
         btn.classList.remove('btn-active');
         btn.textContent = 'A→B';
     }
+    if (typeof _updateFragmentButtons === 'function') _updateFragmentButtons();
 }
 
 function toggleLoopAB() {

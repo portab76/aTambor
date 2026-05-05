@@ -7,6 +7,7 @@
 //   sendCommand(cmd)         — enviar string (WS o HTTP fallback)
 //   sendStop()               — parada inmediata por WS + HTTP
 //   onBeatCallback           — asignar función para sincronizar playhead
+//   onStoppedCallback        — asignar función para manejar fin de secuencia ESP32
 //
 // Variables globales exportadas:
 //   wsConnected, ESP32_IP
@@ -20,6 +21,10 @@ let wsConnected = false;
 // Callback registrado externamente para recibir beats del firmware
 // Uso: onBeatCallback = (stepIndex) => { ... }
 let onBeatCallback = null;
+
+// Callback disparado cuando el ESP32 informa que terminó de reproducir
+// Uso: onStoppedCallback = () => { ... }
+let onStoppedCallback = null;
 
 // ── D2 — initWebSocket ─────────────────────────────────────────
 function initWebSocket() {
@@ -83,6 +88,7 @@ function initWebSocket() {
 
         if (data.state === 'stopped') {
             console.log('[ESP32] Detenido');
+            if (typeof onStoppedCallback === 'function') onStoppedCallback();
             return;
         }
     };
@@ -92,6 +98,11 @@ function initWebSocket() {
 // Envía un comando al ESP32.
 // Si WebSocket está conectado lo usa; si no, cae en HTTP GET.
 function sendCommand(cmd) {
+    const preview = cmd.length > 120
+        ? cmd.slice(0, 120).replace(/\n/g, '↵') + `… [${cmd.length}B]`
+        : cmd.replace(/\n/g, '↵');
+    console.log(`%c[ESP32 →] ${preview}`, 'color:#44aaff;font-family:monospace;font-size:10px;');
+
     if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(cmd);
     } else {

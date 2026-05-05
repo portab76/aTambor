@@ -55,3 +55,14 @@ let currentPhraseSegments   = [];  // frases detectadas por cadencias (vista de 
 let fusionStepsPerUnit      = 4;   // pasos por unidad de fusión: 4=negra, 8=blanca, 16=compás
 let currentKey = "C";              // Tonalidad detectada como string, ej. "C", "Am"
 let currentMidiFileName = '';      // Nombre del archivo MIDI cargado
+
+// --- Clipboard de fragmento A-B ---
+let _clipboardFragment = null;  // { length, cells: [{relStep, note, duration, velocity}] }
+
+// --- Heat map (notas de calor, Motor de Atención) ---
+let heatMapActive = false;   // true = modo calor activo desde toolbar
+let heatMapData   = null;    // Map "note,step" → heatScore [0,1] | null = sin calcular
+
+// --- Auto-advance (APPEND predictivo compás a compás) ---
+let autoAdvanceActive   = false; // true = encadenado automático de segmentos via APPEND
+let _batchStartSegIdx   = -1;    // índice del primer segmento del lote activo

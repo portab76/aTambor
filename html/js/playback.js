@@ -8,12 +8,111 @@ let _playInterval    = null;   // handle del setInterval
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
 let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
 
+let _esp32LastLoadedChordIndex = -1;  // índice del último acorde enviado al ESP32
+let _esp32LastLoadedStep       = 0;   // paso hasta el que está cargado el ESP32
+let _appendSentAt              = null; // performance.now() del último APPEND enviado
+let _appendSentStep            = 0;   // paso de cierre de ese APPEND (para RTT)
+
 /** ms por semicorchea, leyendo el BPM del input de la toolbar (o del MIDI si no existe). */
 const MS_PER_STEP = () => {
     const el  = document.getElementById('bpmInput');
     const bpm = el ? (parseFloat(el.value) || 120) : (tempoMap[0]?.bpm || 120);
     return (60000 / bpm) / 4;
 };
+
+// ── Helpers de streaming ──────────────────────────────────────────────────────
+
+/** Devuelve el índice del segmento de acorde que contiene el paso dado. */
+function _chordIndexAtStep(step) {
+    const segs = _activeSegments();
+    for (let i = 0; i < segs.length; i++) {
+        if (step >= segs[i].startStep && step < segs[i].endStep) return i;
+    }
+    return Math.max(0, segs.length - 1);
+}
+
+/** Construye y envía APPEND para el acorde chordIndex. */
+function _appendChordToEsp32(chordIndex) {
+    if (!wsConnected) return;
+    const segs = _activeSegments();
+    if (chordIndex < 0 || chordIndex >= segs.length) return;
+
+    const chord = segs[chordIndex];
+    let seq = buildRangeSequence(MOTOR_MAP, chord.startStep, chord.endStep);
+
+    if (!seq) {
+        // Sin notas mapeadas en este acorde: enviar keep-alive de silencio para
+        // extender g_tiempoMaximo en el firmware y que no salga del event loop.
+        const chordMs = Math.round((chord.endStep - chord.startStep) * MS_PER_STEP());
+        const m = MOTOR_MAP && MOTOR_MAP.find(e => !e.muted) || (MOTOR_MAP && MOTOR_MAP[0]);
+        if (m && chordMs > 0) {
+            seq = `m ${m.motor}; o ${m.homePwm};\nt ${chordMs}; v 0;\n`;
+            console.log(`[streaming] APPEND acorde ${chordIndex + 1}/${segs.length} ` +
+                        `(keep-alive ${chordMs}ms, sin notas)`);
+        } else {
+            // Sin motores: solo avanzar puntero
+            _esp32LastLoadedChordIndex = chordIndex;
+            _esp32LastLoadedStep       = chord.endStep;
+            return;
+        }
+    } else {
+        // Quitar p; final — la reproducción ya está en curso
+        seq = seq.endsWith('p;\n') ? seq.slice(0, -3) : seq;
+        if (!seq.trim()) {
+            _esp32LastLoadedChordIndex = chordIndex;
+            _esp32LastLoadedStep       = chord.endStep;
+            return;
+        }
+        console.log(`[streaming] APPEND acorde ${chordIndex + 1}/${segs.length} ` +
+                    `[${chord.startStep}–${chord.endStep}) · ${seq.length}B`);
+    }
+
+    _appendSentAt              = performance.now();
+    _appendSentStep            = chord.endStep;
+    _esp32LastLoadedStep       = chord.endStep;
+    _esp32LastLoadedChordIndex = chordIndex;
+
+    sendCommand('APPEND\n' + seq);
+}
+
+/**
+ * Envía el bloque inicial de secuencia al ESP32 como comando PLAY.
+ * Maneja el partido en bloques ≤8KB y el p; final.
+ */
+function _sendPlayCommand(seq) {
+    const stepMs = MS_PER_STEP();
+    let seqBody = seq;
+    let hasPlayCmd = false;
+    if (seqBody.endsWith('p;\n')) {
+        seqBody    = seqBody.slice(0, -3);
+        hasPlayCmd = true;
+    }
+
+    const blocks  = validateSequenceSize(seqBody);
+    const fullCmd = `PLAY|midiGrid|${Math.round(stepMs)}\n` + blocks[0];
+    console.log(`[play] Enviando PLAY: ${seq.length}B → ${blocks.length} bloque(s) ≤8KB`);
+    sendCommand(fullCmd);
+
+    let lastDelay = 0;
+    for (let i = 1; i < blocks.length; i++) {
+        lastDelay = i * 200;
+        const block = blocks[i];
+        _pendingTimers.push(setTimeout(() => {
+            console.log(`[play] APPEND bloque ${i + 1}/${blocks.length} (${block.length}B)`);
+            sendCommand('APPEND\n' + block);
+        }, lastDelay));
+    }
+
+    if (hasPlayCmd) {
+        const playDelay = blocks.length > 1 ? lastDelay + 300 : 50;
+        _pendingTimers.push(setTimeout(() => {
+            console.log('[play] Enviando p; para ejecutar la secuencia');
+            sendCommand('p;');
+        }, playDelay));
+    }
+}
+
+// ── play() ───────────────────────────────────────────────────────────────────
 
 /**
  * Inicia la reproducción desde pasoActual.
@@ -31,61 +130,30 @@ function play() {
         return;
     }
 
-    const stepMs = MS_PER_STEP();
-
-    // Si A-B está activo y hay rango, fijar pasoActual ANTES de construir la secuencia
+    // Si A-B está activo y A está marcado, arrancar desde loopA
     const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
-    if (abActive) pasoActual = loopA;
+    if ((typeof loopAB !== 'undefined') && loopAB && loopA >= 0) pasoActual = loopA;
 
-    // ── G1: enviar secuencia al ESP32 ─────────────────────────
+    // ── G1: enviar secuencia completa al ESP32 ────────────────────────────────
     console.log(`[play] wsConnected=${wsConnected}, ws.readyState=${ws ? ws.readyState : 'null'}`);
     if (typeof wsConnected !== 'undefined' && wsConnected) {
         const seq = abActive
-            ? buildRangeSequence(MOTOR_MAP, loopA, loopB)     // solo el rango A-B
+            ? buildRangeSequence(MOTOR_MAP, loopA, loopB)
             : pasoActual > 0
                 ? buildRemainingSequence(MOTOR_MAP, pasoActual)
                 : buildFullSequence(MOTOR_MAP);
+
+        console.log(`[seq] ${abActive ? `A-B [${loopA},${loopB})` : pasoActual > 0 ? `desde paso ${pasoActual}` : 'full'} · ${seq?.length ?? 0}B`);
+
         if (!seq) {
-            console.warn('[play] No hay notas mapeadas a motores — se omite comando PLAY al ESP32');
+            console.warn('[play] Sin notas mapeadas a motores — se omite PLAY al ESP32');
         } else {
-            // Extraer p; del final para enviarlo como comando FINAL después de todos los APPENDs
-            let seqBody = seq;
-            let hasPlayCmd = false;
-            if (seqBody.endsWith('p;\n')) {
-                seqBody = seqBody.slice(0, -3); // remover 'p;\n'
-                hasPlayCmd = true;
-            }
-
-            const blocks = validateSequenceSize(seqBody);
-
-            const fullCmd = `PLAY|midiGrid|${Math.round(stepMs)}\n` + blocks[0];
-            console.log(`[play] Enviando PLAY: seq=${seq.length}B → ${blocks.length} bloque(s) de ≤8KB (sin p; aún)`);
-            sendCommand(fullCmd);
-
-            // Bloques adicionales: APPEND con 200ms de separación entre cada uno
-            let lastDelay = 0;
-            for (let i = 1; i < blocks.length; i++) {
-                lastDelay = i * 200;
-                const block = blocks[i];
-                _pendingTimers.push(setTimeout(() => {
-                    console.log(`[play] APPEND bloque ${i + 1}/${blocks.length} (${block.length}B)`);
-                    sendCommand('APPEND\n' + block);
-                }, lastDelay));
-            }
-
-            // Comando PLAY final (p;) después de que todos los APPENDs hayan sido encolados
-            if (hasPlayCmd) {
-                const playDelay = (blocks.length > 1 ? lastDelay + 300 : 50);
-                _pendingTimers.push(setTimeout(() => {
-                    console.log('[play] Enviando p; para ejecutar la secuencia completa');
-                    sendCommand('p;');
-                }, playDelay));
-            }
+            _sendPlayCommand(seq);
         }
     }
 
-    // ── G1: arrancar audio con offset de 20ms ─────────────────
-    _playStartOffset = pasoActual;   // pasoActual ya apunta a loopA si A-B activo
+    // ── G1: arrancar audio con offset de 20ms ─────────────────────────────────
+    _playStartOffset = pasoActual;
     _pendingTimers.push(setTimeout(_startPlaybackLoop, 20));
 }
 
@@ -97,6 +165,8 @@ function _startPlaybackLoop() {
     statusSpan.innerText = "Reproduciendo...";
     _playInterval = setInterval(_tick, MS_PER_STEP());
 }
+
+// ── pause() ──────────────────────────────────────────────────────────────────
 
 /**
  * Pausa la reproducción conservando la posición.
@@ -112,12 +182,15 @@ function pause() {
     statusSpan.innerText = "Pausado.";
 }
 
+// ── stop() ───────────────────────────────────────────────────────────────────
+
 /**
  * Detiene la reproducción y vuelve al inicio.
  * G2: limpia el interval de audio y envía STOP al ESP32.
  */
 function stop() {
-    reproduciendo = false;
+    reproduciendo     = false;
+    autoAdvanceActive = false;
     clearInterval(_playInterval);
     _playInterval = null;
     _pendingTimers.forEach(clearTimeout);
@@ -129,6 +202,13 @@ function stop() {
     updateRulerPlayhead(-1);
     _clearChordHighlight();
     statusSpan.innerText = "Detenido.";
+
+    // Limpiar estado de streaming
+    _esp32LastLoadedChordIndex = -1;
+    _esp32LastLoadedStep       = 0;
+    _appendSentAt              = null;
+    const bufferEl = document.getElementById('streamingBuffer');
+    if (bufferEl) { bufferEl.style.display = 'none'; bufferEl.textContent = ''; }
 
     // G2: parar el ESP32
     if (typeof sendStop === 'function') sendStop();
@@ -143,6 +223,8 @@ function _clearChordHighlight() {
         _lastHighlightedBlock = null;
     }
 }
+
+// ── seekToStep() ─────────────────────────────────────────────────────────────
 
 /**
  * Salta a un paso concreto (seek desde la regla de compases).
@@ -166,27 +248,30 @@ function seekToStep(step) {
     updateRulerPlayhead(target);
     _clearChordHighlight();
 
+    if (typeof _selectChordAtStep === 'function') _selectChordAtStep(target);
+
     if (wasPlaying) play();
 }
 
-// --- Tick interno ---
-let _tickCount = 0;  // para limitar logs
+// ── _tick() ──────────────────────────────────────────────────────────────────
+
+let _tickCount = 0;
 
 function _tick() {
     // ── A-B loop tiene prioridad sobre loop normal ────────────
     const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+
+    // ── Fin de segmento ───────────────────────────────────────
     if (abActive && pasoActual >= loopB) {
-        // Segmento A→B: reproducir una vez y parar
+        if (autoAdvanceActive) {
+            _startNextBatch();
+            return;
+        }
         stop();
         return;
     } else if (pasoActual >= totalSteps) {
-        if (abActive) {
-            stop();
-            return;
-        } else {
-            stop();
-            return;
-        }
+        stop();
+        return;
     }
 
     // Reproducir notas que comienzan exactamente en este paso
@@ -197,26 +282,25 @@ function _tick() {
 
         const note       = parseInt(noteStr);
         const velocity   = cell.velocity;
-        const delayOff   = (cell.duration * MS_PER_STEP()) / 1000; // segundos
+        const delayOff   = (cell.duration * MS_PER_STEP()) / 1000;
 
         const motorOnly = document.getElementById('motorOnlyCheckbox')?.checked;
         if (motorOnly && !motorForNote(note)) continue;
+        if (motorForNote(note)?.muted) continue;
 
         notasEnEstePaso++;
         if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {
-            // MIDI.js carga el soundfont en canal 0; usamos siempre 0 para audio
             MIDI.noteOn( 0, note, velocity, 0);
             MIDI.noteOff(0, note, delayOff);
         }
     }
 
-    // Log de los primeros ticks para diagnóstico
     if (_tickCount < 5) {
-        console.log(`[tick ${pasoActual}] notas: ${notasEnEstePaso} | MIDI disponible: ${typeof MIDI !== 'undefined'}`);
+        console.log(`[tick ${pasoActual}] notas: ${notasEnEstePaso} | MIDI: ${typeof MIDI !== 'undefined'}`);
         _tickCount++;
     }
 
-    if (activeHighlight && document.getElementById('chordInfoPopup')) {
+    if (activeHighlight && document.getElementById('chordPanel')?.classList.contains('open')) {
         drawPianoRollWithHighlightAndPlayhead(
             activeHighlight.classes,
             activeHighlight.startStep,
@@ -229,17 +313,18 @@ function _tick() {
     updateRulerPlayhead(pasoActual);
     _autoScroll(pasoActual);
     _highlightCurrentChord(pasoActual);
+    if (typeof _updateChordPanelFromPlayback === 'function') _updateChordPanelFromPlayback();
     pasoActual++;
 }
 
-// --- Resaltado del acorde activo en el chord row ---
+// ── Resaltado del acorde activo en el chord row ───────────────────────────────
+
 let _lastHighlightedBlock = null;
 
 function _highlightCurrentChord(paso) {
     const container = document.getElementById('chordRowContainer');
     if (!container) return;
 
-    // Buscar el bloque que contiene el paso actual
     const blocks = container.querySelectorAll('div[data-start]');
     let found = null;
     for (const b of blocks) {
@@ -248,16 +333,14 @@ function _highlightCurrentChord(paso) {
             break;
         }
     }
-    if (found === _lastHighlightedBlock) return; // sin cambio
+    if (found === _lastHighlightedBlock) return;
 
-    // Quitar resaltado anterior
     if (_lastHighlightedBlock) {
         _lastHighlightedBlock.style.outline    = '';
         _lastHighlightedBlock.style.boxShadow  = '';
         _lastHighlightedBlock.style.zIndex     = '';
         _lastHighlightedBlock.style.fontWeight = '';
     }
-    // Aplicar resaltado nuevo
     if (found) {
         found.style.outline    = '2px solid #ffcc00';
         found.style.boxShadow  = '0 0 6px #ffcc0088';
@@ -267,35 +350,27 @@ function _highlightCurrentChord(paso) {
     _lastHighlightedBlock = found;
 }
 
-// ── G3: callback de beat del ESP32 ───────────────────────────
+// ── G3: callback de beat del ESP32 ───────────────────────────────────────────
 // El firmware emite {"state":"beat","step":N} cada stepMs.
-// Usamos esto para corregir la deriva entre el setInterval del
-// browser (impreciso) y el millis() del ESP32 (fuente de verdad).
-//
-// Tolerancia: si la diferencia es > 2 pasos se corrige pasoActual;
-// si es ≤ 2 pasos se deja que el audio fluya suavemente para evitar
-// saltos audibles.
+// Corrige la deriva visual entre setInterval del browser y millis() del ESP32.
 const _BEAT_DRIFT_TOLERANCE = 2;
 
 onBeatCallback = function(stepFromEsp32) {
     if (!reproduciendo) return;
 
-    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
-
-    // El ESP32 siempre envía pasos desde 0; ajustamos con el offset de arranque
     const adjustedStep = stepFromEsp32 + _playStartOffset;
-
-    const drift = adjustedStep - pasoActual;
+    const drift        = adjustedStep - pasoActual;
 
     if (Math.abs(drift) > _BEAT_DRIFT_TOLERANCE) {
-        console.log(`[beat] Corrección de deriva: pasoActual ${pasoActual} → ${adjustedStep} (drift=${drift})`);
+        console.log(`[beat] Deriva: pasoActual ${pasoActual} → ${adjustedStep} (drift=${drift})`);
         pasoActual = adjustedStep;
         drawPianoRollWithPlayhead(pasoActual);
         _autoScroll(pasoActual);
     }
 };
 
-// --- Autoscroll: mantiene el playhead centrado horizontalmente ---
+// ── Autoscroll ────────────────────────────────────────────────────────────────
+
 function _autoScroll(paso) {
     const container = document.getElementById('gridScroll');
     if (!container) return;
@@ -304,17 +379,13 @@ function _autoScroll(paso) {
     const visibleWidth = container.clientWidth;
     const scrollLeft   = container.scrollLeft;
 
-    // Margen: mantener el playhead al 30% del lado izquierdo del área visible
     const margenIzq = visibleWidth * 0.30;
     const margenDer = visibleWidth * 0.70;
-
-    const relX = playheadX - scrollLeft;
+    const relX      = playheadX - scrollLeft;
 
     if (relX > margenDer) {
-        // Playhead saliendo por la derecha → adelantar vista
         container.scrollLeft = playheadX - margenIzq;
     } else if (relX < margenIzq && scrollLeft > 0) {
-        // Playhead saliendo por la izquierda (loop) → resetear vista
         container.scrollLeft = Math.max(0, playheadX - margenIzq);
     }
 }
