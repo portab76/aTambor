@@ -18,6 +18,10 @@ let ESP32_IP    = '192.168.1.128';
 let ws          = null;
 let wsConnected = false;
 
+// Variables compartidas con serial-connector.js — se rellenan por ese módulo
+let _serialActive = false;
+let _serialWriter = null;
+
 // Callback registrado externamente para recibir beats del firmware
 // Uso: onBeatCallback = (stepIndex) => { ... }
 let onBeatCallback = null;
@@ -28,6 +32,7 @@ let onStoppedCallback = null;
 
 // ── D2 — initWebSocket ─────────────────────────────────────────
 function initWebSocket() {
+    if (_serialActive) return;   // serial tiene prioridad; no competir con wsConnected
     console.log('[WS] initWebSocket() llamado desde:', new Error().stack.split('\n')[2]?.trim());
     const ip = document.getElementById('esp32IpInput')?.value.trim() || ESP32_IP;
     ESP32_IP = ip;
@@ -54,18 +59,17 @@ function initWebSocket() {
     };
 
     ws.onclose = () => {
-        wsConnected = false;
-        _setWsStatus('disconnected');
         console.log('[WS] Desconectado');
-        // Reconexión automática tras 5 s
-        setTimeout(() => {
-            if (!wsConnected) initWebSocket();
-        }, 5000);
+        if (!_serialActive) {
+            wsConnected = false;
+            _setWsStatus('disconnected');
+            setTimeout(() => { if (!wsConnected && !_serialActive) initWebSocket(); }, 5000);
+        }
     };
 
     ws.onerror = (e) => {
         console.error('[WS] Error:', e);
-        _setWsStatus('disconnected');
+        if (!_serialActive) _setWsStatus('disconnected');
     };
 
     // ── D5 — onMessage: parsear beats y estados del firmware ──
@@ -95,32 +99,47 @@ function initWebSocket() {
 }
 
 // ── D3 — sendCommand ──────────────────────────────────────────
-// Envía un comando al ESP32.
-// Si WebSocket está conectado lo usa; si no, cae en HTTP GET.
+// Enruta al canal activo: Serial > WebSocket > HTTP fallback.
 function sendCommand(cmd) {
     const preview = cmd.length > 120
         ? cmd.slice(0, 120).replace(/\n/g, '↵') + `… [${cmd.length}B]`
         : cmd.replace(/\n/g, '↵');
     console.log(`%c[ESP32 →] ${preview}`, 'color:#44aaff;font-family:monospace;font-size:10px;');
 
-    if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
+    if (_serialActive && _serialWriter) {
+        _serialWriter.write(new TextEncoder().encode(cmd + '\0'))
+            .catch(err => console.error('[Serial] Error write:', err));
+    } else if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(cmd);
     } else {
-        // HTTP fallback
         fetch('http://' + ESP32_IP + '/command?cmd=' + encodeURIComponent(cmd))
             .catch(err => console.error('[HTTP fallback] Error:', err));
     }
 }
 
 // ── D4 — sendStop ─────────────────────────────────────────────
-// Parada inmediata: STOP por WS Y x; por HTTP como seguro doble.
+// Parada inmediata en el canal activo.
 function sendStop() {
-    if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
-        ws.send('STOP');
+    if (_serialActive && _serialWriter) {
+        // El firmware reconoce 'x'/'X' en verificarComandoDetener() durante la reproducción.
+        // 'STOP\0' es ignorado silenciosamente — causaría que el segundo PLAY se pierda.
+        _serialWriter.write(new TextEncoder().encode('x;\0'))
+            .catch(() => {});
+    } else {
+        if (wsConnected && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('STOP');
+        }
+        // Respaldo HTTP solo en modo WiFi
+        fetch('http://' + ESP32_IP + '/command?cmd=' + encodeURIComponent('x;'))
+            .catch(() => {});
     }
-    // Siempre enviar también por HTTP como respaldo
-    fetch('http://' + ESP32_IP + '/command?cmd=' + encodeURIComponent('x;'))
-        .catch(() => {});
+}
+
+// ── D7 — closeWebSocket ───────────────────────────────────────
+function closeWebSocket() {
+    if (ws) { try { ws.close(); } catch (_) {} ws = null; }
+    wsConnected = false;
+    _setWsStatus('disconnected');
 }
 
 // ── D6 — helpers UI ───────────────────────────────────────────

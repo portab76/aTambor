@@ -6,6 +6,8 @@
 
 // ---- Helper: devuelve el array de segmentos según nivel seleccionado ----
 function _activeSegmentsFor(level, analysis) {
+    if (level === 'respiración' && typeof breathingSegments !== 'undefined' && breathingSegments.length)
+        return breathingSegments;
     if (level === 'frases'  && analysis?.phraseSegments?.length) return analysis.phraseSegments;
     if (level === 'acordes' && analysis?.fusedSegments?.length)  return analysis.fusedSegments;
     return analysis?.segments || currentHarmonicSegments;
@@ -32,6 +34,9 @@ gridScroll.addEventListener('scroll', () => {
     if (chordRow) chordRow.scrollLeft = gridScroll.scrollLeft;
     const ruler = document.getElementById('rulerScrollArea');
     if (ruler) ruler.scrollLeft = gridScroll.scrollLeft;
+    const velLane = document.getElementById('velocityLaneScroll');
+    if (velLane) velLane.scrollLeft = gridScroll.scrollLeft;
+    if (typeof drawMinimap === 'function') drawMinimap();
 });
 
 // ---- Carga de archivo MIDI ----
@@ -49,6 +54,58 @@ fileInput.addEventListener('change', (event) => {
             binaryString += String.fromCharCode(bytes[i]);
         }
         loadMIDIFile(binaryString);
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// ---- Drag & drop de archivos MIDI ----
+let _dragEnterCount = 0;  // contador para evitar falsos dragleave en elementos hijos
+
+document.body.addEventListener('dragenter', (e) => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    _dragEnterCount++;
+    document.getElementById('dropOverlay').style.display = 'flex';
+});
+
+document.body.addEventListener('dragleave', () => {
+    _dragEnterCount--;
+    if (_dragEnterCount <= 0) {
+        _dragEnterCount = 0;
+        document.getElementById('dropOverlay').style.display = 'none';
+    }
+});
+
+document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
+
+document.body.addEventListener('drop', (e) => {
+    e.preventDefault();
+    _dragEnterCount = 0;
+    document.getElementById('dropOverlay').style.display = 'none';
+
+    const file = Array.from(e.dataTransfer.files).find(f => f.name.toLowerCase().endsWith('.mid'));
+    if (!file) return;
+
+    // Abrir en nueva tab si la actual ya tiene contenido
+    const hasContent = Object.keys(gridData.cells).length > 0 || rawEvents.length > 0;
+    if (hasContent && typeof tabNew === 'function') tabNew();
+
+    // Mismo flujo que fileInput change
+    currentMidiFileName = file.name;
+    statusSpan.innerText = 'Leyendo archivo...';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const bytes = new Uint8Array(ev.target.result);
+        let binaryString = '';
+        for (let i = 0; i < bytes.length; i++) binaryString += String.fromCharCode(bytes[i]);
+        loadMIDIFile(binaryString);
+
+        // Auto-seleccionar el primer canal con notas y construir el grid directamente
+        const firstOpt = instrumentSelect.querySelector('option[value]:not([value=""])');
+        if (firstOpt) {
+            instrumentSelect.value = firstOpt.value;
+            instrumentSelect.dispatchEvent(new Event('change'));
+            loadInstrumentBtn.click();
+        }
     };
     reader.readAsArrayBuffer(file);
 });
@@ -93,8 +150,9 @@ loadInstrumentBtn.addEventListener('click', () => {
             drawChordRow(currentHarmonicSegments, analysis.key);
         }
 
-        // Recalcular heat map en modo hot-swap
+        // Recalcular heat map y puntos de respiración en modo hot-swap
         _refreshHeatMap();
+        calcularBreathingPoints();
 
         // Refrescar panel de notas activas si está abierto
         if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
@@ -108,6 +166,7 @@ loadInstrumentBtn.addEventListener('click', () => {
     // H2: flujo normal (sin reproducción activa)
     statusSpan.innerText = `Construyendo grid para canal ${selectedChannel + 1}...`;
     buildGridFromChannel(selectedChannel);
+    if (typeof historyClear === 'function') historyClear();
     pasoActual = 0;
     drawTimelineRuler();
 
@@ -157,11 +216,16 @@ loadInstrumentBtn.addEventListener('click', () => {
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
 
-    // Calcular heat map y habilitar botón
+    // Calcular heat map y respiración
     _refreshHeatMap();
+    calcularBreathingPoints();
     const heatBtn = document.getElementById('heatMapBtn');
     if (heatBtn) heatBtn.disabled = false;
     if (heatMapActive) drawPianoRollWithPlayhead(-1);
+
+    // Habilitar opción "respiración" en el selector de vista
+    const selResp = document.getElementById('viewLevelSelect');
+    if (selResp) selResp.querySelector('option[value="respiración"]').disabled = (breathingSegments.length === 0);
 
     // Habilitar botón del panel de acordes
     const chordPanelBtn = document.getElementById('chordPanelBtn');
@@ -176,10 +240,17 @@ loadInstrumentBtn.addEventListener('click', () => {
         `<br><strong>Grid generado:</strong> ${instrumentNames[selectedChannel]}, ` +
         `Pasos=${totalSteps}, Rango=${noteRows[0]}–${noteRows[noteRows.length - 1]}, ` +
         `Zoom=${stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
+
+    // Actualizar nombre del tab con el archivo MIDI cargado
+    if (typeof tabMarkFileLoaded === 'function') tabMarkFileLoaded(currentMidiFileName);
 });
 
 // ---- Select nivel de vista armónica ----
 document.getElementById('viewLevelSelect').addEventListener('change', function () {
+    if (this.value === 'respiración') {
+        if (breathingSegments.length) drawChordRow(breathingSegments, null);
+        return;
+    }
     if (!currentHarmonicSegments.length) return;
     const key = { tonic: currentKey.replace('m', ''), mode: currentKey.endsWith('m') ? 'minor' : 'major', rootClass: 0 };
     drawChordRow(_activeSegmentsFor(this.value, {
@@ -199,8 +270,13 @@ document.getElementById('activeNotesBtn').addEventListener('click', function () 
 playBtn.onclick  = play;
 stopBtn.onclick  = stop;
 
-// ---- BPM en caliente: reinicia el interval si ya está reproduciendo ----
+// ---- BPM en caliente: sincroniza tempoPoints[0] y reinicia interval ----
 document.getElementById('bpmInput').addEventListener('change', () => {
+    const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
+    if (typeof tempoPoints !== 'undefined' && tempoPoints.length) {
+        tempoPoints[0].bpm = bpm;
+        if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    }
     if (!reproduciendo || !_playInterval) return;
     clearInterval(_playInterval);
     _playInterval = setInterval(_tick, MS_PER_STEP());
@@ -218,25 +294,71 @@ document.getElementById('loadProjectInput')?.addEventListener('change', (e) => {
 // ---- Inicializar eventos del canvas (editor.js) ----
 initCanvasEvents();
 
+// ---- Inicializar carril de velocidades ----
+initVelocityLane();
+
 // ---- Inicializar eventos de la columna de notas (piano-roll.js) ----
 initNoteLabelsEvents();
 
 // ---- Seek en la regla de compases (timeline-ruler.js) ----
 initRulerSeek();
 
+// ---- Minimap panorámico (minimap.js) ----
+initMinimap();
+
 // ---- Log ESP32 en ventana emergente ----
 function openEsp32LogWindow() {
-    const ip = document.getElementById('esp32IpInput')?.value?.trim() || ESP32_IP;
-    const w  = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
-    w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
+    const mode = document.getElementById('connModeSelect')?.value || 'wifi';
+
+    const _isLight = (typeof _currentTheme !== 'undefined') && _currentTheme === 'light';
+    const _CSS = _isLight
+        ? `*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:monospace;background:#f4f4f8;color:#1a1a2e;display:flex;flex-direction:column;height:100vh;padding:8px;gap:6px;}
+#tb{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+button{background:#e0e0ec;border:1px solid #bbb;color:#333;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;}
+button:hover{background:#c8c8e0;color:#000;}
+#L{flex:1;overflow-y:auto;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:#ffffff;border:1px solid #ccc;border-radius:4px;padding:8px;color:#1a6630;}`
+        : `*{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:monospace;background:#111122;color:#00ff88;display:flex;flex-direction:column;height:100vh;padding:8px;gap:6px;}
 #tb{display:flex;gap:6px;align-items:center;flex-shrink:0;}
 button{background:#1a1a33;border:1px solid #445;color:#aaa;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;}
 button:hover{background:#2a2a55;color:#fff;}
-#L{flex:1;overflow-y:auto;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:#080816;border:1px solid #2a2a44;border-radius:4px;padding:8px;}
-</style></head><body>
+#L{flex:1;overflow-y:auto;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all;background:#080816;border:1px solid #2a2a44;border-radius:4px;padding:8px;}`;
+
+    if (mode === 'serial') {
+        const w = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
+        w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log (Serie)</title>
+<style>${_CSS}</style></head><body>
+<div id="tb">
+  <span style="color:#ff4466;font-weight:bold;font-size:12px;letter-spacing:2px">ESP32 LOG</span>
+  <span style="font-size:10px;color:#44aaff;">Serie (COM)</span>
+  <button onclick="autoScroll=!autoScroll;this.textContent=autoScroll?'▼ Auto':'— Fijo'">▼ Auto</button>
+  <button onclick="window.opener._serialLog='';prev='';document.getElementById('L').textContent=''">🗑 Limpiar</button>
+</div>
+<pre id="L"></pre>
+<script>
+var autoScroll=true,prev='';
+function u(){
+  try{
+    var log=window.opener._serialLog||'';
+    if(log===prev)return;
+    var l=document.getElementById('L');
+    if(log.startsWith(prev)){l.textContent+=log.slice(prev.length);}else{l.textContent=log;}
+    prev=log;
+    if(autoScroll)l.scrollTop=l.scrollHeight;
+  }catch(e){}
+}
+setInterval(u,300);u();
+<\/script></body></html>`);
+        w.document.close();
+        return;
+    }
+
+    // Modo WiFi: fetch al endpoint /logs del firmware
+    const ip = document.getElementById('esp32IpInput')?.value?.trim() || ESP32_IP;
+    const w  = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
+    w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log</title>
+<style>${_CSS}</style></head><body>
 <div id="tb">
   <span style="color:#ff4466;font-weight:bold;font-size:12px;letter-spacing:2px">ESP32 LOG</span>
   <span style="font-size:10px;color:#556;">${ip}</span>
@@ -285,6 +407,12 @@ function initMIDI() {
 
 initMIDI();
 
+// ---- Auto-STOP cuando ESP32 termina reproducción ----
+onStoppedCallback = () => {
+    console.log('[onStoppedCallback] ESP32 terminó reproducción → ejecutar stop()');
+    stop();
+};
+
 // ---- Modal de ayuda ----
 function showHelpModal() {
     const m = document.getElementById('helpModal');
@@ -297,7 +425,38 @@ function closeHelpModal() {
     document.getElementById('helpModal').style.display = 'none';
 }
 
-// Cerrar con Escape
+// Cerrar con Escape · Undo/Redo con Ctrl+Z / Ctrl+Y · Selección con Delete/Ctrl+C
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeHelpModal();
+    // Escape: primero limpia selección si la hay, luego cierra modal
+    if (e.key === 'Escape') {
+        if (typeof _selActive !== 'undefined' && _selActive) { selectionClear(); return; }
+        closeHelpModal();
+        return;
+    }
+
+    // No interceptar atajos de edición cuando el foco está en un campo de texto
+    const inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+    if (inInput) return;
+
+    // Borrar selección rectangular
+    if ((e.key === 'Delete' || e.key === 'Backspace') && typeof _selCells !== 'undefined' && _selCells.size > 0) {
+        e.preventDefault();
+        selectionDelete();
+        return;
+    }
+
+    // Copiar selección al portapapeles de fragmentos
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && typeof _selCells !== 'undefined' && _selCells.size > 0) {
+        selectionCopy();
+        return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        historyUndo();
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+        e.preventDefault();
+        historyRedo();
+    }
 });

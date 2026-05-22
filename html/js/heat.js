@@ -162,6 +162,95 @@ function _refreshHeatMap() {
 }
 
 /**
+ * Detecta silencios reales en la canción: rangos de pasos donde
+ * ninguna nota está sonando (ni empezando ni sustentándose).
+ * Estos son los únicos puntos seguros para vaciar el buffer del ESP32.
+ *
+ * Resultado: rellena breathingSegments con bloques de contenido musical
+ * separados por silencios reales. El corte se hace al inicio de cada silencio.
+ * Fallback: si la canción es densa (< 2 silencios), parte en lotes de compases.
+ */
+function calcularBreathingPoints() {
+    if (!gridData || Object.keys(gridData.cells).length === 0) {
+        breathingSegments = [];
+        return;
+    }
+
+    const MIN_SILENCE_STEPS = 2; // mínimo de pasos consecutivos sin nota para cortar
+
+    // 1. Marcar qué pasos tienen nota sonando (inicio + duración completa)
+    const active = new Uint8Array(totalSteps);
+    for (const [key, cell] of Object.entries(gridData.cells)) {
+        const [, stepStr] = key.split(',');
+        const start = parseInt(stepStr);
+        const end   = Math.min(start + Math.ceil(cell.duration), totalSteps);
+        for (let s = start; s < end; s++) active[s] = 1;
+    }
+
+    // 2. Encontrar rangos de silencio real y usarlos como puntos de corte
+    const breaks = [0];
+    let s = 0;
+    while (s < totalSteps) {
+        if (!active[s]) {
+            const silenceStart = s;
+            while (s < totalSteps && !active[s]) s++;
+            if (s - silenceStart >= MIN_SILENCE_STEPS) {
+                breaks.push(silenceStart);
+            }
+        } else {
+            s++;
+        }
+    }
+    breaks.push(totalSteps);
+
+    // Eliminar posibles duplicados y asegurar orden
+    const uniqueBreaks = [...new Set(breaks)].sort((a, b) => a - b);
+
+    // 3. Fallback: si la canción es densa (menos de 2 cortes reales)
+    if (uniqueBreaks.length < 3) {
+        const spm = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
+        const bm  = (typeof BATCH_SIZE !== 'undefined') ? BATCH_SIZE : 8;
+        uniqueBreaks.length = 0;
+        uniqueBreaks.push(0);
+        for (let i = bm * spm; i < totalSteps; i += bm * spm) uniqueBreaks.push(i);
+        uniqueBreaks.push(totalSteps);
+        console.log(`[breath] Canción densa — fallback ${uniqueBreaks.length - 1} lotes de ${bm} compases`);
+    }
+
+    // 4. Construir segmentos con energía para el color del bloque
+    breathingSegments = [];
+    for (let i = 0; i < uniqueBreaks.length - 1; i++) {
+        const startStep = uniqueBreaks[i];
+        const endStep   = uniqueBreaks[i + 1];
+
+        let totalE = 0, noteCount = 0;
+        const noteSet = new Set();
+        for (const [key, cell] of Object.entries(gridData.cells)) {
+            const [noteStr, stepStr] = key.split(',');
+            const step = parseInt(stepStr);
+            if (step < startStep || step >= endStep) continue;
+            const heat = (heatMapData && heatMapData.has(key)) ? heatMapData.get(key) : 0.5;
+            totalE += heat * (cell.velocity / 127);
+            noteCount++;
+            noteSet.add(parseInt(noteStr));
+        }
+        const avgE = noteCount > 0 ? Math.min(totalE / noteCount, 1) : 0;
+
+        breathingSegments.push({
+            startStep,
+            endStep,
+            energy:        avgE,
+            activeNotes:   [...noteSet].sort((a, b) => a - b),
+            chordDisplay:  `R${i + 1}`,
+            chordFunction: `${Math.round(avgE * 100)}% E`,
+        });
+    }
+
+    const silences = uniqueBreaks.length - 2; // sin contar 0 y totalSteps
+    console.log(`[breath] ${breathingSegments.length} bloques, ${silences} silencios reales detectados`);
+}
+
+/**
  * Toggle del modo heat map desde la toolbar
  * Activa/desactiva visualización, calcula si es necesario
  */

@@ -142,17 +142,15 @@ function _sliderRange() {
 }
 
 // ── Hot-apply ─────────────────────────────────────────────────
+// Solo actualiza el mapping LED en el firmware (sin movimientos).
+// Los motores se transpondrán en el próximo Play.
 function _applyTranspose(newOffset) {
     transposeOffset = newOffset;
-    if (typeof reproduciendo !== 'undefined' && reproduciendo &&
-        typeof wsConnected !== 'undefined' && wsConnected &&
-        typeof buildRemainingSequence === 'function') {
-        const remaining = buildRemainingSequence(MOTOR_MAP, pasoActual);
-        if (remaining) {
-            const blocks = validateSequenceSize(remaining);
-            sendCommand('APPEND\n' + blocks[0]);
-            if (blocks.length > 1) setTimeout(() => sendCommand('APPEND\n' + blocks[1]), 100);
-        }
+    const connected = (typeof wsConnected   !== 'undefined' && wsConnected)  ||
+                      (typeof _serialActive !== 'undefined' && _serialActive);
+    if (connected && typeof buildLedMappingCmd === 'function') {
+        const ledCmd = buildLedMappingCmd(MOTOR_MAP);
+        if (ledCmd) sendCommand('APPEND\n' + ledCmd);
     }
 }
 

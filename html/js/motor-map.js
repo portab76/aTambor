@@ -36,26 +36,39 @@ function _midiNote(noteName, octave) {
 
 // console.log(buildFullSequence(MOTOR_MAP)) <- para ver los comandos de los esp a los motores
 
+// ── Configuración del strip LED WS2812B ───────────────────────
+// NUM_LEDS: total de LEDs en el strip (C1–B5 cromático).
+const NUM_LEDS      = 60;
+const LED_BASE_NOTE = _midiNote('C', 1);  // C1 = MIDI 24 → LED 0; B5 = MIDI 83 → LED 59
+
+// LED index automático: no necesita campo 'led' en MOTOR_MAP.
+function ledForNote(midiNote) {
+    return midiNote - LED_BASE_NOTE;   // C1→0 … B5→59
+}
+
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
-// Estructura de cada entrada: { note, name, motor, homePwm }
-// Editar aquí o en tiempo real desde motorMapUI().
+// Solo motores físicos (solenoides). Sin campo 'led' — se calcula con ledForNote(note).
 let MOTOR_MAP = [
-  { note: _midiNote('A',   2), name: 'A',  motor: 12, homePwm: 375, muted: false },
-  { note: _midiNote('B',   2), name: 'B',  motor: 13, homePwm: 375, muted: false },
-  { note: _midiNote('C',   3), name: 'C',  motor: 0,  homePwm: 375, muted: false },
-  { note: _midiNote('C#',  3), name: 'C#', motor: 10, homePwm: 375, muted: false },
-  { note: _midiNote('D',   3), name: 'D',  motor: 1,  homePwm: 375, muted: false },
-  { note: _midiNote('D#',  3), name: 'D#', motor: 11, homePwm: 375, muted: false },
-  { note: _midiNote('E',   3), name: 'E',  motor: 2,  homePwm: 375, muted: false },
-  { note: _midiNote('F',   3), name: 'F',  motor: 3,  homePwm: 375, muted: false },
-  { note: _midiNote('F#',  3), name: 'F#', motor: 7,  homePwm: 375, muted: false },
-  { note: _midiNote('G',   3), name: 'G',  motor: 4,  homePwm: 375, muted: false },
-  { note: _midiNote('G#',  3), name: 'G#', motor: 8,  homePwm: 375, muted: false },
-  { note: _midiNote('A',   3), name: 'A',  motor: 5,  homePwm: 375, muted: false },
-  { note: _midiNote('A#',  3), name: 'A#', motor: 9,  homePwm: 375, muted: false },
-  { note: _midiNote('B',   3), name: 'B',  motor: 6,  homePwm: 375, muted: false },
-  { note: _midiNote('C',   4), name: 'C',  motor: 14, homePwm: 375, muted: false },
-  { note: _midiNote('D',   4), name: 'D',  motor: 15, homePwm: 375, muted: false },
+
+  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false },
+  { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false },
+
+    // Octava 2 (C2–B2): motores 0–11
+  { note: _midiNote('C',   2), name: 'C2',  motor:  0, homePwm: 375, muted: false },
+  { note: _midiNote('C#',  2), name: 'C#2', motor: 10, homePwm: 375, muted: false },
+  { note: _midiNote('D',   2), name: 'D2',  motor:  1, homePwm: 375, muted: false },
+  { note: _midiNote('D#',  2), name: 'D#2', motor: 11, homePwm: 375, muted: false },
+  { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false },
+  { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false },
+  { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false },
+  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false },
+  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false },
+  { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false },
+  { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false },
+  { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false },
+
+   { note: _midiNote('C',   3), name: 'C3',  motor:  14, homePwm: 375, muted: false },
+   { note: _midiNote('D',   3), name: 'D3',  motor:  15, homePwm: 375, muted: false },
 ];
 
 // ── Persistencia en localStorage ─────────────────────────────
@@ -73,6 +86,7 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
             const entry = MOTOR_MAP.find(m => m.note === saved.note);
             if (!entry) return;
             if (saved.motor   !== undefined) entry.motor   = saved.motor;
+            if (saved.led     !== undefined) entry.led     = saved.led;
             if (saved.homePwm !== undefined) entry.homePwm = saved.homePwm;
             if (saved.muted   !== undefined) entry.muted   = saved.muted;
         });
@@ -120,6 +134,7 @@ function motorMapImport() {
                     const entry = MOTOR_MAP.find(m => m.note === saved.note);
                     if (!entry) return;
                     if (saved.motor    !== undefined) entry.motor    = saved.motor;
+                    if (saved.led      !== undefined) entry.led      = saved.led;
                     if (saved.homePwm  !== undefined) entry.homePwm  = saved.homePwm;
                     if (saved.muted    !== undefined) entry.muted    = saved.muted;
                 });
@@ -500,6 +515,7 @@ function _renderMotorMapPanelRows() {
             <td style="color:${col.text};font-size:11px;">${m.note}</td>
             <td style="font-weight:bold;color:${col.text};">${m.name}</td>
             <td><input class="mm-input" type="number" value="${m.motor}" min="0" max="127"
+                title="Motor ESP32"
                 onchange="MOTOR_MAP[${i}].motor=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
             <td><input class="mm-input" type="number" value="${m.homePwm}" min="150" max="600"

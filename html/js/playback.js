@@ -13,12 +13,27 @@ let _esp32LastLoadedStep       = 0;   // paso hasta el que está cargado el ESP3
 let _appendSentAt              = null; // performance.now() del último APPEND enviado
 let _appendSentStep            = 0;   // paso de cierre de ese APPEND (para RTT)
 
-/** ms por semicorchea, leyendo el BPM del input de la toolbar (o del MIDI si no existe). */
-const MS_PER_STEP = () => {
-    const el  = document.getElementById('bpmInput');
-    const bpm = el ? (parseFloat(el.value) || 120) : (tempoMap[0]?.bpm || 120);
-    return (60000 / bpm) / 4;
+/** BPM efectivo en el paso dado, consultando tempoPoints (con fallback al input). */
+function _bpmAtStep(step) {
+    if (typeof tempoPoints !== 'undefined' && tempoPoints.length) {
+        let bpm = tempoPoints[0].bpm;
+        for (const tp of tempoPoints) {
+            if (tp.step <= step) bpm = tp.bpm;
+            else break;
+        }
+        return bpm;
+    }
+    const el = document.getElementById('bpmInput');
+    return el ? (parseFloat(el.value) || 120) : 120;
+}
+
+/** ms por semicorchea en el paso dado (por defecto pasoActual). */
+const MS_PER_STEP = (step) => {
+    const s   = step !== undefined ? step : (typeof pasoActual !== 'undefined' ? pasoActual : 0);
+    return (60000 / _bpmAtStep(s)) / 4;
 };
+
+let _currentBpm = 0;  // BPM con el que se arrancó el interval activo
 
 // ── Helpers de streaming ──────────────────────────────────────────────────────
 
@@ -89,8 +104,29 @@ function _sendPlayCommand(seq) {
     }
 
     const blocks  = validateSequenceSize(seqBody);
-    const fullCmd = `PLAY|midiGrid|${Math.round(stepMs)}\n` + blocks[0];
+    const adv     = (typeof ledAdvanceMs !== 'undefined') ? Math.round(ledAdvanceMs) : 0;
     console.log(`[play] Enviando PLAY: ${seq.length}B → ${blocks.length} bloque(s) ≤8KB`);
+
+    if (blocks.length === 1) {
+        if (_serialActive) {
+            // Serial: stream byte a byte — p; inline llega al firmware en orden garantizado
+            const body    = hasPlayCmd ? blocks[0] + 'p;\n' : blocks[0];
+            sendCommand(`PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + body);
+        } else {
+            // WebSocket: cada ws.send() es un frame independiente — p; debe ser mensaje separado
+            sendCommand(`PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + blocks[0]);
+            if (hasPlayCmd) {
+                _pendingTimers.push(setTimeout(() => {
+                    console.log('[play] Enviando p; (WS, bloque único)');
+                    sendCommand('p;');
+                }, 150));
+            }
+        }
+        return;
+    }
+
+    // Múltiples bloques: enviar por partes con timers
+    const fullCmd = `PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + blocks[0];
     sendCommand(fullCmd);
 
     let lastDelay = 0;
@@ -104,11 +140,10 @@ function _sendPlayCommand(seq) {
     }
 
     if (hasPlayCmd) {
-        const playDelay = blocks.length > 1 ? lastDelay + 300 : 50;
         _pendingTimers.push(setTimeout(() => {
             console.log('[play] Enviando p; para ejecutar la secuencia');
             sendCommand('p;');
-        }, playDelay));
+        }, lastDelay + 300));
     }
 }
 
@@ -134,9 +169,12 @@ function play() {
     const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
     if ((typeof loopAB !== 'undefined') && loopAB && loopA >= 0) pasoActual = loopA;
 
-    // ── G1: enviar secuencia completa al ESP32 ────────────────────────────────
-    console.log(`[play] wsConnected=${wsConnected}, ws.readyState=${ws ? ws.readyState : 'null'}`);
-    if (typeof wsConnected !== 'undefined' && wsConnected) {
+    // ── G1: enviar secuencia completa al ESP32 (WiFi o Serial) ─────────────────
+    const isConnected = (typeof wsConnected !== 'undefined' && wsConnected) ||
+                        (typeof _serialActive !== 'undefined' && _serialActive);
+    console.log(`[play] wsConnected=${wsConnected}, _serialActive=${_serialActive}`);
+
+    if (isConnected) {
         const seq = abActive
             ? buildRangeSequence(MOTOR_MAP, loopA, loopB)
             : pasoActual > 0
@@ -152,9 +190,8 @@ function play() {
         }
     }
 
-    // ── G1: arrancar audio con offset de 20ms ─────────────────────────────────
     _playStartOffset = pasoActual;
-    _pendingTimers.push(setTimeout(_startPlaybackLoop, 20));
+    _startPlaybackLoop();
 }
 
 /** Arranca el setInterval de audio (separado para poder llamarlo desde play y resume) */
@@ -163,7 +200,9 @@ function _startPlaybackLoop() {
     playBtn.disabled  = true;
     stopBtn.disabled  = false;
     statusSpan.innerText = "Reproduciendo...";
-    _playInterval = setInterval(_tick, MS_PER_STEP());
+    _currentBpm = _bpmAtStep(pasoActual);
+    _tick();
+    _playInterval = setInterval(_tick, MS_PER_STEP(pasoActual));
 }
 
 // ── pause() ──────────────────────────────────────────────────────────────────
@@ -209,6 +248,11 @@ function stop() {
     _appendSentAt              = null;
     const bufferEl = document.getElementById('streamingBuffer');
     if (bufferEl) { bufferEl.style.display = 'none'; bufferEl.textContent = ''; }
+
+    // Cancelar cualquier auto-avance pendiente (evita lanzar el siguiente lote
+    // si stop() fue llamado manualmente durante el window de 400ms)
+    if (typeof _pendingAutoAdvance !== 'undefined') _pendingAutoAdvance = false;
+    onStoppedCallback = null;
 
     // G2: parar el ESP32
     if (typeof sendStop === 'function') sendStop();
@@ -276,13 +320,15 @@ function _tick() {
 
     // Reproducir notas que comienzan exactamente en este paso
     let notasEnEstePaso = 0;
+    const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
     for (const [key, cell] of Object.entries(gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         if (parseInt(stepStr) !== pasoActual) continue;
 
-        const note       = parseInt(noteStr);
-        const velocity   = cell.velocity;
-        const delayOff   = (cell.duration * MS_PER_STEP()) / 1000;
+        const note           = parseInt(noteStr);
+        const transposedNote = note + offset;
+        const velocity       = cell.velocity;
+        const delayOff       = (cell.duration * MS_PER_STEP()) / 1000;
 
         const motorOnly = document.getElementById('motorOnlyCheckbox')?.checked;
         if (motorOnly && !motorForNote(note)) continue;
@@ -290,8 +336,8 @@ function _tick() {
 
         notasEnEstePaso++;
         if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {
-            MIDI.noteOn( 0, note, velocity, 0);
-            MIDI.noteOff(0, note, delayOff);
+            MIDI.noteOn( 0, transposedNote, velocity, 0);
+            MIDI.noteOff(0, transposedNote, delayOff);
         }
     }
 
@@ -315,6 +361,18 @@ function _tick() {
     _highlightCurrentChord(pasoActual);
     if (typeof _updateChordPanelFromPlayback === 'function') _updateChordPanelFromPlayback();
     pasoActual++;
+
+    // ── Cambio de tempo: reiniciar interval si el BPM cambió ─────
+    if (typeof tempoPoints !== 'undefined' && tempoPoints.length > 1) {
+        const newBpm = _bpmAtStep(pasoActual);
+        if (newBpm !== _currentBpm) {
+            _currentBpm = newBpm;
+            const bpmEl = document.getElementById('bpmInput');
+            if (bpmEl) bpmEl.value = Math.round(newBpm);
+            clearInterval(_playInterval);
+            _playInterval = setInterval(_tick, MS_PER_STEP(pasoActual));
+        }
+    }
 }
 
 // ── Resaltado del acorde activo en el chord row ───────────────────────────────

@@ -4,7 +4,7 @@
 // ============================================================
 
 // Segmentos por lote: equilibrio entre gap de reset y acumulación de drift I2C
-const BATCH_SIZE = 8;
+const BATCH_SIZE = 5;
 
 
 const _NOTE_NAMES_CR = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -307,7 +307,11 @@ function _renderChordPanel(centerIndex) {
     // Footer: habilitar botones
     const loopBtn = document.getElementById('cpanel-loop-btn');
     const autoBtn = document.getElementById('cpanel-auto-btn');
+    const prevBtn = document.getElementById('cpanel-prev-btn');
+    const nextBtn = document.getElementById('cpanel-next-btn');
     if (loopBtn) loopBtn.disabled = false;
+    if (prevBtn) prevBtn.disabled = (_chordPanelIndex <= 0);
+    if (nextBtn) nextBtn.disabled = (_chordPanelIndex >= segs.length - 1);
     if (autoBtn) {
         autoBtn.disabled = (_chordPanelIndex >= segs.length - 1);
         autoBtn.classList.toggle('cpop-auto-on',
@@ -320,6 +324,37 @@ function _cpanelPlayLoop() {
     const segs = _activeSegments();
     const seg  = segs[_chordPanelIndex];
     if (seg) _playSegmentLoop(seg.startStep, seg.endStep);
+}
+
+/** Navega al acorde anterior sin reproducir. */
+function _cpanelPrevChord() {
+    const segs = _activeSegments();
+    const idx  = Math.max(0, _chordPanelIndex - 1);
+    _cpanelGoToChord(segs, idx);
+}
+
+/** Navega al acorde siguiente sin reproducir. */
+function _cpanelNextChord() {
+    const segs = _activeSegments();
+    const idx  = Math.min(segs.length - 1, _chordPanelIndex + 1);
+    _cpanelGoToChord(segs, idx);
+}
+
+/** Selecciona el acorde en el índice dado: actualiza piano roll, playhead y panel. */
+function _cpanelGoToChord(segs, idx) {
+    if (idx < 0 || idx >= segs.length) return;
+    const s = segs[idx];
+    const classes = [...new Set(s.activeNotes.map(n => n % 12))];
+    if (classes.length) {
+        drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
+        activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
+    }
+    _highlightChordBlock(idx);
+    if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
+        pasoActual = s.startStep;
+        if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(s.startStep);
+    }
+    _renderChordPanel(idx);
 }
 
 /** Actualiza el panel durante la reproducción (llamado desde _tick). */
@@ -367,41 +402,56 @@ function drawChordRow(segments, key) {
         const width = (seg.endStep - seg.startStep) * stepWidth;
         if (width <= 0) continue;
 
-        const isPhrase = Array.isArray(seg.degrees); // solo los segmentos de frase tienen degrees[]
+        const isBreath = typeof seg.energy !== 'undefined';
+        const isPhrase = !isBreath && Array.isArray(seg.degrees);
 
-        let chordName, chordFunc, chord;
-        if (isPhrase) {
-            chordName = seg.chordDisplay || '?';   // ej. "I–vi–IV–V"
+        let chordName, chordFunc, chord, bgColor;
+        if (isBreath) {
+            chordName = seg.chordDisplay || `R${i + 1}`;
+            chordFunc = seg.chordFunction || '';
+            chord     = null;
+            bgColor   = _breathingSegColor(seg.energy);
+        } else if (isPhrase) {
+            chordName = seg.chordDisplay || '?';
             chordFunc = seg.cadenceType  || '';
             chord     = seg.chord        || null;
+            bgColor   = _phraseCadenceColor(seg.cadenceType);
         } else if (seg.chordDisplay) {
             chordName = seg.chordDisplay;
             chordFunc = seg.chordFunction || "";
             chord     = seg.chord || null;
+            bgColor   = _chordFunctionColor(chordFunc);
         } else {
             const noteClasses = [...new Set(seg.activeNotes.map(n => n % 12))].sort((a,b) => a-b);
             chord     = findChord(noteClasses, seg.activeNotes[0] || null);
             chordName = chord.name;
             chordFunc = key ? getChordFunction(chord, key) : "";
+            bgColor   = _chordFunctionColor(chordFunc);
         }
 
-        const bgColor = isPhrase ? _phraseCadenceColor(seg.cadenceType) : _chordFunctionColor(chordFunc);
-        const block   = document.createElement('div');
+        const block = document.createElement('div');
 
-        // Las frases tienen dos líneas: progresión arriba, cadencia abajo
-        const blockHTML = isPhrase
-            ? `<div style="font-size:${width < 80 ? '9px' : '12px'};font-weight:bold;line-height:1.3;padding-top:6px">${chordName}</div>
-               <div style="font-size:9px;opacity:0.7;line-height:1.2">${seg.cadenceType || ''}</div>`
-            : '';
+        // Contenido interior según tipo
+        let blockInner = '';
+        if (isBreath) {
+            blockInner = `<div style="font-size:${width < 80 ? '9px' : '11px'};font-weight:bold;` +
+                         `line-height:1.3;padding-top:6px">${chordName}</div>` +
+                         `<div style="font-size:9px;opacity:0.65;line-height:1.2">${(seg.energy * 100).toFixed(0)}%</div>`;
+        } else if (isPhrase) {
+            blockInner = `<div style="font-size:${width < 80 ? '9px' : '12px'};font-weight:bold;` +
+                         `line-height:1.3;padding-top:6px">${chordName}</div>` +
+                         `<div style="font-size:9px;opacity:0.7;line-height:1.2">${seg.cadenceType || ''}</div>`;
+        }
 
+        const useMultiline = isBreath || isPhrase;
         block.style.cssText = [
             `display:inline-block`,
             `width:${width - 1}px`,
             `height:50px`,
             `background:${bgColor}`,
-            `border:1px solid ${isPhrase ? '#7a7aaa' : '#555'}`,
+            `border:1px solid ${isBreath ? '#4a5a6a' : isPhrase ? '#7a7aaa' : '#555'}`,
             `text-align:center`,
-            `line-height:${isPhrase ? '1' : '50px'}`,
+            `line-height:${useMultiline ? '1' : '50px'}`,
             `color:white`,
             `font-size:${width < 50 ? '10px' : '13px'}`,
             `overflow:hidden`,
@@ -411,8 +461,8 @@ function drawChordRow(segments, key) {
             `transition:filter .1s`,
         ].join(';');
 
-        if (isPhrase) {
-            block.innerHTML = blockHTML;
+        if (useMultiline) {
+            block.innerHTML = blockInner;
         } else {
             block.textContent = chordName;
         }
@@ -429,6 +479,14 @@ function drawChordRow(segments, key) {
 
         container.appendChild(block);
     }
+}
+
+function _breathingSegColor(energy) {
+    // Baja energía → azul-gris oscuro (punto de respiración), alta → naranja-marrón cálido
+    const r = Math.round(26  + energy * 110);
+    const g = Math.round(30  + energy * 40);
+    const b = Math.round(80  - energy * 54);
+    return `rgb(${r},${g},${b})`;
 }
 
 function _chordFunctionColor(fn) {
@@ -456,11 +514,19 @@ function _phraseCadenceColor(cadenceType) {
 function _activeSegments() {
     const sel = document.getElementById('viewLevelSelect');
     const val = sel ? sel.value : 'pasos';
-    if (val === 'frases'  && typeof currentPhraseSegments !== 'undefined' && currentPhraseSegments.length)
+    if (val === 'respiración' && typeof breathingSegments    !== 'undefined' && breathingSegments.length)
+        return breathingSegments;
+    if (val === 'frases'      && typeof currentPhraseSegments !== 'undefined' && currentPhraseSegments.length)
         return currentPhraseSegments;
-    if (val === 'acordes' && typeof currentFusedSegments  !== 'undefined' && currentFusedSegments.length)
+    if (val === 'acordes'     && typeof currentFusedSegments  !== 'undefined' && currentFusedSegments.length)
         return currentFusedSegments;
     return currentHarmonicSegments;
+}
+
+/** True cuando el auto-avance debe usar 1 segmento por lote (frases o respiración). */
+function _isSegmentBatchMode() {
+    const val = document.getElementById('viewLevelSelect')?.value;
+    return val === 'frases' || val === 'respiración';
 }
 
 // ─────────────────────────────────────────────
@@ -526,13 +592,16 @@ function _toggleAutoAdvance() {
     if (!reproduciendo) {
         _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
     } else {
-        // Ya reproduciendo (Loop activo): inicializar _batchStartSegIdx desde
-        // el segmento actual del panel y expandir loopB al final del lote.
-        const segs    = _activeSegments();
-        const idx     = typeof _chordPanelIndex !== 'undefined' ? _chordPanelIndex : 0;
-        _batchStartSegIdx = idx;
-        const batchLast   = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
-        loopB = segs[batchLast].endStep;
+        // Ya reproduciendo: fijar loopB al final del segmento o lote actual
+        const segs = _activeSegments();
+        if (_isSegmentBatchMode()) {
+            const idx = segs.findIndex(s => pasoActual >= s.startStep && pasoActual < s.endStep);
+            if (idx >= 0) { _batchStartSegIdx = idx; loopB = segs[idx].endStep; }
+        } else {
+            const idx = typeof _chordPanelIndex !== 'undefined' ? _chordPanelIndex : 0;
+            _batchStartSegIdx = idx;
+            loopB = segs[Math.min(idx + BATCH_SIZE - 1, segs.length - 1)].endStep;
+        }
         if (typeof _updateAbBtn      === 'function') _updateAbBtn();
         if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
     }
@@ -553,60 +622,94 @@ function _playAndAdvance(startStep, endStep) {
 
 /**
  * Fija el rango A→B al segmento indicado y lanza la reproducción en bucle.
- * Equivale a: activar A→B + marcar A y B manualmente + pulsar Play.
+ * En modo "frases" o "respiración": 1 segmento por lote.
+ * En otros modos: BATCH_SIZE segmentos de acorde por lote.
  */
 function _playSegmentLoop(startStep, endStep) {
-    // Detener si hay reproducción en curso
     if (typeof reproduciendo !== 'undefined' && reproduciendo) {
         if (typeof stop === 'function') stop();
     }
 
-    // Con auto-advance activo, expandir loopB al final del batch
     let batchEndStep = endStep;
     if (typeof autoAdvanceActive !== 'undefined' && autoAdvanceActive) {
         const segs = _activeSegments();
-        const idx  = segs.findIndex(s => s.startStep === startStep);
-        if (idx >= 0) {
-            _batchStartSegIdx = idx;   // guardar índice de inicio — no cambia durante el lote
-            const batchLast = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
-            batchEndStep = segs[batchLast].endStep;
-            console.log(`[batch] Lote ${idx + 1}–${batchLast + 1}/${segs.length} [${startStep}–${batchEndStep})`);
+        if (_isSegmentBatchMode()) {
+            // 1 segmento por lote (frase o respiración)
+            const idx = segs.findIndex(s => startStep >= s.startStep && startStep < s.endStep);
+            if (idx >= 0) {
+                _batchStartSegIdx = idx;
+                batchEndStep      = segs[idx].endStep;
+                console.log(`[batch] ${document.getElementById('viewLevelSelect')?.value} ` +
+                            `${idx + 1}/${segs.length} [${startStep}–${batchEndStep})`);
+            }
+        } else {
+            // BATCH_SIZE segmentos de acorde por lote
+            const idx = segs.findIndex(s => s.startStep === startStep);
+            if (idx >= 0) {
+                _batchStartSegIdx = idx;
+                const last        = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
+                batchEndStep      = segs[last].endStep;
+                console.log(`[batch] Acordes ${idx + 1}–${last + 1}/${segs.length} [${startStep}–${batchEndStep})`);
+            }
         }
     }
 
-    // Fijar rango A→B al lote
     loopAB = true;
     loopA  = startStep;
     loopB  = batchEndStep;
     pasoActual = startStep;
 
-    // Actualizar UI del botón A→B y la regla
-    if (typeof _updateAbBtn    === 'function') _updateAbBtn();
+    if (typeof _updateAbBtn      === 'function') _updateAbBtn();
     if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
     updateRulerPlayhead(startStep);
-
-    // Lanzar reproducción
     if (typeof play === 'function') play();
 }
+
+// Flag para el auto-avance pendiente — cancelado por stop() manual
+let _pendingAutoAdvance = false;
 
 /**
  * Para el lote actual, resetea las colas del ESP32 y arranca el siguiente lote.
  * El reset elimina el drift I2C acumulado — se acepta un gap breve entre lotes.
+ * Espera la confirmación {"state":"stopped"} del ESP32 antes de enviar el siguiente
+ * PLAY, evitando la race condition donde el nuevo bloque llega mientras el ESP32
+ * aún está ejecutando el anterior.
  */
 function _startNextBatch() {
-    // Avanzar exactamente BATCH_SIZE desde el inicio del lote actual.
-    // No usar findIndex por step — _chordPanelIndex puede haber avanzado
-    // durante la reproducción y distorsionaría el cálculo.
-    const nextIdx = _batchStartSegIdx + BATCH_SIZE;
     const segs    = _activeSegments();
+    const nextIdx = _batchStartSegIdx + (_isSegmentBatchMode() ? 1 : BATCH_SIZE);
+
     if (_batchStartSegIdx < 0 || nextIdx >= segs.length) {
         if (typeof stop === 'function') stop();
         return;
     }
-    if (typeof stop === 'function') stop();
-    autoAdvanceActive = true;              // stop() lo pone a false, restaurar
+
+    const nextSeg = segs[nextIdx];
     if (typeof window._cpopNavTo === 'function') window._cpopNavTo(nextIdx);
-    _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
+
+    // 1. Parar browser + enviar STOP al ESP32
+    if (typeof stop === 'function') stop(); // pone autoAdvanceActive = false
+
+    // 2. Registrar la intención de arrancar el siguiente lote
+    _pendingAutoAdvance = true;
+
+    let _launched = false;
+    const _launch = () => {
+        if (_launched || !_pendingAutoAdvance) return; // cancelado por stop() manual
+        _launched = true;
+        _pendingAutoAdvance = false;
+        onStoppedCallback  = null;
+        autoAdvanceActive  = true;
+        _playSegmentLoop(nextSeg.startStep, nextSeg.endStep);
+    };
+
+    const _connected = (typeof wsConnected !== 'undefined' && wsConnected) ||
+                       (typeof _serialActive !== 'undefined' && _serialActive);
+
+    // Esperar confirmación del ESP32 ("stopped") antes de enviar el PLAY
+    //const _fallback = setTimeout(_launch, 10);
+    //onStoppedCallback = () => { clearTimeout(_fallback); _launch(); };
+    _launch();   
 }
 
 // ─────────────────────────────────────────────

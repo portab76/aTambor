@@ -56,12 +56,25 @@ let fusionStepsPerUnit      = 4;   // pasos por unidad de fusión: 4=negra, 8=bl
 let currentKey = "C";              // Tonalidad detectada como string, ej. "C", "Am"
 let currentMidiFileName = '';      // Nombre del archivo MIDI cargado
 
+// --- Mapa de tempo editable ---
+let tempoPoints = [{ step: 0, bpm: 120 }];  // Array<{step, bpm}> ordenado por step
+
 // --- Clipboard de fragmento A-B ---
 let _clipboardFragment = null;  // { length, cells: [{relStep, note, duration, velocity}] }
+
+// --- LED strip WS2812B — modo de color y Synthesia ---
+let ledColorMode = 'octava';   // 'rainbow' | 'octava' | 'calor' | 'blanco'
+let ledAdvanceMs = 0;          // ms de anticipación LED Synthesia (0 = desactivado)
 
 // --- Heat map (notas de calor, Motor de Atención) ---
 let heatMapActive = false;   // true = modo calor activo desde toolbar
 let heatMapData   = null;    // Map "note,step" → heatScore [0,1] | null = sin calcular
+
+// --- Segmentos de respiración (puntos de reset I2C) ---
+let breathingSegments = [];  // [{startStep, endStep, energy, activeNotes}] | [] = sin calcular
+
+// --- Marcadores de sección ---
+let sectionMarkers = [];  // Array<{step, label, color}>
 
 // --- Auto-advance (APPEND predictivo compás a compás) ---
 let autoAdvanceActive   = false; // true = encadenado automático de segmentos via APPEND

@@ -42,6 +42,15 @@ function buildGridFromChannel(channel) {
     ticksPerStep = ppqn / 4;
     totalSteps   = Math.ceil(totalTicks / ticksPerStep);
 
+    // Convertir tempoMap (ticks → pasos) en tempoPoints editables
+    tempoPoints = tempoMap
+        .map(t => ({ step: Math.round(t.tick / ticksPerStep), bpm: Math.round(t.bpm) }))
+        .filter((t, i, arr) => i === 0 || t.step !== arr[i - 1].step);
+    if (!tempoPoints.length || tempoPoints[0].step !== 0)
+        tempoPoints.unshift({ step: 0, bpm: tempoPoints[0]?.bpm || 120 });
+    const _bpmEl = document.getElementById('bpmInput');
+    if (_bpmEl) _bpmEl.value = Math.round(tempoPoints[0].bpm);
+
     // Límite de seguridad del canvas (~32.767px max en la mayoría de navegadores).
     // Si la canción es muy larga, reducimos stepWidth automáticamente.
     const MAX_CANVAS_W = 16000; // margen conservador
@@ -94,26 +103,29 @@ function drawPianoRoll() {
     canvas.style.height = `${canvas.height}px`;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const CT = window.CANVAS_THEME || {};
+    const rowAlt  = CT.rowAlt  || '#1e1e28';
+    const grid    = CT.grid    || '#3a3a50';
+    const gridBar = CT.gridBar || '#555555';
+    const label   = CT.label   || '#666666';
+
     // Fondo: notas negras del teclado (sostenidos/bemoles) en gris más oscuro
-    const BLACK_KEYS = new Set([1, 3, 6, 8, 10]); // clases de nota con sostenido
+    const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
     for (let row = 0; row < noteRows.length; row++) {
         if (BLACK_KEYS.has(noteRows[row] % 12)) {
-            ctx.fillStyle = "#1e1e28";
+            ctx.fillStyle = rowAlt;
             ctx.fillRect(0, row * rowHeight, canvas.width, rowHeight);
         }
     }
 
     // Cuadrícula
-    ctx.strokeStyle = "#3a3a50";
-    ctx.lineWidth = 0.5;
     for (let step = 0; step <= totalSteps; step++) {
-        // Línea de compás (cada 16 pasos = 1 compás 4/4 en semicorcheas) más gruesa
-        ctx.strokeStyle = (step % 16 === 0) ? "#555" : "#3a3a50";
+        ctx.strokeStyle = (step % 16 === 0) ? gridBar : grid;
         ctx.lineWidth   = (step % 16 === 0) ? 1 : 0.5;
         const x = step * stepWidth;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
-    ctx.strokeStyle = "#3a3a50";
+    ctx.strokeStyle = grid;
     ctx.lineWidth = 0.5;
     for (let row = 0; row <= noteRows.length; row++) {
         const y = row * rowHeight;
@@ -124,7 +136,7 @@ function drawPianoRoll() {
     _drawNotes(null);
 
     // Numeración de compases
-    ctx.fillStyle = "#666";
+    ctx.fillStyle = label;
     ctx.font = "9px monospace";
     for (let step = 0; step < totalSteps; step += 16) {
         ctx.fillText(`${step / 16 + 1}`, step * stepWidth + 2, 10);
@@ -142,13 +154,17 @@ function drawPianoRollWithPlayhead(playheadStep) {
         drawPianoRoll();
     }
     if (playheadStep >= 0) {
+        const phColor = (window.CANVAS_THEME && window.CANVAS_THEME.playhead) || 'rgba(255,230,0,0.9)';
         const x = playheadStep * stepWidth;
         ctx.save();
-        ctx.strokeStyle = "rgba(255, 230, 0, 0.9)";
+        ctx.strokeStyle = phColor;
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
         ctx.restore();
     }
+    _drawSelectionOverlay();
+    if (typeof drawVelocityLane === 'function') drawVelocityLane();
+    if (typeof drawMinimap      === 'function') drawMinimap();
 }
 
 /**
@@ -158,13 +174,15 @@ function drawPianoRollWithPlayhead(playheadStep) {
 function drawPianoRollWithHighlightAndPlayhead(chordClasses, hlStartStep, hlEndStep, playheadStep) {
     drawPianoRollWithHighlight(chordClasses, hlStartStep, hlEndStep);
     if (playheadStep >= 0) {
+        const phColor = (window.CANVAS_THEME && window.CANVAS_THEME.playhead) || 'rgba(255,230,0,0.9)';
         const x = playheadStep * stepWidth;
         ctx.save();
-        ctx.strokeStyle = "rgba(255, 230, 0, 0.9)";
+        ctx.strokeStyle = phColor;
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
         ctx.restore();
     }
+    _drawSelectionOverlay();
 }
 
 /**
@@ -175,14 +193,15 @@ function drawPianoRollWithHighlight(chordClasses, hlStartStep = null, hlEndStep 
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const CT2 = window.CANVAS_THEME || {};
     const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
     for (let row = 0; row < noteRows.length; row++) {
         if (BLACK_KEYS.has(noteRows[row] % 12)) {
-            ctx.fillStyle = "#1e1e28";
+            ctx.fillStyle = CT2.rowAlt || '#1e1e28';
             ctx.fillRect(0, row * rowHeight, canvas.width, rowHeight);
         }
     }
-    ctx.strokeStyle = "#3a3a50"; ctx.lineWidth = 0.5;
+    ctx.strokeStyle = CT2.grid || '#3a3a50'; ctx.lineWidth = 0.5;
     for (let step = 0; step <= totalSteps; step++) {
         const x = step * stepWidth;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
@@ -307,17 +326,26 @@ function initNoteLabelsEvents() {
         const hit = _noteFromY(clientY);
         if (!hit) return;
         _activeNote = hit.note;
+        const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const transposedNote = hit.note + offset;
 
         if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOn) {
-            MIDI.noteOn(0, hit.note, 90, 0);
+            MIDI.noteOn(0, transposedNote, 90, 0);
         }
 
-        // Disparar motor físico aplicando transposeOffset (motorForNote ya lo descuenta)
+        // Disparar motor físico en la nota transpuesta
         if (typeof motorForNote === 'function' && typeof sendCommand === 'function') {
-            const entry = motorForNote(hit.note);
-            if (entry) {
-                sendCommand(`e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${entry.vel}; t 150; v 0; p;`);
+            const entry = motorForNote(transposedNote);
+            if (entry && typeof entry.motor === 'number') {
+                const vel = 80;  // velocidad fija para click manual
+                const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${vel}; t 150; v 0; p;`;
+                console.log(`[_startNote] Motor: ${entry.motor}, transposedNote: ${transposedNote}, cmd: ${cmd}`);
+                sendCommand(cmd);
+            } else {
+                console.warn(`[_startNote] No motor found for transposedNote: ${transposedNote}`);
             }
+        } else {
+            console.warn(`[_startNote] sendCommand not available or motorForNote not defined`);
         }
 
         _highlightLabelRow(hit.rowIndex, true);
@@ -325,8 +353,10 @@ function initNoteLabelsEvents() {
 
     function _stopNote() {
         if (_activeNote === null) return;
+        const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const transposedNote = _activeNote + offset;
         if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOff) {
-            MIDI.noteOff(0, _activeNote, 0);
+            MIDI.noteOff(0, transposedNote, 0);
         }
         _highlightLabelRow(null, false);
         _activeNote = null;
@@ -387,11 +417,6 @@ function _doLoadBlankGrid(measures) {
     const btn = document.getElementById('newGridBtn');
     if (btn) btn.classList.remove('btn-active');
 
-    // Confirmar si hay notas en el grid actual
-    if (Object.keys(gridData.cells).length > 0) {
-        if (!confirm('¿Descartar el grid actual y crear uno nuevo vacío?')) return;
-    }
-
     // Extraer notas únicas del MOTOR_MAP ordenadas ascendente
     const motorNotes = [...new Set(MOTOR_MAP.map(m => m.note))].sort((a, b) => a - b);
     if (motorNotes.length === 0) {
@@ -421,11 +446,18 @@ function _doLoadBlankGrid(measures) {
     const toolbarBpm = document.getElementById('bpmInput');
     if (toolbarBpm) toolbarBpm.value = bpm;
 
-    // Limpiar análisis armónico
+    // Limpiar análisis armónico, frases, respiración y nombre MIDI
     currentHarmonicSegments = [];
-    currentKey = 'C';
+    currentFusedSegments    = [];
+    currentPhraseSegments   = [];
+    breathingSegments       = [];
+    currentKey              = 'C';
+    currentMidiFileName     = '';
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) chordRow.innerHTML = '';
+
+    tempoPoints = [{ step: 0, bpm }];
+    if (typeof historyClear === 'function') historyClear();
 
     // Redimensionar canvas y redibujar (resetea zoom label al default 40/25)
     applyZoom(40, 25);
@@ -436,6 +468,10 @@ function _doLoadBlankGrid(measures) {
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
     statusSpan.innerText = `Grid vacío · ${motorNotes.length} notas · ${measures} compás${measures > 1 ? 'es' : ''} · ${bpm} BPM`;
+
+    // Actualizar nombre del tab
+    if (typeof tabMarkFileLoaded === 'function')
+        tabMarkFileLoaded(`Sin título · ${measures} comp.`);
 }
 
 // Alias de compatibilidad por si algo lo llama directamente
@@ -646,6 +682,17 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
 
+        // Resaltar nota seleccionada (selección rectangular)
+        if (typeof _selCells !== 'undefined' && _selCells.has(key)) {
+            ctx.save();
+            ctx.fillStyle   = 'rgba(100,180,255,0.25)';
+            ctx.strokeStyle = 'rgba(120,200,255,0.95)';
+            ctx.lineWidth   = 2;
+            ctx.fillRect  (x + 1, y + 1, w - 2, h - 2);
+            ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+            ctx.restore();
+        }
+
         // Dibuja símbolo de calor sobre notas muy dominantes
         if (heatMapActive && heatMapData && w >= 8) {
             const heat = heatMapData.get(key) ?? 0;
@@ -654,3 +701,23 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
     }
     ctx.lineWidth = 0.5;
 }
+
+// Dibuja el rectángulo semitransparente mientras el usuario arrastra una selección
+function _drawSelectionOverlay() {
+    if (typeof _selDragging === 'undefined' || !_selDragging) return;
+    if (!_selDragStart || !_selDragEnd) return;
+    const s1 = Math.min(_selDragStart.step,     _selDragEnd.step);
+    const s2 = Math.max(_selDragStart.step,     _selDragEnd.step);
+    const r1 = Math.min(_selDragStart.rowIndex, _selDragEnd.rowIndex);
+    const r2 = Math.max(_selDragStart.rowIndex, _selDragEnd.rowIndex);
+    ctx.save();
+    ctx.fillStyle   = 'rgba(100,180,255,0.15)';
+    ctx.strokeStyle = 'rgba(120,200,255,0.85)';
+    ctx.lineWidth   = 1.5;
+    ctx.fillRect  (s1 * stepWidth,   r1 * rowHeight,
+                   (s2 - s1 + 1) * stepWidth, (r2 - r1 + 1) * rowHeight);
+    ctx.strokeRect(s1 * stepWidth,   r1 * rowHeight,
+                   (s2 - s1 + 1) * stepWidth, (r2 - r1 + 1) * rowHeight);
+    ctx.restore();
+}
+
