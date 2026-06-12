@@ -164,6 +164,37 @@ loadInstrumentBtn.addEventListener('click', () => {
     }
 
     // H2: flujo normal (sin reproducción activa)
+    // Si el tab activo ya tiene contenido, abrir el canal en uno nuevo
+    if (Object.keys(gridData.cells).length > 0) {
+        const snap = {
+            rawEvents:           rawEvents.map(e => ({ ...e })),
+            tempoMap:            tempoMap.map(e => ({ ...e })),
+            ppqn, totalTicks,
+            midiData:            midiData ? JSON.parse(JSON.stringify(midiData)) : null,
+            instrumentNames:     [...instrumentNames],
+            currentMidiFileName,
+            currentTimeSig:      { ...currentTimeSig },
+        };
+        _tabSaveCurrent();
+        const t = _tabDefaults();
+        t.rawEvents           = snap.rawEvents;
+        t.tempoMap            = snap.tempoMap;
+        t.ppqn                = snap.ppqn;
+        t.totalTicks          = snap.totalTicks;
+        t.midiData            = snap.midiData;
+        t.instrumentNames     = [...snap.instrumentNames];
+        t.currentMidiFileName = snap.currentMidiFileName;
+        t.currentTimeSig      = { ...snap.currentTimeSig };
+        t.selectedChannel     = selectedChannel;
+        _tabs.push(t);
+        _activeTabIdx = _tabs.length - 1;
+        _tabRestoreFrom(t);
+        // enableInstrumentSelection filtra por canales con noteOn (igual que al cargar el MIDI),
+        // evitando que _tabRestoreFrom muestre canales con programChange pero sin notas.
+        if (typeof enableInstrumentSelection === 'function') enableInstrumentSelection();
+        _tabRender();
+    }
+
     statusSpan.innerText = `Construyendo grid para canal ${selectedChannel + 1}...`;
     buildGridFromChannel(selectedChannel);
     if (typeof historyClear === 'function') historyClear();
@@ -212,6 +243,8 @@ loadInstrumentBtn.addEventListener('click', () => {
     if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
     playBtn.disabled = false;
+    const _exportBtn = document.getElementById('exportMidiMenuBtn');
+    if (_exportBtn) _exportBtn.disabled = false;
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
@@ -236,8 +269,10 @@ loadInstrumentBtn.addEventListener('click', () => {
         `${Object.keys(gridData.cells).length} notas · ` +
         `Tonalidad: ${currentKey}`;
 
+    const _numMeasures = Math.ceil(totalSteps / currentTimeSig.stepsPerMeasure);
     debugDiv.innerHTML +=
         `<br><strong>Grid generado:</strong> ${instrumentNames[selectedChannel]}, ` +
+        `<strong>${_numMeasures} compases</strong>, ` +
         `Pasos=${totalSteps}, Rango=${noteRows[0]}–${noteRows[noteRows.length - 1]}, ` +
         `Zoom=${stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
 
@@ -328,7 +363,10 @@ button:hover{background:#2a2a55;color:#fff;}
     if (mode === 'serial') {
         const w = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
         w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log (Serie)</title>
-<style>${_CSS}</style></head><body>
+<style>${_CSS}
+#cmd{display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:4px;border-top:1px solid #2a2a44;}
+#cmdInput{flex:1;background:#080816;border:1px solid #334;color:#adf;font-family:monospace;font-size:11px;padding:4px 8px;border-radius:4px;outline:none;}
+</style></head><body>
 <div id="tb">
   <span style="color:#ff4466;font-weight:bold;font-size:12px;letter-spacing:2px">ESP32 LOG</span>
   <span style="font-size:10px;color:#44aaff;">Serie (COM)</span>
@@ -336,6 +374,12 @@ button:hover{background:#2a2a55;color:#fff;}
   <button onclick="window.opener._serialLog='';prev='';document.getElementById('L').textContent=''">🗑 Limpiar</button>
 </div>
 <pre id="L"></pre>
+<div id="cmd">
+  <span style="font-size:10px;opacity:.5;white-space:nowrap;">CMD&nbsp;→</span>
+  <input id="cmdInput" type="text" placeholder="ej: m 0; o 375; t 80; v 100; t 150; v 0; p;"
+         onkeydown="if(event.key==='Enter')sendCmd()">
+  <button onclick="sendCmd()">Enviar</button>
+</div>
 <script>
 var autoScroll=true,prev='';
 function u(){
@@ -348,6 +392,12 @@ function u(){
     if(autoScroll)l.scrollTop=l.scrollHeight;
   }catch(e){}
 }
+function sendCmd(){
+  var inp=document.getElementById('cmdInput');
+  var cmd=inp.value.trim();
+  if(!cmd)return;
+  try{window.opener.sendCommand(cmd);inp.select();}catch(e){alert('Sin conexión con la ventana principal.');}
+}
 setInterval(u,300);u();
 <\/script></body></html>`);
         w.document.close();
@@ -358,7 +408,10 @@ setInterval(u,300);u();
     const ip = document.getElementById('esp32IpInput')?.value?.trim() || ESP32_IP;
     const w  = window.open('', 'ESP32Log', 'width=700,height=500,resizable=yes,scrollbars=yes');
     w.document.write(`<!DOCTYPE html><html><head><title>ESP32 Log</title>
-<style>${_CSS}</style></head><body>
+<style>${_CSS}
+#cmd{display:flex;gap:6px;align-items:center;flex-shrink:0;padding-top:4px;border-top:1px solid #2a2a44;}
+#cmdInput{flex:1;background:#080816;border:1px solid #334;color:#adf;font-family:monospace;font-size:11px;padding:4px 8px;border-radius:4px;outline:none;}
+</style></head><body>
 <div id="tb">
   <span style="color:#ff4466;font-weight:bold;font-size:12px;letter-spacing:2px">ESP32 LOG</span>
   <span style="font-size:10px;color:#556;">${ip}</span>
@@ -366,6 +419,12 @@ setInterval(u,300);u();
   <button onclick="document.getElementById('L').textContent='';seen=''">🗑 Limpiar</button>
 </div>
 <pre id="L"></pre>
+<div id="cmd">
+  <span style="font-size:10px;opacity:.5;white-space:nowrap;">CMD&nbsp;→</span>
+  <input id="cmdInput" type="text" placeholder="ej: m 0; o 375; t 80; v 100; t 150; v 0; p;"
+         onkeydown="if(event.key==='Enter')sendCmd()">
+  <button onclick="sendCmd()">Enviar</button>
+</div>
 <script>
 var autoScroll=true,seen='';
 function u(){
@@ -376,6 +435,12 @@ function u(){
     seen=d;
     if(autoScroll)l.scrollTop=l.scrollHeight;
   }).catch(function(){});
+}
+function sendCmd(){
+  var inp=document.getElementById('cmdInput');
+  var cmd=inp.value.trim();
+  if(!cmd)return;
+  try{window.opener.sendCommand(cmd);inp.select();}catch(e){alert('Sin conexión con la ventana principal.');}
 }
 setInterval(u,600);u();
 <\/script></body></html>`);
@@ -446,9 +511,33 @@ document.addEventListener('keydown', (e) => {
     }
 
     // Copiar selección al portapapeles de fragmentos
-    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && typeof _selCells !== 'undefined' && _selCells.size > 0) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c' &&
+        typeof _selCells !== 'undefined' && _selCells.size > 0) {
         selectionCopy();
         return;
+    }
+
+    // Pegar fragmento: Ctrl+V (offset actual) · Ctrl+Shift+V (+1 oct) · Ctrl+Alt+V (−1 oct)
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
+        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+            e.preventDefault();
+            pasteFragment();
+            return;
+        }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
+        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+            e.preventDefault();
+            pasteFragment((typeof _pasteOctaveOffset !== 'undefined' ? _pasteOctaveOffset : 0) + 12);
+            return;
+        }
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.altKey && e.key.toLowerCase() === 'v') {
+        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+            e.preventDefault();
+            pasteFragment((typeof _pasteOctaveOffset !== 'undefined' ? _pasteOctaveOffset : 0) - 12);
+            return;
+        }
     }
 
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
@@ -459,4 +548,115 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         historyRedo();
     }
+
+    // Abrir todos los canales en tabs separados
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        openAllInstruments();
+    }
 });
+
+// ---- Abrir cada canal MIDI en un tab independiente ----
+function openAllInstruments() {
+    const opts = Array.from(
+        instrumentSelect.querySelectorAll('option[value]:not([value=""])')
+    );
+    if (opts.length === 0) {
+        statusSpan.innerText = 'No hay canales MIDI cargados.';
+        return;
+    }
+
+    // Captura el estado MIDI antes de mover tabs
+    const snap = {
+        rawEvents:           rawEvents.map(e => ({ ...e })),
+        tempoMap:            tempoMap.map(e => ({ ...e })),
+        ppqn,
+        totalTicks,
+        midiData:            midiData ? JSON.parse(JSON.stringify(midiData)) : null,
+        instrumentNames:     [...instrumentNames],
+        currentMidiFileName,
+        currentTimeSig:      { ...currentTimeSig },
+    };
+
+    _tabSaveCurrent();
+    const startIdx = _tabs.length;   // índice del primer tab nuevo
+
+    opts.forEach((opt) => {
+        const ch     = parseInt(opt.value);
+        const chName = opt.textContent.trim();
+
+        // Tab nuevo pre-cargado con los datos MIDI compartidos
+        const t = _tabDefaults();
+        t.rawEvents           = snap.rawEvents.map(e => ({ ...e }));
+        t.tempoMap            = snap.tempoMap.map(e => ({ ...e }));
+        t.ppqn                = snap.ppqn;
+        t.totalTicks          = snap.totalTicks;
+        t.midiData            = snap.midiData ? JSON.parse(JSON.stringify(snap.midiData)) : null;
+        t.instrumentNames     = [...snap.instrumentNames];
+        t.currentMidiFileName = snap.currentMidiFileName;
+        t.currentTimeSig      = { ...snap.currentTimeSig };
+        t.selectedChannel     = ch;
+        t.name                = chName;
+
+        _tabs.push(t);
+        _activeTabIdx = _tabs.length - 1;
+        _tabRestoreFrom(t);  // restaura globals: selectedChannel=ch, rawEvents=snap...
+        if (typeof enableInstrumentSelection === 'function') enableInstrumentSelection();
+
+        buildGridFromChannel(ch);
+        if (typeof historyClear === 'function') historyClear();
+        pasoActual = 0;
+        drawTimelineRuler();
+
+        const analysis = performHarmonicAnalysis(ch);
+        if (analysis) {
+            currentHarmonicSegments = analysis.segments;
+            currentFusedSegments    = analysis.fusedSegments;
+            currentPhraseSegments   = analysis.phraseSegments;
+            currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
+
+            const viewSel = document.getElementById('viewLevelSelect');
+            if (viewSel) {
+                viewSel.disabled = false;
+                viewSel.value    = 'acordes';
+                viewSel.querySelector('option[value="frases"]').disabled =
+                    (currentPhraseSegments.length === 0);
+            }
+            const keyObj = {
+                tonic:    currentKey.replace('m', ''),
+                mode:     currentKey.endsWith('m') ? 'minor' : 'major',
+                rootClass: 0
+            };
+            drawChordRow(currentFusedSegments, keyObj);
+        }
+
+        if (typeof calcularBreathingPoints === 'function') calcularBreathingPoints();
+        _refreshHeatMap();
+        _enableMeasureButtons();
+
+        playBtn.disabled = false;
+    const _exportBtn = document.getElementById('exportMidiMenuBtn');
+    if (_exportBtn) _exportBtn.disabled = false;
+        loadInstrumentBtn.disabled = false;
+        document.getElementById('activeNotesBtn').disabled = false;
+        const abBtn = document.getElementById('abLoopBtn');
+        if (abBtn) abBtn.disabled = false;
+        const heatBtn = document.getElementById('heatMapBtn');
+        if (heatBtn) heatBtn.disabled = false;
+        const chordPanelBtn = document.getElementById('chordPanelBtn');
+        if (chordPanelBtn) chordPanelBtn.disabled = false;
+
+        const viewSel2 = document.getElementById('viewLevelSelect');
+        if (viewSel2 && analysis) {
+            viewSel2.querySelector('option[value="respiración"]').disabled =
+                (breathingSegments.length === 0);
+        }
+
+        _tabs[_activeTabIdx].name    = chName;
+        _tabs[_activeTabIdx].isDirty = false;
+        _tabSaveCurrent();   // graba el grid construido en este slot
+    });
+
+    tabSwitch(startIdx);   // activa el primer tab nuevo
+    statusSpan.innerText = `${opts.length} canal${opts.length > 1 ? 'es' : ''} abierto${opts.length > 1 ? 's' : ''} en tabs separados.`;
+}

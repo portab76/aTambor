@@ -136,4 +136,7 @@ function enableInstrumentSelection() {
     }
     instrumentSelect.disabled = false;
     loadInstrumentBtn.disabled = false;
+
+    const openAllBtn = document.getElementById('openAllInstrumentsBtn');
+    if (openAllBtn) openAllBtn.disabled = (channels.size < 2);
 }

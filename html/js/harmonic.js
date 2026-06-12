@@ -478,3 +478,55 @@ function performHarmonicAnalysis(channel) {
 
     return { key, segments: analyzed, fusedSegments, phraseSegments };
 }
+
+/**
+ * Análisis armónico construido directamente desde gridData.cells,
+ * sin necesitar rawEvents. Usado al cargar un proyecto JSON.
+ * @returns {{ key, segments, fusedSegments, phraseSegments } | null}
+ */
+function performHarmonicAnalysisFromGrid() {
+    if (!gridData || Object.keys(gridData.cells).length === 0) return null;
+
+    // Construir eventos sintéticos noteOn/noteOff desde gridData.cells
+    const events = [];
+    for (const [key, cell] of Object.entries(gridData.cells)) {
+        const [noteStr, stepStr] = key.split(',');
+        const note     = parseInt(noteStr);
+        const step     = parseInt(stepStr);
+        const duration = cell.duration || 1;
+        const velocity = cell.velocity || 80;
+        const tps      = ticksPerStep || (ppqn / 4) || 24;
+        const tickOn   = step * tps;
+        const tickOff  = (step + duration) * tps;
+        events.push({ tick: tickOn,  type: 'noteOn',  channel: 0, note, velocity });
+        events.push({ tick: tickOff, type: 'noteOff', channel: 0, note, velocity: 0 });
+    }
+    if (events.length === 0) return null;
+    events.sort((a, b) => a.tick - b.tick || (a.type === 'noteOff' ? -1 : 1));
+
+    const tps        = ticksPerStep || (ppqn / 4) || 24;
+    const _totalTicks = totalSteps * tps;
+
+    // Segmentación temporal usando la misma lógica que getHarmonicSegments
+    const ticksSet = new Set([0, _totalTicks]);
+    for (const ev of events) ticksSet.add(ev.tick);
+    const changeTicks = Array.from(ticksSet).sort((a, b) => a - b);
+
+    const rawSegs  = buildSegments(changeTicks, events);
+    const merged   = mergeSegments(rawSegs);
+    const segments = merged.map(seg => {
+        let startStep = Math.round(seg.startTick / tps);
+        let endStep   = Math.round(seg.endTick   / tps);
+        if (startStep === endStep) endStep = startStep + 1;
+        return { startStep, endStep, activeNotes: seg.activeNotes, notesDetail: seg.notesDetail };
+    }).filter(s => s.activeNotes.length > 0);
+
+    if (segments.length === 0) return null;
+
+    const key            = detectKey(events);
+    const analyzed       = analyzeChordsOnSegments(segments, key);
+    const fusedSegments  = fuseSegments(analyzed, key, fusionStepsPerUnit);
+    const phraseSegments = detectPhrases(fusedSegments, key);
+
+    return { key, segments: analyzed, fusedSegments, phraseSegments };
+}

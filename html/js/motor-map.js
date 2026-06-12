@@ -38,37 +38,37 @@ function _midiNote(noteName, octave) {
 
 // ── Configuración del strip LED WS2812B ───────────────────────
 // NUM_LEDS: total de LEDs en el strip (C1–B5 cromático).
-const NUM_LEDS      = 60;
-const LED_BASE_NOTE = _midiNote('C', 1);  // C1 = MIDI 24 → LED 0; B5 = MIDI 83 → LED 59
+const NUM_LEDS      = 61;
+const LED_BASE_NOTE = _midiNote('B', 0);  // B0 = MIDI 23 → C1 = LED 1; B5 = MIDI 83 → LED 60
 
 // LED index automático: no necesita campo 'led' en MOTOR_MAP.
 function ledForNote(midiNote) {
-    return midiNote - LED_BASE_NOTE;   // C1→0 … B5→59
+    return midiNote - LED_BASE_NOTE;   // C1→1 … B5→60
 }
 
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
 // Solo motores físicos (solenoides). Sin campo 'led' — se calcula con ledForNote(note).
 let MOTOR_MAP = [
 
-  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false },
-  { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false },
+  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a' },
+  { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false, key: 's' },
 
     // Octava 2 (C2–B2): motores 0–11
-  { note: _midiNote('C',   2), name: 'C2',  motor:  0, homePwm: 375, muted: false },
-  { note: _midiNote('C#',  2), name: 'C#2', motor: 10, homePwm: 375, muted: false },
-  { note: _midiNote('D',   2), name: 'D2',  motor:  1, homePwm: 375, muted: false },
-  { note: _midiNote('D#',  2), name: 'D#2', motor: 11, homePwm: 375, muted: false },
-  { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false },
-  { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false },
-  { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false },
-  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false },
-  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false },
-  { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false },
-  { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false },
-  { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false },
+  { note: _midiNote('C',   2), name: 'C2',  motor:  0, homePwm: 375, muted: false, key: 'd' },
+  { note: _midiNote('C#',  2), name: 'C#2', motor: 10, homePwm: 375, muted: false, key: 'r' },
+  { note: _midiNote('D',   2), name: 'D2',  motor:  1, homePwm: 375, muted: false, key: 'f' },
+  { note: _midiNote('D#',  2), name: 'D#2', motor: 11, homePwm: 375, muted: false, key: 't' },
+  { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false, key: 'g' },
+  { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false, key: 'h' },
+  { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false, key: 'u' },
+  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false, key: 'j' },
+  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false, key: 'i' },
+  { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false, key: 'k' },
+  { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false, key: 'o' },
+  { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false, key: 'l' },
 
-   { note: _midiNote('C',   3), name: 'C3',  motor:  14, homePwm: 375, muted: false },
-   { note: _midiNote('D',   3), name: 'D3',  motor:  15, homePwm: 375, muted: false },
+   { note: _midiNote('C',   3), name: 'C3',  motor:  14, homePwm: 375, muted: false, key: 'ñ' },
+   { note: _midiNote('D',   3), name: 'D3',  motor:  15, homePwm: 375, muted: false, key: 'p' },
 ];
 
 // ── Persistencia en localStorage ─────────────────────────────
@@ -89,6 +89,7 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
             if (saved.led     !== undefined) entry.led     = saved.led;
             if (saved.homePwm !== undefined) entry.homePwm = saved.homePwm;
             if (saved.muted   !== undefined) entry.muted   = saved.muted;
+            if (saved.key     !== undefined) entry.key     = saved.key;
         });
         console.log('[motor-map] Configuración restaurada desde localStorage');
     } catch(e) {
@@ -137,6 +138,7 @@ function motorMapImport() {
                     if (saved.led      !== undefined) entry.led      = saved.led;
                     if (saved.homePwm  !== undefined) entry.homePwm  = saved.homePwm;
                     if (saved.muted    !== undefined) entry.muted    = saved.muted;
+                    if (saved.key      !== undefined) entry.key      = saved.key;
                 });
                 _mmSaveToStorage();
                 _renderMotorMapRows();
@@ -270,6 +272,7 @@ function _renderMotorMapRows() {
         const ch  = m.motor % 16;
 
         tr.style.opacity = m.muted ? '0.4' : '1';
+        const _kl = m.key || '·';
         tr.innerHTML = `
             <td style="padding:3px 6px;color:#aaaadd;">${m.note}</td>
             <td style="padding:3px 6px;font-weight:bold;color:#ddeeff;">${m.name}</td>
@@ -281,6 +284,18 @@ function _renderMotorMapRows() {
                     title="Silenciar este motor y nota"
                     onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapRows();_renderMotorMapPanelRows();"
                     onclick="event.stopPropagation();">
+            </td>
+            <td style="padding:3px 6px;text-align:center;">
+                <span style="display:inline-block;min-width:22px;padding:2px 6px;
+                             background:${m.key ? '#1a1a3a' : '#111'};
+                             border:1px solid ${m.key ? '#5555aa' : '#333'};
+                             border-radius:4px;font-family:monospace;font-size:12px;
+                             color:${m.key ? '#aaddff' : '#444'};cursor:pointer;
+                             user-select:none;"
+                      title="Click para asignar tecla"
+                      onclick="event.stopPropagation();_mmListenForKey(${i}, this);">
+                    ${_kl}
+                </span>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -304,15 +319,8 @@ function _editCell(idx, field, value, min, max) {
 let _mmPanelSelectedIdx = null;
 
 function toggleMotorMapPanel() {
-    const panel  = document.getElementById('motorMapPanel');
-    const toggle = document.getElementById('motorMapToggle');
-    if (!panel || !toggle) return;
-    const isOpen = panel.classList.toggle('open');
-    toggle.classList.toggle('open', isOpen);
-    // Sincronizar botón toolbar
-    const tbBtn = document.querySelector('button[onclick="toggleMotorMapPanel()"]');
-    if (tbBtn) tbBtn.classList.toggle('btn-active', isOpen);
-    if (isOpen) _renderMotorMapPanelRows();
+    if (typeof toggleMotorEscalaPanel === 'function')
+        toggleMotorEscalaPanel();
 }
 
 // ── Colores arcoíris por octava ───────────────────────────────
@@ -511,6 +519,7 @@ function _renderMotorMapPanelRows() {
         });
 
         tr.style.opacity = m.muted ? '0.4' : '1';
+        const keyLabel = m.key || '·';
         tr.innerHTML = `
             <td style="color:${col.text};font-size:11px;">${m.note}</td>
             <td style="font-weight:bold;color:${col.text};">${m.name}</td>
@@ -527,6 +536,18 @@ function _renderMotorMapPanelRows() {
                     title="Silenciar este motor y nota"
                     onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapPanelRows();_renderMotorMapRows();"
                     onclick="event.stopPropagation();">
+            </td>
+            <td style="text-align:center;" id="mm-key-cell-${i}">
+                <span style="display:inline-block;min-width:22px;padding:2px 6px;
+                             background:${m.key ? col.bg : '#111'};
+                             border:1px solid ${m.key ? col.border : '#333'};
+                             border-radius:4px;font-family:monospace;font-size:12px;
+                             color:${m.key ? col.text : '#444'};cursor:pointer;
+                             user-select:none;"
+                      title="Click para asignar tecla"
+                      onclick="event.stopPropagation();_mmListenForKey(${i}, this);">
+                    ${keyLabel}
+                </span>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -629,3 +650,176 @@ function _mmPanelTest() {
     const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v 80; t150; v 0; p;`;
     if (typeof sendCommand === 'function') sendCommand(cmd);
 }
+
+// ============================================================
+// Sistema de teclas — NoteOn/NoteOff por teclado físico
+// ============================================================
+
+// Mapa letra → índice en MOTOR_MAP (reconstruido al cambiar asignaciones)
+let _mmKeyMap = new Map();
+
+// Teclas actualmente pulsadas (para acordes y evitar repeat del SO)
+const _mmActiveKeys = new Set();
+
+// timestamp (performance.now) de cada keydown — para calcular duración real del golpe
+const _mmKeyDownTime = new Map();
+
+// timers de NoteOff pendientes por tecla — para cancelar si vuelve keydown antes
+const _mmNoteOffTimers = new Map();
+
+// Reconstruye el mapa letra→motor desde MOTOR_MAP
+function _mmRebuildKeyMap() {
+    _mmKeyMap.clear();
+    MOTOR_MAP.forEach((m, i) => {
+        if (m.key && m.key.length === 1) _mmKeyMap.set(m.key.toLowerCase(), i);
+    });
+}
+
+// Lee midiImportMaxVel (1-127) y lo convierte a escala ESP32 (1-100)
+function _mmGetVel() {
+    const raw = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
+    return Math.round(Math.max(1, Math.min(127, raw)) * 100 / 127);
+}
+
+// Envía NoteOn: establece home, luego N motor vel
+function _mmNoteOn(entry) {
+    if (entry.muted) return;
+    if (typeof sendCommand !== 'function') return;
+    const vel = _mmGetVel();
+    sendCommand(`m ${entry.motor}; o ${entry.homePwm}; N ${entry.motor} ${vel};`);
+}
+
+// Envía NoteOff: devuelve el motor a home
+function _mmNoteOff(entry) {
+    if (typeof sendCommand !== 'function') return;
+    sendCommand(`F ${entry.motor};`);
+}
+
+// Libera todos los motores activos — llamado al perder foco o cerrar panel
+function _mmReleaseAllNotes() {
+    // Cancelar NoteOffs retrasados y disparar inmediatamente
+    _mmNoteOffTimers.forEach((t, k) => {
+        clearTimeout(t);
+        const idx = _mmKeyMap.get(k);
+        if (idx !== undefined) _mmNoteOff(MOTOR_MAP[idx]);
+    });
+    _mmNoteOffTimers.clear();
+    _mmKeyDownTime.clear();
+
+    if (_mmActiveKeys.size === 0) return;
+    _mmActiveKeys.forEach(k => {
+        const idx = _mmKeyMap.get(k);
+        if (idx !== undefined) _mmNoteOff(MOTOR_MAP[idx]);
+    });
+    _mmActiveKeys.clear();
+}
+
+// Inicia el modo escucha en una celda: la próxima tecla pulsada se asigna al motor i
+function _mmListenForKey(i, cellEl) {
+    cellEl.textContent = '…';
+    cellEl.style.background = '#2a2a5a';
+    cellEl.style.outline    = '2px solid #4488ff';
+
+    const handler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.removeEventListener('keydown', handler, true);
+
+        if (e.key === 'Escape') {
+            // Borrar asignación
+            MOTOR_MAP[i].key = '';
+        } else if (e.key.length === 1) {
+            const k = e.key.toLowerCase();
+            // Quitar la misma letra de cualquier motor que la tuviera
+            MOTOR_MAP.forEach(m => { if (m.key === k) m.key = ''; });
+            MOTOR_MAP[i].key = k;
+        }
+        _mmSaveToStorage();
+        _mmRebuildKeyMap();
+        _renderMotorMapPanelRows();
+        _renderMotorMapRows();
+    };
+    document.addEventListener('keydown', handler, true);
+}
+
+// ── Listeners globales de teclado ────────────────────────────
+// Se registran una sola vez. Actúan solo cuando el panel Motor está visible.
+(function _mmInitKeyListeners() {
+    document.addEventListener('keydown', (e) => {
+        // Solo activo con panel motor visible
+        if (typeof _meOpen === 'undefined' || !_meOpen) return;
+        // Ignorar si el foco está en un campo editable
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        // Solo caracteres simples (letras, símbolos)
+        if (e.key.length !== 1) return;
+        // Ignorar combinaciones con Ctrl/Alt/Meta
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+        const k = e.key.toLowerCase();
+        if (!_mmKeyMap.has(k)) return;
+        if (_mmActiveKeys.has(k)) return;  // ya pulsada (repeat del SO)
+
+        _mmActiveKeys.add(k);
+        _mmKeyDownTime.set(k, performance.now());
+
+        // Cancelar NoteOff pendiente si la tecla se repulsa antes de que expire
+        if (_mmNoteOffTimers.has(k)) {
+            clearTimeout(_mmNoteOffTimers.get(k));
+            _mmNoteOffTimers.delete(k);
+        }
+
+        const idx   = _mmKeyMap.get(k);
+        const entry = MOTOR_MAP[idx];
+        _mmNoteOn(entry);
+
+        // Resaltar fila en la tabla
+        _mmPanelSelectedIdx = idx;
+        document.querySelectorAll('#motorMapPanelTbody tr').forEach((tr, i) => {
+            tr.classList.toggle('mm-selected', i === idx);
+        });
+
+    }, false);
+
+    document.addEventListener('keyup', (e) => {
+        if (e.key.length !== 1) return;
+        const k = e.key.toLowerCase();
+        if (!_mmActiveKeys.has(k)) return;
+
+        _mmActiveKeys.delete(k);
+        if (!_mmKeyMap.has(k)) return;
+        const idx   = _mmKeyMap.get(k);
+        const entry = MOTOR_MAP[idx];
+
+        // Garantizar duración mínima de golpe (HIT_MS + RETRACT_MS) aunque la
+        // tecla se suelte antes — el servo necesita el ciclo completo para moverse.
+        const minMs   = ((typeof HIT_MS !== 'undefined' ? HIT_MS : 80) +
+                         (typeof RETRACT_MS !== 'undefined' ? RETRACT_MS : 150));
+        const elapsed = performance.now() - (_mmKeyDownTime.get(k) || 0);
+        const delay   = Math.max(0, minMs - elapsed);
+
+        _mmKeyDownTime.delete(k);
+
+        if (delay <= 0) {
+            _mmNoteOff(entry);
+        } else {
+            const t = setTimeout(() => {
+                _mmNoteOffTimers.delete(k);
+                _mmNoteOff(entry);
+            }, delay);
+            _mmNoteOffTimers.set(k, t);
+        }
+    }, false);
+
+    // ── Safety: liberar todos los motores al perder el foco ──
+    // Evita que un servo quede atascado si se cambia de ventana,
+    // se cierra el panel o el navegador pierde el foco mientras
+    // una tecla está pulsada.
+    window.addEventListener('blur',             () => _mmReleaseAllNotes());
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) _mmReleaseAllNotes();
+    });
+})();
+
+// Construir el mapa inicial al cargar
+_mmRebuildKeyMap();

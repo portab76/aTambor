@@ -493,18 +493,11 @@ function initRulerSeek() {
     area.style.cursor = 'pointer';
 }
 
-function _updateAbDragLine(clientX) {
+function _updateAbDragLine(contentX) {
     const line = document.getElementById('abDragLine');
     if (!line || !stepWidth) return;
-    // clientX es la posición relativa al rulerScrollArea; el gridScroll tiene el mismo scroll
-    const gridScroll = document.getElementById('gridScroll');
-    const rulerArea  = document.getElementById('rulerScrollArea');
-    if (!gridScroll || !rulerArea) return;
-    // Posición relativa al contenido del grid (no al viewport)
-    const scrollOffset = rulerArea.scrollLeft;
-    const rulerRect    = rulerArea.getBoundingClientRect();
-    const xInContent   = clientX - rulerRect.left + scrollOffset;
-    line.style.left    = (xInContent - 1) + 'px';
+    // contentX ya es coordenada de contenido (pixel en el grid scrollable)
+    line.style.left    = (contentX - 1) + 'px';
     line.style.display = 'block';
 }
 

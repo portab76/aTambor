@@ -5,13 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIDI Sequencer Grid</title>
     <style>
+        /* ── Variables de tema ── */
+        :root, [data-theme="dark"] {
+            --c-bg:         #1e1e2f;
+            --c-toolbar:    #16162a;
+            --c-panel:      #22223a;
+            --c-control:    #2e2e42;
+            --c-control-h:  #3a3a58;
+            --c-deep:       #13132a;
+            --c-canvas:     #252530;
+            --c-ruler:      #0d0d1c;
+            --c-border:     #3a3a5a;
+            --c-border2:    #2a2a4a;
+            --c-border3:    #4a4a6a;
+            --c-text:       #eeeeee;
+            --c-text2:      #dddddd;
+            --c-text3:      #9999bb;
+            --c-label:      #7070aa;
+            --c-group:      #555580;
+            --c-accent:     #6688cc;
+            --c-accent-bg:  #2a3a5a;
+            --c-tab-bar:    #0a0a18;
+            --c-tab:        #13132a;
+            --c-tab-active: #1a1a30;
+            --c-tab-border: #4a4a7a;
+            --c-tab-text:   #666666;
+            --c-ruler-text: #5555aa;
+        }
+        [data-theme="light"] {
+            --c-bg:         #f0f2f8;
+            --c-toolbar:    #e2e4f0;
+            --c-panel:      #eaecf8;
+            --c-control:    #e0e2f0;
+            --c-control-h:  #d0d4ea;
+            --c-deep:       #d8dae8;
+            --c-canvas:     #f8f9ff;
+            --c-ruler:      #dde0ee;
+            --c-border:     #b0b4cc;
+            --c-border2:    #c0c4d8;
+            --c-border3:    #9090b8;
+            --c-text:       #1a1a2e;
+            --c-text2:      #2a2a40;
+            --c-text3:      #5566aa;
+            --c-label:      #4455aa;
+            --c-group:      #6677aa;
+            --c-accent:     #3355bb;
+            --c-accent-bg:  #d0d8f0;
+            --c-tab-bar:    #d4d8ea;
+            --c-tab:        #dde0ee;
+            --c-tab-active: #f0f2ff;
+            --c-tab-border: #7788cc;
+            --c-tab-text:   #7788aa;
+            --c-ruler-text: #5566aa;
+        }
+
         * { box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            background: #1e1e2f;
-            color: #eee;
+            background: var(--c-bg);
+            color: var(--c-text);
             display: flex;
             flex-direction: column;
             height: 100vh;
@@ -20,8 +74,8 @@
 
         /* ── Barra de herramientas superior ── */
         .toolbar {
-            background: #16162a;
-            border-bottom: 1px solid #3a3a5a;
+            background: var(--c-toolbar);
+            border-bottom: 1px solid var(--c-border);
             padding: 4px 10px;
             display: flex;
             align-items: center;
@@ -33,7 +87,7 @@
         .toolbar-title {
             font-size: 13px;
             font-weight: 600;
-            color: #7070aa;
+            color: var(--c-label);
             white-space: nowrap;
             flex-shrink: 0;
         }
@@ -41,7 +95,7 @@
         .toolbar-sep {
             width: 1px;
             height: 20px;
-            background: #3a3a5a;
+            background: var(--c-border);
             margin: 0 2px;
             flex-shrink: 0;
         }
@@ -49,7 +103,7 @@
         /* Etiqueta de grupo */
         .tb-group-label {
             font-size: 9px;
-            color: #555580;
+            color: var(--c-group);
             white-space: nowrap;
             text-transform: uppercase;
             letter-spacing: .4px;
@@ -58,9 +112,9 @@
 
         /* ── Controles generales ── */
         button, select {
-            background: #2e2e42;
-            color: #ddd;
-            border: 1px solid #4a4a6a;
+            background: var(--c-control);
+            color: var(--c-text2);
+            border: 1px solid var(--c-border3);
             padding: 5px 12px;
             border-radius: 4px;
             cursor: pointer;
@@ -88,19 +142,19 @@
             font-weight: bold;
         }
 
-        button:hover:not(:disabled) { background: #3a3a58; }
+        button:hover:not(:disabled) { background: var(--c-control-h); }
         button:disabled { opacity: 0.4; cursor: default; }
         button.btn-active {
-            background: #2a3a5a;
-            border-color: #6688cc;
-            color: #aaccff;
+            background: var(--c-accent-bg);
+            border-color: var(--c-accent);
+            color: var(--c-text);
         }
-        button.btn-active:hover { background: #334466; }
+        button.btn-active:hover { filter: brightness(1.1); }
 
         input[type="file"] {
-            background: #2e2e42;
-            color: #ddd;
-            border: 1px solid #4a4a6a;
+            background: var(--c-control);
+            color: var(--c-text2);
+            border: 1px solid var(--c-border3);
             padding: 3px 6px;
             border-radius: 4px;
             font-size: 11px;
@@ -120,9 +174,9 @@
 
         /* Botón notas activas */
         #activeNotesBtn.active {
-            background: #2a3a5a;
-            border-color: #4a6a9a;
-            color: #aaccff;
+            background: var(--c-accent-bg);
+            border-color: var(--c-accent);
+            color: var(--c-text);
         }
 
 
@@ -137,13 +191,13 @@
         }
 
         .info {
-            background: #22223a;
-            border: 1px solid #33335a;
+            background: var(--c-panel);
+            border: 1px solid var(--c-border);
             border-radius: 5px;
             padding: 6px 10px;
             font-family: monospace;
             font-size: 11px;
-            color: #9999bb;
+            color: var(--c-text3);
             max-height: none;
             overflow-y: visible;
             flex-shrink: 0;
@@ -155,8 +209,8 @@
             flex: 1;
             overflow: hidden;
             border-radius: 6px;
-            border: 1px solid #33335a;
-            background: #1a1a2e;
+            border: 1px solid var(--c-border);
+            background: var(--c-deep);
             min-height: 0;
         }
 
@@ -167,8 +221,8 @@
             overflow-y: auto;
             overflow-x: hidden;
             scrollbar-width: none;       /* Firefox */
-            border-right: 1px solid #33335a;
-            background: #13132a;
+            border-right: 1px solid var(--c-border);
+            background: var(--c-deep);
         }
         .notes-panel-scroll::-webkit-scrollbar { display: none; }
 
@@ -181,28 +235,54 @@
 
         canvas {
             display: block;
-            background: #252530;
+            background: var(--c-canvas);
             cursor: crosshair;
+        }
+
+        /* ── Minimap panorámico ── */
+        .minimap-wrapper {
+            display: flex;
+            flex-shrink: 0;
+            height: 28px;
+            border-bottom: 1px solid var(--c-border);
+            background: #07071a;
+        }
+        .minimap-spacer {
+            width: 75px;
+            flex-shrink: 0;
+            background: var(--c-deep);
+            border-right: 1px solid var(--c-border2);
+        }
+        .minimap-area {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        #minimapCanvas {
+            display: block;
+            width: 100%;
+            height: 28px;
+            cursor: pointer;
         }
 
         /* ── Regla de compases (tipo DAW) ── */
         .ruler-wrapper {
             display: flex;
             flex-shrink: 0;
-            height: 34px;
-            border-bottom: 1px solid #2a2a4a;
-            background: #0d0d1c;
+            height: 50px;
+            border-bottom: 1px solid var(--c-border2);
+            background: var(--c-ruler);
         }
         .ruler-spacer {
             width: 75px;
             flex-shrink: 0;
-            background: #13132a;
-            border-right: 1px solid #33335a;
+            background: var(--c-deep);
+            border-right: 1px solid var(--c-border);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 10px;
-            color: #5555aa;
+            color: var(--c-ruler-text);
             letter-spacing: 1px;
             font-family: monospace;
             user-select: none;
@@ -225,19 +305,107 @@
             box-shadow: 0 0 6px #ff3333aa;
         }
 
+        /* ── Overlay drag & drop ── */
+        #dropOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 20, 0.82);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        #dropOverlayBox {
+            border: 2px dashed #66aaff;
+            border-radius: 12px;
+            padding: 32px 48px;
+            text-align: center;
+            color: #99ccff;
+            font-size: 18px;
+            font-family: 'Segoe UI', monospace;
+            background: rgba(10, 20, 50, 0.7);
+        }
+
+        /* ── Historial de recientes (lista inline en el menú) ── */
+        #recentInMenuList {
+            border-top: 1px solid #2a2a44;
+            margin-top: 4px;
+        }
+        .rf-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            gap: 8px;
+            border-bottom: 1px solid #1e1e3a;
+        }
+        .rf-item:hover { background: #1a1a40; }
+        .rf-name {
+            color: #aaccff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .rf-age  { color: #555577; font-size: 10px; flex-shrink: 0; }
+        .rf-empty { padding: 10px; color: #555577; font-size: 11px; text-align: center; }
+        .rf-clear {
+            padding: 6px 10px;
+            color: #664455;
+            font-size: 10px;
+            cursor: pointer;
+            text-align: right;
+        }
+        .rf-clear:hover { color: #ff6677; }
+
+        /* ── Carril de velocidades ── */
+        .velocity-lane-wrapper {
+            display: flex;
+            flex-shrink: 0;
+            height: 68px;
+            border-top: 1px solid var(--c-border);
+            background: var(--c-deep);
+        }
+        .velocity-lane-spacer {
+            width: 75px;
+            flex-shrink: 0;
+            background: var(--c-deep);
+            border-right: 1px solid var(--c-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--c-label);
+            letter-spacing: 1px;
+            font-family: monospace;
+            user-select: none;
+        }
+        .velocity-lane-scroll {
+            flex: 1;
+            overflow: hidden;
+        }
+        #velocityLaneCanvas {
+            display: block;
+            cursor: ns-resize;
+            background: var(--c-canvas);
+        }
+
         /* Fila de acordes: wrapper con spacer alineado a la columna de notas */
         .chord-row-wrapper {
             display: flex;
             flex-shrink: 0;
-            border-top: 1px solid #33335a;
+            border-top: 1px solid var(--c-border);
             border-radius: 0 0 6px 6px;
             overflow: hidden;
         }
         .chord-row-spacer {
             width: 75px;  /* Debe coincidir con .notes-panel-scroll */
             flex-shrink: 0;
-            background: #13132a;
-            border-right: 1px solid #33335a;
+            background: var(--c-deep);
+            border-right: 1px solid var(--c-border);
         }
         #chordRowContainer {
             white-space: nowrap;
@@ -257,8 +425,8 @@
         /* ── Panel Motor Map colapsable ── */
         .motor-map-panel {
             flex-shrink: 0;
-            background: #13132a;
-            border-top: 1px solid #33335a;
+            background: var(--c-deep);
+            border-top: 1px solid var(--c-border);
             font-family: 'Segoe UI', monospace;
             font-size: 12px;
             color: #ddd;
@@ -391,109 +559,242 @@
             border-color: #2a8a5a;
             color: #aaffcc;
         }
+
+        /* ── Panel unificado Motor/Escala ── */
+        #motorEscalaPanel { display: none; }
+        #motorEscalaPanel.me-open { display: flex; }
+
+        .me-tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #555577;
+            font-size: 12px;
+            padding: 0 18px;
+            cursor: pointer;
+            height: 100%;
+            white-space: nowrap;
+            transition: color .15s, border-color .15s;
+        }
+        .me-tab-btn:hover { color: #9999cc; }
+        .me-tab-btn.me-tab-active {
+            color: #aaccff;
+            border-bottom-color: #4488ff;
+        }
+
+        /* toggle inferior: cuando el panel está abierto,
+           se fija en esquina inferior derecha (igual que el antiguo) */
+        #motorMapToggle.me-open {
+            position: fixed;
+            bottom: 10px;
+            right: 20px;
+            left: auto;
+            top: auto;
+            border: 1px solid #3a3a5a;
+            border-radius: 4px;
+            width: auto;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
 
 <!-- ══════════════ BARRA DE HERRAMIENTAS ══════════════ -->
 <div class="toolbar">
-    <span class="toolbar-title">🎹 MidiGrid</span>
 
-    <div class="toolbar-sep"></div>
+    <!-- ── Logo + menú desplegable ── -->
+    <div style="position:relative;flex-shrink:0;">
+        <button id="appMenuBtn" onclick="toggleAppMenu()"
+                title="Menú principal"
+                style="background:none;border:1px solid transparent;color:#7a7aff;
+                       font-size:13px;font-weight:bold;cursor:pointer;padding:3px 8px;
+                       border-radius:4px;display:flex;align-items:center;gap:5px;
+                       white-space:nowrap;line-height:1.4;"
+                onmouseover="this.style.borderColor='#3a3a6a'"
+                onmouseout="this.style.borderColor='transparent'">
+            🎹 PianoRoll
+            <span id="appMenuArrow" style="font-size:8px;transition:transform .22s;display:inline-block;">▾</span>
+        </button>
 
-    <!-- ── Archivo ── -->
-    <span class="tb-group-label">Archivo</span>
-    <button id="newGridBtn" onclick="toggleNewGridPanel()" title="Nuevo grid vacío">Nuevo</button>
-    <input type="file" id="midiFileInput" accept=".mid,.midi" title="Abrir archivo MIDI">
-    <button onclick="openMMLImportModal()" title="Importar partitura MML">MML</button>
-    <button id="saveProjectBtn" title="Guardar proyecto">Guardar</button>
+        <div id="appMenu"
+             style="position:absolute;top:calc(100% + 5px);left:0;
+                    background:#1a1a30;border:1px solid #3a3a5a;
+                    border-radius:0 6px 6px 6px;z-index:9999;
+                    min-width:220px;max-height:0;overflow:hidden;
+                    transition:max-height .26s ease;
+                    box-shadow:0 10px 30px #00000099;">
+
+            <div style="padding:10px 12px;display:flex;flex-direction:column;gap:10px;">
+
+                <!-- Fila: acciones de archivo en rejilla 2×2 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                    <button id="newGridBtn" onclick="tabNewWithDialog();closeAppMenu()"
+                            title="Nuevo grid vacío" class="menu-btn">📄 Nuevo</button>
+                    <button onclick="openMMLImportModal();closeAppMenu()"
+                            title="Importar MML" class="menu-btn">🎼 MML</button>
+                    <button id="saveProjectBtn" title="Guardar proyecto como JSON" class="menu-btn">💾 Guardar</button>
+                    <button id="loadProjectBtn" title="Cargar proyecto JSON" class="menu-btn">📂 Cargar</button>
+                    <button id="exportMidiMenuBtn" onclick="exportMIDI();closeAppMenu()" disabled
+                            title="Exportar composición como archivo .mid compatible con cualquier DAW"
+                            class="menu-btn" style="color:#88cc88;border-color:#336633;">⬇ Export .mid</button>
+                </div>
+                <!-- Recientes -->
+                <button onclick="toggleRecentInMenu()" class="menu-btn"
+                        style="width:100%;text-align:left;">🕐 Recientes</button>
+                <div id="recentInMenuList" style="display:none;margin-top:2px;"></div>
+
+                <!-- Separador -->
+                <div style="border-top:1px solid #2a2a44;"></div>
+
+                <!-- Fila: compases + ayuda -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                    <button onclick="showHelpModal();closeAppMenu()"
+                            title="Atajos y controles" class="menu-btn" style="text-align:center;">
+                        ❓ Ayuda
+                    </button>
+                    <button id="themeToggleBtn" onclick="toggleTheme()"
+                            title="Cambiar tema claro/oscuro" class="menu-btn" style="text-align:center;">
+                        ☀️ Claro
+                    </button>
+                </div>
+
+                <div style="border-top:1px solid #2a2a44;"></div>
+
+                <!-- Fila: compases -->
+                <div>
+                    <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:5px;">COMPASES</div>
+                    <div style="display:flex;align-items:center;gap:5px;">
+                        <button id="removeMeasuresBtn" onclick="removeMeasures()"
+                                title="Quitar compases" class="menu-btn btn-narrow" disabled>−</button>
+                        <select id="phraseUnitSelect" title="Nº de compases a añadir/quitar"
+                                style="flex:1;font-size:11px;height:26px;background:#1e1e32;
+                                       color:#aaa;border:1px solid #3a3a5a;border-radius:4px;
+                                       padding:0 2px;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="4" selected>4</option>
+                            <option value="8">8</option>
+                        </select>
+                        <button id="addMeasuresBtn" onclick="addMeasures()"
+                                title="Añadir compases" class="menu-btn btn-narrow" disabled>+</button>
+                    </div>
+                </div>
+
+                <div style="border-top:1px solid #2a2a44;"></div>
+
+                <!-- LEDs -->
+                <div>
+                    <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:6px;">LEDS</div>
+                    <select id="ledColorSelect" title="Color de los LEDs WS2812B"
+                            onchange="ledColorMode=this.value"
+                            style="width:100%;background:#1a1a2e;color:#aaa;border:1px solid #3a3a5a;
+                                   border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;margin-bottom:8px;">
+                        <option value="rainbow">Arcoíris</option>
+                        <option value="octava" selected>Octava</option>
+                        <option value="calor">Calor</option>
+                        <option value="blanco">Blanco</option>
+                    </select>
+                    <label title="Anticipación LED Synthesia: el LED rojo se enciende N ms antes del golpe"
+                           style="font-size:11px;color:#888;display:flex;align-items:center;gap:6px;">
+                        <span>Avance:</span>
+                        <input type="range" id="ledAdvanceInput" min="0" max="800" step="50" value="0"
+                               style="flex:1;accent-color:#ff3333;"
+                               oninput="ledAdvanceMs=parseInt(this.value);document.getElementById('ledAdvanceVal').textContent=this.value+'ms'">
+                        <span id="ledAdvanceVal" style="min-width:36px;color:#ff3333;text-align:right;">0ms</span>
+                    </label>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- inputs ocultos de archivo (sin posición visual) -->
+    <input type="file" id="midiFileInput" accept=".mid,.midi" style="display:none;">
+    <button onclick="document.getElementById('midiFileInput').click()"
+            title="Abrir archivo MIDI">🎵</button>
     <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
-    <button id="loadProjectBtn" title="Cargar proyecto guardado">Cargar</button>
 
-    <div class="toolbar-sep"></div>
 
     <!-- ── Canal ── -->
-    <span class="tb-group-label">Canal</span>
-    <button id="loadInstrumentBtn" disabled title="Mostrar el grid del canal seleccionado">Grid</button>
     <select id="instrumentSelect" disabled style="font-size:11px;height:26px;padding:0 4px;max-width:160px;">
         <option value="">-- Canal --</option>
     </select>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── Transporte ── -->
-    <span class="tb-group-label">Play</span>
-    <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
-    <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
-    <label for="bpmInput" style="font-size:10px;color:#555580;white-space:nowrap;">BPM</label>
-    <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
-           title="Tempo de reproducción"
-           style="width:50px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
-                  border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
-
-    <div class="toolbar-sep"></div>
-
-    <!-- ── Segmento A→B ── -->
-    <span class="tb-group-label">A→B</span>
+    <!-- ── mostrar grid ── -->
+    <button id="loadInstrumentBtn" disabled title="Mostrar el grid del canal seleccionado">Mostrar</button>
+    <button id="openAllInstrumentsBtn" disabled
+            title="Abrir cada canal del MIDI en un tab separado (Ctrl+Shift+A)"
+            onclick="openAllInstruments()">Todos</button>
+ 
     <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
             title="Activa modo A→B: clic en regla para marcar inicio y fin del fragmento">A→B</button>
-    <button id="copyFragBtn"   onclick="copyFragment()"   disabled title="Copiar fragmento A→B">⎘</button>
-    <button id="pasteFragBtn"  onclick="pasteFragment()"  disabled title="Pegar en posición del playhead">⎗</button>
-    <button id="deleteFragBtn" onclick="deleteFragment()"  disabled title="Eliminar fragmento y desplazar">✕</button>
 
-    <div class="toolbar-sep"></div>
-
-    <!-- ── Compases ── -->
-    <span class="tb-group-label">Compases</span>
-    <button id="removeMeasuresBtn" class="btn-narrow" onclick="removeMeasures()"
-            title="Quitar compases al final" disabled>−</button>
-    <select id="phraseUnitSelect" title="Número de compases a añadir/quitar"
-            style="width:44px;font-size:11px;height:26px;background:#1e1e32;color:#aaa;
-                   border:1px solid #3a3a5a;border-radius:4px;padding:0 2px;flex-shrink:0;">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="4" selected>4</option>
-        <option value="8">8</option>
-    </select>
-    <button id="addMeasuresBtn" class="btn-narrow" onclick="addMeasures()"
-            title="Añadir compases al final" disabled>+</button>
-
-    <div class="toolbar-sep"></div>
-
-    <!-- ── Herramientas ── -->
-    <span class="tb-group-label">Vista</span>
-    <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
-    <button id="heatMapBtn" onclick="toggleHeatMap()" disabled
-            title="Notas de calor: resaltar notas dominantes (Motor de Atención)">Calor</button>
-    <button onclick="toggleMotorMapPanel()" title="Panel Motor Map">Motor</button>
-    <button id="transposePanelBtn" onclick="toggleTransposePanel()" title="Transposición / Escala">Escala</button>
-    <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
-
-    <div class="toolbar-sep"></div>
 
     <!-- ── Zoom ── -->
     <span class="tb-group-label">Zoom</span>
     <button class="btn-narrow" onclick="zoom(-1)" title="Reducir zoom">−</button>
     <span id="zoomLabel"
-          style="font-size:10px;color:#aaa;min-width:26px;text-align:center;white-space:nowrap;flex-shrink:0;">40</span>
+          style="font-size:10px;color:#aaa;min-width:26px;text-align:center;white-space:nowrap;flex-shrink:0;">8</span>
     <button class="btn-narrow" onclick="zoom(+1)" title="Aumentar zoom">+</button>
+
+
+        <div class="toolbar-sep"></div>
+
+    <!-- ── Herramientas ── -->
+    <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
+    <button id="heatMapBtn" onclick="toggleHeatMap()" disabled
+            title="Notas de calor: resaltar notas dominantes (Motor de Atención)">Calor</button>
+    <button id="velLaneBtn" onclick="toggleVelocityLane()" class="btn-active"
+            title="Mostrar/ocultar carril de velocidades">Vel.</button>
+<button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
+    <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
+
+    <div class="toolbar-sep"></div>
+
+
+
+
+    <!-- ── Transporte ── -->
+    <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
+    <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
+            
+            <label for="bpmInput" style="font-size:10px;color:#555580;white-space:nowrap;">BPM</label>
+            <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
+            title="Tempo de reproducción"
+            style="width:50px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+                  border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
+            <button id="tempoEditBtn" onclick="toggleTempoEditMode()"
+                    title="Activar edición del mapa de tempo: clic en la regla para añadir/editar puntos de BPM">♩ Tempo</button>
+
+
+<!-- ── Segmento A→B ── -->
+    <button id="copyFragBtn"   onclick="copyFragment()"    disabled title="Copiar fragmento A→B">⎘</button>
+    <button id="pasteOctDownBtn" onclick="setPasteOctave(-1)" disabled title="Bajar octava de pegado">−8va</button>
+    <button id="pasteFragBtn"  onclick="pasteFragment()"   disabled title="Pegar en posición del playhead (Ctrl+V)">⎗</button>
+    <button id="pasteOctUpBtn" onclick="setPasteOctave(+1)" disabled title="Subir octava de pegado">+8va</button>
+    <button id="deleteFragBtn" onclick="deleteFragment()"   disabled title="Eliminar fragmento y desplazar">✕</button>
 
     <div class="toolbar-sep"></div>
 
     <!-- ── ESP32 ── -->
     <span class="tb-group-label">ESP32</span>
+    <select id="connModeSelect" title="Modo de conexión"
+            onchange="_onConnModeChange()"
+            style="font-size:10px;background:#1e1e32;color:#aaa;border:1px solid #3a3a5a;
+                   border-radius:4px;padding:2px 4px;flex-shrink:0;">
+        <option value="wifi">WiFi</option>
+        <option value="serial">Serie</option>
+    </select>
     <input id="esp32IpInput" value="192.168.1.128"
            title="IP del ESP32"
            style="width:110px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
                   border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
-    <button onclick="initWebSocket()" title="Conectar con ESP32">Conectar</button>
+    <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32">Conectar</button>
     <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
-    <button onclick="openEsp32LogWindow()" title="Ver log ESP32">Log</button>
+    <button id="esp32LogBtn" onclick="openEsp32LogWindow()" title="Ver log ESP32">Log</button>
 
-    <div class="toolbar-sep"></div>
 
-    <!-- ── Ayuda ── -->
-    <button onclick="showHelpModal()" title="Atajos y controles">?</button>
 </div>
 
 <!-- ── Estado fijo: esquina inferior derecha ── -->
@@ -510,127 +811,380 @@
 <div id="helpModal" style="display:none;position:fixed;inset:0;background:#00000099;
      z-index:99999;align-items:center;justify-content:center;">
     <div style="background:#1e1e32;border:1px solid #5a5aaa;border-radius:10px;
-                width:620px;max-width:95vw;max-height:85vh;overflow-y:auto;
+                width:700px;max-width:96vw;max-height:88vh;overflow-y:auto;
                 font-family:'Segoe UI',sans-serif;font-size:13px;color:#ddd;
                 box-shadow:0 12px 40px #00000099;">
 
-        <!-- Header -->
+        <!-- Header sticky -->
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:14px 18px;background:#2a2a48;border-radius:10px 10px 0 0;
                     border-bottom:1px solid #3a3a5a;position:sticky;top:0;z-index:1;">
-            <span style="font-size:16px;font-weight:bold;color:#fff">Atajos y controles — midiGrid</span>
+            <div>
+                <span style="font-size:16px;font-weight:bold;color:#fff">midiGrid — Referencia completa</span>
+                <span style="font-size:10px;color:#6666aa;margin-left:10px;">v2 · AudioContext scheduler · Export MIDI · Velocity inline</span>
+            </div>
             <button onclick="closeHelpModal()"
                     style="background:none;border:none;color:#888;font-size:18px;
-                           cursor:pointer;padding:2px 8px;border-radius:4px;"
+                           cursor:pointer;padding:2px 8px;border-radius:4px;flex-shrink:0;"
                     onmouseover="this.style.background='#aa3333';this.style.color='#fff'"
                     onmouseout="this.style.background='none';this.style.color='#888'">✕</button>
         </div>
 
         <!-- Contenido -->
-        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
+        <div style="color:black;padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
 
+            <!-- ══ ATAJOS DE TECLADO ══ -->
             <div class="help-section">
-                <div class="help-title">Archivo</div>
+                <div class="help-title">⌨ Atajos de teclado</div>
                 <table class="help-table">
-                    <tr><td class="help-key">📄 Nuevo</td><td>Abre panel para elegir nº de compases (1/2/4/8/16) y BPM inicial</td></tr>
-                    <tr><td class="help-key">Abrir MIDI</td><td>Importar archivo .mid / .midi</td></tr>
-                    <tr><td class="help-key">🎼 MML</td><td>Importar partitura en formato MML (texto)</td></tr>
-                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto como JSON</td></tr>
-                    <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado</td></tr>
-                    <tr><td class="help-key">⬇ Export</td><td>Exportar eventos MIDI a JSON</td></tr>
-                </table>
-            </div>
-
-            <div class="help-section">
-                <div class="help-title">Grid (piano roll)</div>
-                <table class="help-table">
+                    <thead>
+                        <tr>
+                            <th style="color:var(--c-label);font-size:10px;text-align:left;padding:4px 4px 6px;border-bottom:1px solid var(--c-border);">Atajo</th>
+                            <th style="color:var(--c-label);font-size:10px;text-align:left;padding:4px 4px 6px;border-bottom:1px solid var(--c-border);">Acción</th>
+                        </tr>
+                    </thead>
+                    <tr><td class="help-key" colspan="2" style="background:transparent;color:var(--c-label);font-size:9px;letter-spacing:.5px;padding-top:8px;">EDICIÓN</td></tr>
+                    <tr><td class="help-key">Ctrl + Z</td><td>Deshacer (50 pasos por tab, historial independiente)</td></tr>
+                    <tr><td class="help-key">Ctrl + Y &nbsp;/&nbsp; Ctrl+Shift+Z</td><td>Rehacer</td></tr>
+                    <tr><td class="help-key">Ctrl + C</td><td>Copiar selección rectangular al portapapeles compartido entre tabs</td></tr>
+                    <tr><td class="help-key">Ctrl + V</td><td>Pegar en posición del playhead con el offset de octava activo</td></tr>
+                    <tr><td class="help-key">Ctrl + Shift + V</td><td>Pegar una octava más arriba que el offset actual</td></tr>
+                    <tr><td class="help-key">Ctrl + Alt + V</td><td>Pegar una octava más abajo que el offset actual</td></tr>
+                    <tr><td class="help-key">Delete / Backspace</td><td>Borrar notas seleccionadas (deshacible)</td></tr>
+                    <tr><td class="help-key">Escape</td><td>Deseleccionar · segunda pulsación cierra este modal</td></tr>
+                    <tr><td class="help-key" colspan="2" style="background:transparent;color:var(--c-label);font-size:9px;letter-spacing:.5px;padding-top:8px;">RATÓN EN EL GRID</td></tr>
                     <tr><td class="help-key">Click</td><td>Añadir / quitar nota</td></tr>
-                    <tr><td class="help-key">Ctrl + Click</td><td>Editar velocity de la nota</td></tr>
                     <tr><td class="help-key">Click + arrastrar →</td><td>Ajustar duración de la nota</td></tr>
+                    <tr><td class="help-key">Ctrl + Click</td><td>Editar velocity — abre tooltip inline sobre la nota (Enter confirma, Escape cancela)</td></tr>
+                    <tr><td class="help-key">Alt + Click</td><td>Mutear / desmutear motor de esa nota (aparece en gris con raya roja)</td></tr>
+                    <tr><td class="help-key">Shift + arrastrar</td><td>Selección rectangular: notas marcadas con borde azul</td></tr>
+                    <tr><td class="help-key" colspan="2" style="background:transparent;color:var(--c-label);font-size:9px;letter-spacing:.5px;padding-top:8px;">CARRIL DE VELOCIDADES (siempre visible)</td></tr>
+                    <tr><td class="help-key">Arrastrar</td><td>Editar velocity de todas las notas en ese paso arrastrando la barra</td></tr>
+                    <tr><td class="help-key">Shift + arrastrar</td><td>Aplicar esa velocity a <strong>todas</strong> las notas del grid a la vez (etiqueta ALL)</td></tr>
+                    <tr><td class="help-key" colspan="2" style="background:transparent;color:var(--c-label);font-size:9px;letter-spacing:.5px;padding-top:8px;">TABS Y ARCHIVO</td></tr>
+                    <tr><td class="help-key">Ctrl + Shift + A</td><td>Abrir todos los canales del MIDI en tabs separados</td></tr>
                 </table>
             </div>
 
+            <!-- ══ ARCHIVO E IMPORTACIÓN ══ -->
             <div class="help-section">
-                <div class="help-title">Teclado de notas (columna izquierda)</div>
+                <div class="help-title">Archivo e importación</div>
                 <table class="help-table">
-                    <tr><td class="help-key">Click + mantener</td><td>Escuchar la nota por MIDI y mover el servo mapeado</td></tr>
-                    <tr><td class="help-key">Arrastrar ↑ ↓</td><td>Deslizar entre notas sin soltar</td></tr>
-                    <tr><td class="help-key">Con 🎹 Escala activo</td><td>El servo que se mueve respeta el offset de transposición</td></tr>
+                    <tr><td class="help-key">📄 Nuevo</td><td>Crear grid vacío — elige nº de compases (1–16) y BPM inicial</td></tr>
+                    <tr><td class="help-key">🎵 Abrir MIDI</td><td>Importar archivo .mid / .midi · también arrastrar directamente a la ventana (abre en nuevo tab si hay contenido)</td></tr>
+                    <tr><td class="help-key">🎼 MML</td><td>Importar partitura en formato Music Macro Language (texto compacto)</td></tr>
+                    <tr><td class="help-key">⬇ .mid</td><td><strong>Exportar a MIDI estándar</strong> — genera archivo .mid Tipo 1 compatible con Ableton, Logic, MuseScore, Cubase y cualquier DAW. Incluye mapa de tempo y transposición activa</td></tr>
+                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto completo como JSON (incluye análisis armónico, mapa de tempo y marcadores)</td></tr>
+                    <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado previamente</td></tr>
+                    <tr><td class="help-key">Archivos recientes</td><td>Los últimos 10 proyectos JSON se recuerdan en el menú · muestra tiempo transcurrido desde la última vez</td></tr>
+                    <tr><td class="help-key">☀️ / 🌙 Tema</td><td>Alternar tema claro / oscuro — se guarda entre sesiones</td></tr>
                 </table>
             </div>
 
+            <!-- ══ TABS ══ -->
             <div class="help-section">
-                <div class="help-title">Transporte y compases</div>
+                <div class="help-title">Tabs (multi-documento)</div>
                 <table class="help-table">
-                    <tr><td class="help-key">▶ Play</td><td>Iniciar reproducción (desde loopA si A-B está activo)</td></tr>
-                    <tr><td class="help-key">⏸ Pause</td><td>Pausar conservando la posición</td></tr>
-                    <tr><td class="help-key">⏹ Stop</td><td>Detener y volver al inicio (siempre habilitado)</td></tr>
-                    <tr><td class="help-key">🔁 Loop</td><td>Repetir toda la canción en bucle</td></tr>
-                    <tr><td class="help-key">⇄ A-B</td><td>Activar loop de rango: 1er clic en regla → punto A, 2º clic → punto B</td></tr>
-                    <tr><td class="help-key">Click en regla</td><td>Seek a ese compás / paso (o marcar A-B si el modo está activo)</td></tr>
+                    <tr><td class="help-key">＋ Nuevo tab</td><td>Cada tab es un proyecto independiente con su propio grid, historial de undo y análisis armónico</td></tr>
+                    <tr><td class="help-key">Click en tab</td><td>Cambiar de tab — el estado se guarda automáticamente; si había reproducción activa se detiene</td></tr>
+                    <tr><td class="help-key">✕ (en tab)</td><td>Cerrar tab; si es el último, se vacía en lugar de cerrarse</td></tr>
+                    <tr><td class="help-key">● (en tab)</td><td>Indicador de cambios sin guardar</td></tr>
+                    <tr><td class="help-key">Canal → Mostrar</td><td>Seleccionar canal MIDI y pulsar Mostrar — si el tab activo tiene contenido, abre el canal en un tab nuevo</td></tr>
+                    <tr><td class="help-key">Todos / Ctrl+Shift+A</td><td>Abre cada canal con notas en un tab independiente</td></tr>
+                    <tr><td class="help-key">Portapapeles</td><td>El fragmento copiado se comparte entre todos los tabs; permite trasladar secciones y pegar en otra octava</td></tr>
+                </table>
+            </div>
+
+            <!-- ══ PIANO ROLL ══ -->
+            <div class="help-section">
+                <div class="help-title">Piano roll — edición del grid</div>
+                <table class="help-table">
+                    <tr><td class="help-key">Click</td><td>Añadir / quitar nota · velocity inicial = 40</td></tr>
+                    <tr><td class="help-key">Click + arrastrar →</td><td>Dibujar nota con duración personalizada (en semicorcheas)</td></tr>
+                    <tr><td class="help-key">Ctrl + Click</td><td>Editar velocity con tooltip inline — campo numérico sobre la nota, Enter aplica, Esc cancela, click fuera también aplica</td></tr>
+                    <tr><td class="help-key">Alt + Click</td><td>Mutear / desmutear el motor físico asignado a esa nota</td></tr>
+                    <tr><td class="help-key">Shift + arrastrar</td><td>Selección rectangular — las notas seleccionadas muestran borde azul</td></tr>
+                    <tr><td class="help-key">−8va / ⎗ / +8va</td><td>Ajustan el offset de pegado ±1 octava; ⎗ muestra el valor activo</td></tr>
+                    <tr><td class="help-key">− Zoom +</td><td>Zoom horizontal del grid (1–32 px por paso)</td></tr>
+                    <tr><td class="help-key">Teclado lateral</td><td>Click + mantener → escucha la nota y mueve el servo · Arrastrar ↑↓ para deslizarse entre notas</td></tr>
+                    <tr><td class="help-key">Minimap</td><td>Vista panorámica del grid completo — arrastrar el rectángulo para desplazarse</td></tr>
+                </table>
+            </div>
+
+            <!-- ══ VELOCITY ══ -->
+            <div class="help-section">
+                <div class="help-title">Carril de velocidades</div>
+                <table class="help-table">
+                    <tr><td class="help-key">Visible por defecto</td><td>El carril aparece siempre al cargar un grid; se puede ocultar con el botón <strong>Vel.</strong> de la toolbar</td></tr>
+                    <tr><td class="help-key">Arrastrar barra</td><td>Edita la velocity de todas las notas en ese paso · el color sigue la octava de la nota</td></tr>
+                    <tr><td class="help-key">Shift + arrastrar</td><td>Aplica esa velocity a <strong>todas</strong> las notas del grid a la vez (línea guía amarilla + etiqueta ALL)</td></tr>
+                    <tr><td class="help-key">Ctrl + Click (grid)</td><td>Tooltip inline sobre la nota seleccionada — edición precisa sin abandonar el grid</td></tr>
+                    <tr><td class="help-key">Rango</td><td>0 (silencio) – 127 (máximo) · las barras se colorean según octava con brillo proporcional a la velocity</td></tr>
+                </table>
+            </div>
+
+            <!-- ══ TRANSPORTE ══ -->
+            <div class="help-section">
+                <div class="help-title">Transporte y tempo</div>
+                <table class="help-table">
+                    <tr><td class="help-key">▶ Play</td><td>Inicia reproducción desde el playhead — el audio usa AudioContext scheduler (sin jitter) y el ESP32 recibe PLAY en paralelo</td></tr>
+                    <tr><td class="help-key">⏸ Pause</td><td>Pausa conservando la posición</td></tr>
+                    <tr><td class="help-key">⏹ Stop</td><td>Detiene y vuelve al inicio; envía STOP al ESP32</td></tr>
+                    <tr><td class="help-key">Click en regla</td><td>Seek a ese compás — si estaba reproduciendo, rearranea desde el nuevo punto</td></tr>
+                    <tr><td class="help-key">⇄ A-B</td><td>Loop de rango: 1er clic en regla → punto A, 2º clic → punto B · arrastrar A o B para moverlos · el ESP32 reenvía APPEND en hardware</td></tr>
+                    <tr><td class="help-key">♩ Tempo</td><td>Modo de edición del mapa de BPM: clic en la regla añade / mueve puntos de tempo · la reproducción interpola entre puntos</td></tr>
                     <tr><td class="help-key">− [n] +</td><td>Quitar / añadir N compases al final del grid</td></tr>
+                    <tr><td class="help-key">⎘ / ⎗ / ✕</td><td>Copiar / pegar / eliminar el fragmento del rango A-B · ✕ desplaza el resto hacia la izquierda</td></tr>
                 </table>
             </div>
 
+            <!-- ══ HERRAMIENTAS ══ -->
             <div class="help-section">
-                <div class="help-title">Herramientas</div>
+                <div class="help-title">Herramientas de análisis y visualización</div>
                 <table class="help-table">
-                    <tr><td class="help-key">🎵 Notas</td><td>Panel de notas activas del instrumento</td></tr>
-                    <tr><td class="help-key">⚙ Motor Map</td><td>Mapeo nota MIDI → servo físico (motor, PWM, velocidad)</td></tr>
-                    <tr><td class="help-key">🎹 Escala</td><td>Transposición en tiempo real: desplaza qué notas activan los servos</td></tr>
-                    <tr><td class="help-key">Slider Escala</td><td>−32 … +24 st; hot-apply durante la reproducción vía ESP32 APPEND</td></tr>
+                    <tr><td class="help-key">Notas</td><td>Panel flotante con todas las notas únicas presentes en el grid</td></tr>
+                    <tr><td class="help-key">Vel.</td><td>Muestra / oculta el carril de velocidades (visible por defecto)</td></tr>
+                    <tr><td class="help-key">Calor</td><td>Colorea el piano roll por importancia estructural mediante el Motor de Atención (softmax 4D): rojo = nota dominante · azul = subordinada</td></tr>
+                    <tr><td class="help-key">Motor</td><td>Abre el panel unificado Motor Map + Escala de transposición</td></tr>
+                    <tr><td class="help-key">Motor Map</td><td>Tabla nota MIDI → motor físico · mute por fila silencia audio y ESP32 · permite test, export e import JSON</td></tr>
+                    <tr><td class="help-key">Escala (transposición)</td><td>Offset global ±24 st aplicado a todos los lookups de motor · compartido entre tabs · hot-apply al ESP32 vía APPEND · botones −12/−1/+1/+12 y ↺</td></tr>
+                    <tr><td class="help-key">Avance LED</td><td>Slider en el menú: el LED de anticipo se enciende N ms antes del golpe (efecto Synthesia para LEDs WS2812B)</td></tr>
+                    <tr><td class="help-key">Color LED</td><td>Modos: rainbow · octava · calor · blanco — afecta solo a los LEDs del ESP32, no al canvas</td></tr>
                 </table>
             </div>
 
+            <!-- ══ ANÁLISIS ARMÓNICO ══ -->
             <div class="help-section">
-                <div class="help-title">Análisis armónico (chord-row)</div>
+                <div class="help-title">Análisis armónico — chord row</div>
                 <table class="help-table">
-                    <tr><td class="help-key">Select pasos</td><td>Vista de micro-segmentos (uno por cambio de nota)</td></tr>
-                    <tr><td class="help-key">Select acordes</td><td>Vista fusionada por negra (acorde dominante cada 4 pasos)</td></tr>
-                    <tr><td class="help-key">Select frases</td><td>Vista de frases detectadas por cadencias (V→I, IV→I…)</td></tr>
-                    <tr><td class="help-key">Click en bloque</td><td>Abrir popup con info del acorde / frase</td></tr>
-                    <tr><td class="help-key">← → en popup</td><td>Navegar al segmento anterior / siguiente</td></tr>
-                    <tr><td class="help-key">Click en nota (popup)</td><td>Escuchar esa nota</td></tr>
-                    <tr><td class="help-key">Shift + Click (popup)</td><td>Escuchar el acorde completo</td></tr>
+                    <tr><td class="help-key">Tonalidad</td><td>Detectada automáticamente por correlación Krumhansl-Kessler (24 claves mayor/menor) al cargar o cambiar de canal</td></tr>
+                    <tr><td class="help-key">pasos</td><td>Vista de micro-segmentos: uno por cada cambio de notas activas</td></tr>
+                    <tr><td class="help-key">acordes</td><td>Vista fusionada por negra (acorde dominante cada 4 pasos) — nivel musical estándar</td></tr>
+                    <tr><td class="help-key">frases</td><td>Frases detectadas por cadencias (V→I auténtica, IV→I plagal, ii→V→I, vi→IV deceptiva…)</td></tr>
+                    <tr><td class="help-key">respira</td><td>Segmentos de baja energía — zonas óptimas para resetear el buffer I2C del ESP32 sin cortar la música</td></tr>
+                    <tr><td class="help-key">Click en bloque</td><td>Abre popup con nombre del acorde, función tonal (I, V, ii…), notas y duración</td></tr>
+                    <tr><td class="help-key">← → en popup</td><td>Navegar al segmento anterior / siguiente sin cerrar el popup</td></tr>
+                    <tr><td class="help-key">▶ Loop</td><td>Reproducir en bucle el segmento seleccionado (audio + ESP32)</td></tr>
+                    <tr><td class="help-key">▶▶ Auto</td><td>Auto-avance segmento a segmento sin parar — espera confirmación beat del ESP32 antes de enviar el siguiente APPEND</td></tr>
+                    <tr><td class="help-key">Click nota (popup)</td><td>Escuchar nota individual · Shift+Click escucha el acorde completo</td></tr>
+                    <tr><td class="help-key">Marcadores</td><td>Clic derecho en la regla para añadir marcadores de sección (Intro, Verso, Estribillo…) con color personalizado</td></tr>
                 </table>
             </div>
 
+            <!-- ══ ESP32 ══ -->
             <div class="help-section">
-                <div class="help-title">ESP32 y conexión</div>
+                <div class="help-title">ESP32 — conexión y protocolo</div>
                 <table class="help-table">
-                    <tr><td class="help-key">IP + Conectar</td><td>Conectar con el ESP32 por WebSocket (ws://IP:81)</td></tr>
-                    <tr><td class="help-key">● (punto)</td><td>Verde = conectado · Rojo = desconectado · Naranja = conectando</td></tr>
-                    <tr><td class="help-key">📝 Log</td><td>Abrir ventana con el log del ESP32 en tiempo real (polling /logs)</td></tr>
-                    <tr><td class="help-key">▶ Play (con ESP32)</td><td>Envía secuencia PLAY al firmware y sincroniza audio con servos</td></tr>
-                    <tr><td class="help-key">⇄ A-B (con ESP32)</td><td>Al llegar a B reenvía APPEND desde A para loop continuo en hardware</td></tr>
+                    <tr><td class="help-key">WiFi (WebSocket)</td><td>Protocolo ws://IP:81 · auto-reconexión cada 5s · el ESP32 debe estar en la misma red local</td></tr>
+                    <tr><td class="help-key">Serie (USB-CDC)</td><td>Web Serial API a 115200 baud · solo Chrome / Edge 89+ · no requiere red WiFi</td></tr>
+                    <tr><td class="help-key">● estado</td><td>Verde = conectado · Rojo = desconectado · Naranja = conectando</td></tr>
+                    <tr><td class="help-key">▶ Play + ESP32</td><td>Al pulsar Play se envía secuencia PLAY al firmware con bloques ≤8KB; lotes adicionales llegan por APPEND en streaming</td></tr>
+                    <tr><td class="help-key">⇄ A-B + ESP32</td><td>Al acercarse al punto B se reenvía APPEND desde A para loop continuo en hardware sin parar los motores</td></tr>
+                    <tr><td class="help-key">Beat sync</td><td>El firmware emite {state:"beat",step:N} cada paso — corrige la deriva visual entre setInterval del browser y millis() del ESP32</td></tr>
+                    <tr><td class="help-key">Protocolo motor</td><td><code>m N</code> selecciona motor · <code>o PWM</code> posición neutra · <code>t MS</code> espera · <code>v VEL</code> velocidad · <code>p;</code> ejecuta · HIT=80ms · RETRACT=150ms</td></tr>
+                    <tr><td class="help-key">Log</td><td>Ventana con el log del ESP32 en tiempo real (mensajes WebSocket / Serie)</td></tr>
+                </table>
+            </div>
+
+            <!-- ══ AUDIO ══ -->
+            <div class="help-section">
+                <div class="help-title">Motor de audio</div>
+                <table class="help-table">
+                    <tr><td class="help-key">AudioContext scheduler</td><td>Las notas se agendan con 100ms de lookahead usando <code>AudioContext.currentTime</code> — timing sample-accurate sin jitter, incluso a 200 BPM</td></tr>
+                    <tr><td class="help-key">Playhead visual</td><td>Actualizado cada paso por setInterval — tolerancia ±30ms (invisible al ojo); independiente del scheduler de audio</td></tr>
+                    <tr><td class="help-key">Soundfont</td><td>MIDI.js carga soundfonts GM (128 instrumentos) · se puede cambiar de instrumento en caliente durante la reproducción</td></tr>
+                    <tr><td class="help-key">Motor Only</td><td>Checkbox que silencia el audio interno y reproduce solo los motores físicos del ESP32</td></tr>
+                    <tr><td class="help-key">Tempo variable</td><td>El scheduler lee <code>MS_PER_STEP(step)</code> en cada llamada — los cambios de BPM del mapa de tempo son automáticos sin reiniciar el scheduler</td></tr>
+                </table>
+            </div>
+
+            <!-- ══ FORMATOS MML ══ -->
+            <div class="help-section">
+                <div class="help-title">Formato MML (Music Macro Language)</div>
+                <table class="help-table">
+                    <tr><td class="help-key">t120</td><td>Tempo en BPM</td></tr>
+                    <tr><td class="help-key">v100</td><td>Velocity (0–127)</td></tr>
+                    <tr><td class="help-key">o4</td><td>Octava base (0–8)</td></tr>
+                    <tr><td class="help-key">l4</td><td>Duración por defecto: 1=redonda · 2=blanca · 4=negra · 8=corchea · 16=semicorchea</td></tr>
+                    <tr><td class="help-key">c d e f g a b</td><td>Notas · añadir + / # para sostenido · - para bemol · . para valor con puntillo</td></tr>
+                    <tr><td class="help-key">&lt; &gt;</td><td>Bajar / subir octava una posición</td></tr>
+                    <tr><td class="help-key">r</td><td>Silencio de la duración actual</td></tr>
+                    <tr><td class="help-key">Pistas múltiples</td><td>Separar pistas con <code>|</code> — cada pista va a un canal MIDI independiente</td></tr>
                 </table>
             </div>
 
         </div><!-- /contenido -->
+
     </div><!-- /modal-inner -->
 </div><!-- /helpModal -->
 
+
 <style>
+/* ── Tab bar ── */
+#tabBar {
+    display: flex;
+    align-items: stretch;
+    background: #0a0a18;
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+    min-height: 28px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+#tabBar::-webkit-scrollbar { display: none; }
+#tabList {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 3px 4px 0;
+    flex: 1;
+}
+.tab-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--c-tab);
+    border: 1px solid var(--c-border2);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    padding: 3px 8px 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--c-tab-text);
+    max-width: 180px;
+    min-width: 80px;
+    flex-shrink: 0;
+    transition: background .12s, color .12s;
+}
+.tab-item:hover { background: var(--c-control); color: var(--c-text2); }
+.tab-item.tab-active {
+    background: var(--c-tab-active);
+    border-color: var(--c-tab-border);
+    color: var(--c-text2);
+    border-bottom-color: var(--c-tab-active);
+}
+.tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    user-select: none;
+}
+.tab-close {
+    font-size: 9px;
+    color: #444;
+    cursor: pointer;
+    padding: 1px 3px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+.tab-close:hover { color: #ff6666; background: #3a1a1a; }
+#tabNewBtn {
+    background: none;
+    border: none;
+    color: #4a4a7a;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 10px;
+    align-self: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+#tabNewBtn:hover { color: #8888cc; }
+
 #newGridPanel, #transposePanel {
-    background:#22223a;border:1px solid #33335a;border-radius:5px;
+    background:var(--c-panel);border:1px solid var(--c-border);border-radius:5px;
     padding:8px 10px;flex-shrink:0;
 }
 .tp-quick-btn {
-    background:#2a2a42;color:#ccc;border:1px solid #4a4a6a;
+    background:var(--c-control);color:var(--c-text2);border:1px solid var(--c-border3);
     border-radius:4px;padding:4px 10px;cursor:pointer;font-size:13px;
 }
-.tp-quick-btn:hover { background:#3a3a58; }
-.help-section { background:#25253a;border-radius:6px;padding:10px 12px; }
+.tp-quick-btn:hover { background:var(--c-control-h); }
+.help-section { background:var(--c-panel);border-radius:6px;padding:10px 12px; }
 .help-title   { font-size:11px;text-transform:uppercase;letter-spacing:.6px;
-                color:#7777aa;margin-bottom:8px;font-weight:bold; }
+                color:var(--c-label);margin-bottom:8px;font-weight:bold; }
 .help-table   { width:100%;border-collapse:collapse; }
-.help-table tr { border-bottom:1px solid #2e2e48; }
+.help-table tr { border-bottom:1px solid var(--c-border2); }
 .help-table tr:last-child { border-bottom:none; }
 .help-table td { padding:5px 4px;vertical-align:middle; }
-.help-key     { font-family:monospace;background:#1a1a2e;border:1px solid #3a3a5a;
+.help-key     { font-family:monospace;background:var(--c-deep);border:1px solid var(--c-border);
                 border-radius:4px;padding:2px 7px;white-space:nowrap;
-                color:#aaddff;font-size:12px;width:1%;padding-right:12px; }
+                color:var(--c-text);font-size:12px;width:1%;padding-right:12px; }
+
+/* ── Menú desplegable PianoRoll ── */
+.menu-btn {
+    background:var(--c-panel);border:1px solid var(--c-border);color:var(--c-text2);
+    border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;
+    text-align:left;transition:background .12s, color .12s;white-space:nowrap;
+}
+.menu-btn:hover:not(:disabled) { background:var(--c-control-h);color:var(--c-text); }
+.menu-btn:disabled { opacity:.38;cursor:default; }
 </style>
+
+<script>
+function toggleAppMenu() {
+    const menu  = document.getElementById('appMenu');
+    const arrow = document.getElementById('appMenuArrow');
+    const open  = menu.style.maxHeight && menu.style.maxHeight !== '0px';
+    menu.style.maxHeight  = open ? '0' : '500px';
+    arrow.style.transform = open ? '' : 'rotate(180deg)';
+}
+function closeAppMenu() {
+    const menu  = document.getElementById('appMenu');
+    const arrow = document.getElementById('appMenuArrow');
+    if (menu)  menu.style.maxHeight  = '0';
+    if (arrow) arrow.style.transform = '';
+}
+document.addEventListener('click', function(e) {
+    const btn = document.getElementById('appMenuBtn');
+    if (btn && !btn.contains(e.target) &&
+        !document.getElementById('appMenu')?.contains(e.target)) {
+        closeAppMenu();
+    }
+}, true);
+</script>
+
+<script>
+// ── Panel unificado Motor Map + Escala ──────────────────────
+let _meOpen = false;
+
+function toggleMotorEscalaPanel() {
+    const panel  = document.getElementById('motorEscalaPanel');
+    const toggle = document.getElementById('motorMapToggle');
+    const btn    = document.getElementById('motorEscalaBtn');
+    if (!panel) return;
+
+    _meOpen = !_meOpen;
+    panel.classList.toggle('me-open', _meOpen);
+    if (toggle) toggle.classList.toggle('me-open', _meOpen);
+    if (btn)    btn.classList.toggle('btn-active', _meOpen);
+
+    // Al cerrar el panel, liberar todos los motores activos por seguridad
+    if (!_meOpen && typeof _mmReleaseAllNotes === 'function') _mmReleaseAllNotes();
+
+    if (_meOpen) {
+        // Refrescar ambas secciones al abrir
+        if (typeof _renderMotorMapPanelRows === 'function') _renderMotorMapPanelRows();
+        if (typeof _tpSlider === 'function') {
+            if (typeof _sliderRange === 'function') {
+                const { min, max } = _sliderRange();
+                const sl = document.getElementById('transposeSlider');
+                if (sl) { sl.min = min; sl.max = max; }
+            }
+            _tpSlider(typeof transposeOffset !== 'undefined' ? transposeOffset : 0);
+        }
+    }
+}
+</script>
+
+<!-- ══════════════ BARRA DE TABS ══════════════ -->
+<div id="tabBar">
+    <div id="tabList"></div>
+    <button id="tabNewBtn" onclick="tabNewWithDialog()" title="Nuevo tab">+</button>
+</div>
 
 <!-- ══════════════ ÁREA PRINCIPAL ══════════════ -->
 <div class="content">
@@ -659,51 +1213,11 @@
         </div>
     </div>
 
-    <!-- Panel de transposición (oculto por defecto, toggle desde botón toolbar) -->
-    <div id="transposePanel" style="display:none;overflow-x:auto;">
-        <div style="min-width:max-content;">
-            <div style="border:1px solid #2a2a4a;border-radius:5px;background:#111;margin-bottom:4px;">
-                <canvas id="transposePianoCanvas" style="display:block;"></canvas>
-            </div>
-            <div id="transposeRangeLabel" style="font-size:11px;color:#7777aa;margin-bottom:4px;"></div>
-            <div style="display:flex;align-items:center;gap:8px;width:100%;">
-                <button class="tp-quick-btn" onclick="_tpShift(-12)">−12</button>
-                <button class="tp-quick-btn" onclick="_tpShift(-1)">−1</button>
-                <input  type="range" id="transposeSlider" min="-24" max="24" step="1"
-                        value="0" oninput="_tpSlider(this.value)" style="flex:1;accent-color:#6666cc;">
-                <button class="tp-quick-btn" onclick="_tpShift(+1)">+1</button>
-                <button class="tp-quick-btn" onclick="_tpShift(+12)">+12</button>
-                <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
-                     min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
-                     border-radius:4px;padding:3px 6px;">0</div>
-                <button class="tp-quick-btn" onclick="_tpShift(0,true)"
-                        style="color:#88ffaa;border-color:#336633;">↺</button>
-                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
-                               color:#aaaacc;white-space:nowrap;cursor:pointer;
-                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
-                               background:#1a1a2e;" title="Solo reproducir por MIDI.js las notas que tienen motor asignado (con el offset actual)">
-                    <input type="checkbox" id="motorOnlyCheckbox" style="cursor:pointer;accent-color:#6666cc;">
-                    Solo motores
-                </label>
-                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
-                               color:#aaaacc;white-space:nowrap;
-                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
-                               background:#1a1a2e;" title="Velocidad mínima al importar MIDI (1-127). Las notas más suaves se mapean a este valor.">
-                    Vel. mín:
-                    <input type="number" id="midiImportMinVel" min="1" max="127" value="35"
-                           style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
-                                  border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
-                </label>
-                <label style="display:flex;align-items:center;gap:4px;font-size:11px;
-                               color:#aaaacc;white-space:nowrap;
-                               border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;
-                               background:#1a1a2e;" title="Velocidad máxima al importar MIDI (1-127). Las notas se escalan proporcionalmente a este valor.">
-                    Vel. máx:
-                    <input type="number" id="midiImportMaxVel" min="1" max="127" value="40"
-                           style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
-                                  border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
-                </label>
-            </div>
+    <!-- Minimap panorámico -->
+    <div class="minimap-wrapper">
+        <div class="minimap-spacer"></div>
+        <div class="minimap-area" id="minimapArea">
+            <canvas id="minimapCanvas"></canvas>
         </div>
     </div>
 
@@ -728,6 +1242,14 @@
         </div>
     </div>
 
+    <!-- Carril de velocidades (visible por defecto) -->
+    <div class="velocity-lane-wrapper" id="velocityLaneWrapper" style="display:flex;">
+        <div class="velocity-lane-spacer">VEL</div>
+        <div class="velocity-lane-scroll" id="velocityLaneScroll">
+            <canvas id="velocityLaneCanvas"></canvas>
+        </div>
+    </div>
+
     <!-- Fila de acordes (alineada con el grid, scroll sincronizado) -->
     <div class="chord-row-wrapper">
         <div class="chord-row-spacer" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;">
@@ -749,6 +1271,7 @@
                 <option value="pasos">pasos</option>
                 <option value="acordes" selected>acordes</option>
                 <option value="frases" disabled>frases</option>
+                <option value="respiración" disabled>respira</option>
             </select>
         </div>
         <div id="chordRowContainer"></div>
@@ -765,74 +1288,137 @@
                 </div>
             </div>
             <div class="chord-panel-footer">
+                <button class="cpanel-btn" id="cpanel-prev-btn"
+                        onclick="_cpanelPrevChord()" disabled title="Acorde anterior">«</button>
                 <button class="cpanel-btn" id="cpanel-loop-btn"
                         onclick="_cpanelPlayLoop()" disabled>▶ Loop</button>
+                <button class="cpanel-btn" id="cpanel-next-btn"
+                        onclick="_cpanelNextChord()" disabled title="Acorde siguiente">»</button>
+                <button class="cpanel-btn" id="cpanel-stop-btn"
+                        onclick="stop()" title="Parar reproducción">■ Stop</button>
                 <button class="cpanel-btn cpanel-btn-auto" id="cpanel-auto-btn"
                         onclick="_toggleAutoAdvance()" disabled>▶▶ Auto</button>
             </div>
         </div>
     </div>
 
-    <!-- Toggle colapsable del panel Motor Map -->
-    <div class="motor-map-toggle" id="motorMapToggle" onclick="toggleMotorMapPanel()">
+    <!-- Toggle inferior — abre el panel unificado -->
+    <div class="motor-map-toggle" id="motorMapToggle" onclick="toggleMotorEscalaPanel()">
         <span class="mm-arrow">▲</span>
-        <span>Motor Map — MIDI note → ESP32 motor</span>
+        <span>Motor Map / Escala — MIDI note → ESP32 motor</span>
         <span style="margin-left:auto;font-size:10px;color:#555;" id="motorMapSummary"></span>
     </div>
 
-    <!-- Panel Motor Map colapsable (debajo del chord-row) -->
-    <div class="motor-map-panel" id="motorMapPanel">
+</div><!-- /.content -->
 
-        <!-- Teclado miniatura -->
-        <div style="padding:8px 14px 4px;border-bottom:1px solid #2a2a4a;">
-            <canvas id="mmMiniKeyboard" style="display:block;border-radius:3px;"></canvas>
-        </div>
+<!-- ══ Panel unificado Motor Map + Escala (overlay fijo) ══ -->
+<div id="motorEscalaPanel" style="position:fixed;top:56px;left:0;right:0;bottom:0;
+     z-index:1000;background:var(--c-deep);border-top:2px solid #33335a;
+     flex-direction:column;font-family:'Segoe UI',monospace;font-size:12px;color:#ddd;">
 
-        <div class="motor-map-inner">
-            <table>
-                <thead>
-                    <tr>
-                        <th>MIDI</th>
-                        <th>Nota</th>
-                        <th>Motor</th>
-                        <th>HomePWM</th>
-                        <th>PCA/ch</th>
-                        <th title="Silenciar motor y nota">Mute</th>
-                    </tr>
-                </thead>
-                <tbody id="motorMapPanelTbody"></tbody>
-            </table>
-        </div>
-
-        <!-- Leyenda arcoíris -->
-        <div style="padding:6px 14px 4px;border-top:1px solid #2a2a4a;
-                    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;">
-            <span style="color:#555;font-style:italic;">🎹 Octavas:</span>
-            <span style="color:#ff6666;">● Do1 <span style="color:#555;font-size:10px;">graves</span></span>
-            <span style="color:#ff9944;">● Do2</span>
-            <span style="color:#dddd44;">● Do3</span>
-            <span style="color:#44dd44;">● Do4</span>
-            <span style="color:#4488ff;">● Do5</span>
-            <span style="color:#bb66ff;">● Do6 <span style="color:#555;font-size:10px;">agudos</span></span>
-            <span style="margin-left:auto;color:#333;font-size:10px;letter-spacing:1px;">
-                GRAVES ←————————→ AGUDOS
-            </span>
-        </div>
-        <div style="display:flex;gap:6px;padding:4px 0 45px 14px;">
-            <button class="mm-test-btn" onclick="_mmPanelTest()" title="Enviar golpe de prueba al motor seleccionado">
-                ▶ Test
-            </button>
-            <button class="mm-test-btn" onclick="motorMapExport()" title="Exportar a JSON"
-                style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">
-                ⬇ Export
-            </button>
-            <button class="mm-test-btn" onclick="motorMapImport()" title="Importar desde JSON"
-                style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">
-                ⬆ Import
-            </button>
-        </div>
+    <!-- Cabecera con botón cerrar -->
+    <div style="display:flex;align-items:center;background:#13132a;border-bottom:1px solid #2a2a4a;
+                flex-shrink:0;height:30px;padding:0 10px;gap:10px;">
+        <span style="font-size:11px;color:#7777aa;letter-spacing:.5px;text-transform:uppercase;">Motor Map + Escala</span>
+        <div style="flex:1;"></div>
+        <button onclick="toggleMotorEscalaPanel()"
+                style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:0 6px;line-height:1;"
+                onmouseover="this.style.color='#ff6666'" onmouseout="this.style.color='#555'">✕</button>
     </div>
-</div>
+
+    <!-- Contenido scrollable: Escala arriba, Motor Map abajo -->
+    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+
+        <!-- ── Sección Escala ── -->
+        <div style="flex-shrink:0;border-bottom:2px solid #2a2a4a;padding:8px 14px 10px;">
+            <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase;">🎹 Escala</div>
+            <div style="overflow-x:auto;">
+                <div style="min-width:max-content;">
+                    <div style="border:1px solid #2a2a4a;border-radius:5px;background:#111;margin-bottom:4px;">
+                        <canvas id="transposePianoCanvas" style="display:block;"></canvas>
+                    </div>
+                    <div id="transposeRangeLabel" style="font-size:11px;color:#7777aa;margin-bottom:4px;"></div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button class="tp-quick-btn" onclick="_tpShift(-12)">−12</button>
+                        <button class="tp-quick-btn" onclick="_tpShift(-1)">−1</button>
+                        <input type="range" id="transposeSlider" min="-24" max="24" step="1"
+                               value="0" oninput="_tpSlider(this.value)" style="flex:1;min-width:120px;accent-color:#6666cc;">
+                        <button class="tp-quick-btn" onclick="_tpShift(+1)">+1</button>
+                        <button class="tp-quick-btn" onclick="_tpShift(+12)">+12</button>
+                        <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
+                             min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
+                             border-radius:4px;padding:3px 6px;">0</div>
+                        <button class="tp-quick-btn" onclick="_tpShift(0,true)" style="color:#88ffaa;border-color:#336633;">↺</button>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
+                                       white-space:nowrap;cursor:pointer;border:1px solid #3a3a5a;border-radius:4px;
+                                       padding:2px 7px;background:#1a1a2e;"
+                               title="Solo reproducir por MIDI.js las notas que tienen motor asignado">
+                            <input type="checkbox" id="motorOnlyCheckbox" style="cursor:pointer;accent-color:#6666cc;">
+                            Solo motores
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
+                                       white-space:nowrap;border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;background:#1a1a2e;"
+                               title="Velocidad mínima al importar MIDI (1-127).">
+                            Vel. mín:
+                            <input type="number" id="midiImportMinVel" min="1" max="127" value="35"
+                                   style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
+                                          border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
+                                       white-space:nowrap;border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;background:#1a1a2e;"
+                               title="Velocidad máxima al importar MIDI (1-127).">
+                            Vel. máx:
+                            <input type="number" id="midiImportMaxVel" min="1" max="127" value="40"
+                                   style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
+                                          border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Sección Motor Map ── -->
+        <div style="flex:1;display:flex;flex-direction:column;min-height:200px;">
+            <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;padding:6px 14px 4px;
+                        text-transform:uppercase;flex-shrink:0;">⚙ Motor Map</div>
+            <div style="padding:4px 14px 4px;border-bottom:1px solid #2a2a4a;flex-shrink:0;">
+                <canvas id="mmMiniKeyboard" style="display:block;border-radius:3px;"></canvas>
+            </div>
+            <div class="motor-map-inner" style="flex:1;max-height:none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>MIDI</th><th>Nota</th><th>Motor</th>
+                            <th>HomePWM</th><th>PCA/ch</th>
+                            <th title="Silenciar motor y nota">Mute</th>
+                            <th title="Tecla del teclado asignada a este motor">Key</th>
+                        </tr>
+                    </thead>
+                    <tbody id="motorMapPanelTbody"></tbody>
+                </table>
+            </div>
+            <div style="padding:6px 14px 4px;border-top:1px solid #2a2a4a;flex-shrink:0;
+                        display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;">
+                <span style="color:#555;font-style:italic;">🎹 Octavas:</span>
+                <span style="color:#ff6666;">● Do1 <span style="color:#555;font-size:10px;">graves</span></span>
+                <span style="color:#ff9944;">● Do2</span>
+                <span style="color:#dddd44;">● Do3</span>
+                <span style="color:#44dd44;">● Do4</span>
+                <span style="color:#4488ff;">● Do5</span>
+                <span style="color:#bb66ff;">● Do6 <span style="color:#555;font-size:10px;">agudos</span></span>
+                <span style="margin-left:auto;color:#333;font-size:10px;letter-spacing:1px;">GRAVES ←————————→ AGUDOS</span>
+            </div>
+            <div style="display:flex;gap:6px;padding:6px 14px 12px;flex-shrink:0;">
+                <button class="mm-test-btn" onclick="_mmPanelTest()" title="Enviar golpe de prueba al motor seleccionado">▶ Test</button>
+                <button class="mm-test-btn" onclick="motorMapExport()" title="Exportar a JSON"
+                        style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">⬇ Export</button>
+                <button class="mm-test-btn" onclick="motorMapImport()" title="Importar desde JSON"
+                        style="background:#2a3a5a;border-color:#3a5a8a;color:#aaccff;">⬆ Import</button>
+            </div>
+        </div>
+
+    </div><!-- /scroll -->
+</div><!-- /#motorEscalaPanel -->
 
 <!-- ══════════════ SCRIPTS ══════════════ -->
 <!-- Librerías MIDI.js + jasmid -->
@@ -846,6 +1432,29 @@
 <script src="./MIDI.js/tonal.min.js"></script>
 <!-- Módulos del proyecto -->
 <script src="./js/ws-connector.js"></script>
+<script src="./js/serial-connector.js"></script>
+<script>
+function _connectEsp32() {
+    const mode = document.getElementById('connModeSelect').value;
+    if (mode === 'serial') {
+        if (typeof initSerial === 'function') initSerial();
+    } else {
+        if (typeof initWebSocket === 'function') initWebSocket();
+    }
+}
+function _onConnModeChange() {
+    const mode    = document.getElementById('connModeSelect').value;
+    const ipInput = document.getElementById('esp32IpInput');
+    const logBtn  = document.getElementById('esp32LogBtn');
+    ipInput.style.display = mode === 'wifi' ? '' : 'none';
+    logBtn.style.display  = '';
+    // Desconectar el canal anterior al cambiar de modo
+    if (mode === 'serial' && typeof closeWebSocket === 'function') closeWebSocket();
+    if (mode === 'wifi'   && typeof closeSerial    === 'function') closeSerial();
+    // Resetear offset del panel Escala al cambiar de modo
+    if (typeof window._tpSlider === 'function') window._tpSlider(0);
+}
+</script>
 <script src="./js/motor-map.js"></script>
 <script src="./js/esp32-sequencer.js"></script>
 <script src="./js/state.js"></script>
@@ -856,11 +1465,27 @@
 <script src="./js/chord-row.js"></script>
 <script src="./js/active-notes-panel.js"></script>
 <script src="./js/playback.js"></script>
+<script src="./js/history.js"></script>
 <script src="./js/editor.js"></script>
 <script src="./js/persistence.js"></script>
 <script src="./js/mml-parser.js"></script>
 <script src="./js/transpose.js"></script>
 <script src="./js/heat.js"></script>
+<script src="./js/theme.js"></script>
+<script src="./js/tabs.js"></script>
+<script src="./js/velocity-lane.js"></script>
+<script src="./js/midi-export.js"></script>
+<script src="./js/minimap.js"></script>
+<script src="./js/recent-files.js"></script>
 <script src="./js/midiGrid.js"></script>
+
+<!-- Overlay drag & drop -->
+<div id="dropOverlay">
+    <div id="dropOverlayBox">
+        <div style="font-size:40px;margin-bottom:10px;">🎵</div>
+        <div>Suelta el archivo <strong>.mid</strong> aquí</div>
+        <div style="font-size:11px;margin-top:6px;opacity:0.6;">Se abrirá en una nueva pestaña</div>
+    </div>
+</div>
 </body>
 </html>

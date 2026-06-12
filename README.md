@@ -1,383 +1,321 @@
-# aTambor — Sistema de Percusión Robótica
+# aTambor — Sistema de Composición Musical para Instrumentos Robóticos
 
-**aTambor** es un sistema de composición y reproducción musical para instrumentos de percusión físicos controlados por servomotores y solenoides a través de un microcontrolador ESP32. Combina una interfaz web con hardware real, permitiendo que una máquina toque música con precisión y expresividad.
+**aTambor** es un entorno web de composición y reproducción musical para instrumentos físicos controlados por servomotores y solenoides a través de un ESP32. Combina un secuenciador MIDI profesional con análisis armónico en tiempo real y control directo de hardware, permitiendo que una máquina toque música con expresividad.
 
-El sistema cuenta con dos entornos de trabajo complementarios:
-
----
-
-## 🥁 aTambor — Drum Machine
-
-🔗 **Demo online:** https://elper.es/aTambor/aTambor.html  
-**Archivo:** `aTambor.html`
-
-Entorno orientado a la **composición de ritmos por canales**, al estilo de las clásicas cajas de ritmos (drum machines).
-
-### Características
-
-- **Secuenciador paso a paso** con cuadrícula de pasos activables por canal
-- **Múltiples canales de percusión** independientes, cada uno asignado a un motor físico
-- **Control de tempo (BPM)** ajustable en tiempo real
-- **Patrones de compás** editables: añadir, eliminar y reordenar compases
-- **Modo Song**: encadena patrones en una secuencia de canción completa
-- **Notas sostenidas**: duración variable por paso (golpe, medio, largo)
-- **Mute por canal**: silenciar canales individuales durante la reproducción
-- **Calibración de motores**: ajuste fino de posición y velocidad por canal
-- **Test de golpe** individual por canal
-- **Sincronización con ESP32** vía WebSocket — los motores físicos se mueven en tiempo real
-- **Modo loop** y control de reproducción (play / pause / stop)
+El sistema cuenta con dos entornos de trabajo complementarios accesibles desde el navegador, sin instalación.
 
 ---
 
-## 🎹 midiGrid — Secuenciador MIDI con Piano Roll
+## Entornos
 
-🔗 **Demo online:** https://elper.es/aTambor/midiGrid.html  
+### 🎹 midiGrid — Secuenciador MIDI con Piano Roll
+
 **Archivo:** `midiGrid.html`
 
-Entorno orientado a la **reproducción de archivos MIDI** sobre los motores físicos, con visualización de piano roll, análisis armónico y control avanzado del hardware.
+Entorno principal orientado a la **composición y reproducción de música melódica** sobre instrumentos físicos. Piano roll interactivo, análisis armónico, exportación MIDI y control total del hardware ESP32.
 
-### Carga y navegación
+---
 
-- **Carga de archivos MIDI** (.mid / .midi) mediante botón, menú o arrastre directo al navegador
-- **Selección de canal**: selector de instrumento/canal con botón **Mostrar** — si el tab activo ya tiene contenido, abre el canal en un tab nuevo automáticamente
-- **Todos (Ctrl+Shift+A)**: abre cada canal del MIDI en un tab independiente con un solo clic
-- **Sistema de tabs multi-documento**: cada tab es un proyecto independiente con su propio grid, historial undo/redo y análisis armónico. Al cambiar de tab durante la reproducción, la música continúa en el nuevo tab
-- **Archivos recientes**: historial de los últimos archivos cargados con acceso rápido desde el menú
+### 🥁 aTambor — Drum Machine
+
+**Archivo:** `aTambor.html`
+
+Entorno orientado a la **composición rítmica por canales**, al estilo de las clásicas cajas de ritmos. Secuenciador paso a paso con patrones editables y sincronización con motores físicos.
+
+---
+
+## Características de midiGrid
+
+### Importación y archivo
+
+| Función | Descripción |
+|---------|-------------|
+| Abrir MIDI | Botón 🎵, menú o arrastrar `.mid` / `.midi` a la ventana |
+| Importar MML | Music Macro Language — formato de texto compacto para melodías |
+| **Exportar MIDI** | Genera archivo `.mid` Tipo 1 estándar compatible con Ableton, Logic, MuseScore, Cubase — incluye mapa de tempo y transposición activa |
+| Guardar proyecto | JSON con grid, análisis armónico, mapa de tempo y marcadores de sección |
+| Cargar proyecto | Importar JSON guardado previamente |
+| Archivos recientes | Historial de los últimos 10 proyectos con tiempo transcurrido |
 
 ### Piano roll
 
-- **Piano roll interactivo** con zoom ajustable (teclas −/+), scroll horizontal y vertical sincronizado
-- **Edición directa de notas**: click para añadir/quitar, arrastrar para ajustar duración
-- **Ctrl+Click**: editar velocity de una nota individual
-- **Alt+Click**: mutear/desmutear el motor asociado a esa nota — la nota aparece en gris con raya diagonal roja
-- **Shift+arrastrar**: selección rectangular de notas (borrar con Delete, copiar con Ctrl+C)
-- **Minimap panorámico**: vista comprimida de toda la canción con indicador de posición
-- **Regla de compases tipo DAW**: seek por clic, marcadores A-B, puntos de tempo editables
-- **Carril de velocidades**: editar velocity nota a nota; **Shift+arrastrar** aplica la misma velocity a todas las notas a la vez
-- **Historial Undo/Redo** (Ctrl+Z / Ctrl+Y) con 50 pasos por tab
+- **Canvas interactivo** con zoom horizontal ajustable (1–32 px/paso), scroll sincronizado y minimap panorámico
+- **Click** — añadir / quitar nota
+- **Click + arrastrar →** — ajustar duración de la nota
+- **Ctrl + Click** — editar velocity con tooltip inline sobre la nota (sin prompt nativo)
+- **Alt + Click** — mutear / desmutear el motor físico de esa nota
+- **Shift + arrastrar** — selección rectangular con borde azul
+- **Carril de velocidades** visible por defecto — arrastrar edita la velocity del paso; Shift+arrastrar aplica a todas las notas a la vez
+- **Historial Undo / Redo** (Ctrl+Z / Ctrl+Y) — 50 pasos por tab, independiente entre tabs
 
 ### Reproducción y transporte
 
-- **Play / Pause / Stop** con sincronización ESP32
-- **Loop A→B**: marcar inicio y fin en la regla para repetir un fragmento
-- **Mapa de tempo editable**: puntos de BPM en la regla para crear aceleraciones y ralentizaciones
-- **Streaming predictivo**: envía la secuencia al ESP32 en bloques mientras suena
-
-### Panel Motor Map + Escala
-
-El botón **Motor** abre un panel único con dos secciones visibles:
-
-**🎹 Escala — Transposición global**
-- Slider −32…+24 semitonos con botones de salto rápido y reset; offset global entre todos los tabs
-- Checkbox "Solo motores" y ajuste de Vel. mín/máx al importar MIDI
-
-**⚙ Motor Map — Mapeo nota → motor físico**
-- Tabla MIDI → motor → HomePWM → PCA/ch → Mute con teclado miniatura
-- Mute por fila: silencia altavoces y ESP32 simultáneamente
-- Test de motor individual, Export/Import JSON
-- LEDs WS2812B: modos arcoíris, octava, calor y blanco
-- **Avance LED** (slider en el menú): LED rojo N ms antes del golpe (Synthesia)
+- **Motor de audio AudioContext** con scheduler de lookahead 100 ms — timing sample-accurate sin jitter, incluso a 200 BPM
+- **Play / Pause / Stop** con sincronización automática al ESP32
+- **Seek** haciendo clic en la regla de compases
+- **Loop A→B** — marcar inicio y fin en la regla para repetir un fragmento en audio y hardware
+- **Mapa de tempo editable** — puntos de BPM editables en la regla para crear aceleraciones y ralentizaciones; interpolación automática
+- **Streaming predictivo** — envía la secuencia al ESP32 en bloques APPEND mientras suena, sin límite de longitud
 
 ### Análisis armónico
 
-- Detección automática de tonalidad, grados y acordes por segmento
-- **Chord row** sincronizada con el piano roll en cuatro niveles: pasos, acordes, frases, respiración
-- **Auto-avance (▶▶ Auto)**: encadena segmentos automáticamente con espera de confirmación ESP32
+- **Detección de tonalidad automática** por correlación Krumhansl-Kessler (24 claves mayor/menor)
+- **Chord row** sincronizada con el piano roll en cuatro niveles de detalle:
+  - **pasos** — micro-segmentos, uno por cada cambio de notas activas
+  - **acordes** — fusionado por negra, acorde dominante cada 4 pasos
+  - **frases** — detectadas por cadencias (V→I, IV→I, ii→V→I, vi→IV)
+  - **respiración** — zonas de baja energía óptimas para resetear el buffer ESP32
+- Click en cualquier bloque abre un popup con nombre del acorde, función tonal (I, ii, V…) y notas
+- **Loop de segmento** y **Auto-avance** segmento a segmento con confirmación de beat del ESP32
+
+### Motor de Atención — Mapa de Calor
+
+- Colorea el piano roll por importancia estructural mediante un algoritmo de atención basado en softmax 4D (paso, nota, duración, velocity)
+- Rojo = nota dominante · Azul = nota subordinada
+- Exclusivo: no existe esta visualización en ningún DAW web conocido
+
+### Sistema de tabs
+
+- Cada tab es un proyecto independiente con su propio grid, historial de undo y análisis armónico
+- Portapapeles compartido entre tabs — permite trasladar secciones entre composiciones
+- Al cambiar de tab la reproducción se detiene y el estado se guarda automáticamente
+
+### Motor Map + Escala
+
+- **Tabla nota MIDI → motor físico** con HomePWM, canal PCA, mute y atajo de teclado por fila
+- Mute por fila silencia audio interno y ESP32 simultáneamente
+- Test de motor individual, Export / Import JSON
+- **Transposición global** ±24 semitonos — offset compartido entre todos los tabs, aplicado al ESP32 vía APPEND en caliente
+- **LEDs WS2812B** — modos: octava, arcoíris, calor, blanco
+- **Avance LED** (slider) — el LED de anticipación se enciende N ms antes del golpe (efecto Synthesia)
 
 ### Conexión ESP32
 
-- **WiFi** (WebSocket ws://IP:81) o **Serie** (Web Serial API USB-CDC)
-- Indicador de estado ●, ventana de log en tiempo real, consola de comandos directos
+- **WiFi** — WebSocket `ws://IP:81`, auto-reconexión cada 5 s
+- **Serie** — Web Serial API USB-CDC a 115 200 baud (Chrome / Edge 89+)
+- Indicador de estado ● en tiempo real
+- **Ventana Log** con log en tiempo real y consola de comandos directos al ESP32
 
 ---
 
-## 📁 Estructura del proyecto
+## Características de aTambor (Drum Machine)
+
+- Secuenciador paso a paso con cuadrícula de pasos activables por canal
+- Múltiples canales de percusión independientes, cada uno asignado a un motor físico
+- Control de tempo (BPM) ajustable en tiempo real
+- Patrones de compás editables: añadir, eliminar y reordenar
+- **Modo Song** — encadena patrones en una secuencia de canción completa
+- Notas sostenidas con duración variable por paso (golpe, medio, largo)
+- Mute por canal durante la reproducción
+- Calibración de HomePWM y velocidad por canal
+- Test de golpe individual por canal
+- Sincronización con ESP32 vía WebSocket
+
+---
+
+## Atajos de teclado principales (midiGrid)
+
+| Atajo | Acción |
+|-------|--------|
+| Ctrl + Z | Deshacer |
+| Ctrl + Y / Ctrl+Shift+Z | Rehacer |
+| Ctrl + C | Copiar selección rectangular |
+| Ctrl + V | Pegar en posición del playhead |
+| Ctrl + Shift + V | Pegar una octava más arriba |
+| Ctrl + Alt + V | Pegar una octava más abajo |
+| Ctrl + Shift + A | Abrir todos los canales en tabs separados |
+| Delete / Backspace | Borrar notas seleccionadas |
+| Escape | Deseleccionar / cerrar modal |
+| Click en regla | Seek · marcar A o B si loop activo |
+
+---
+
+## Puesta en marcha
+
+### Requisitos
+
+- Servidor local (XAMPP, VS Code Live Server, Python `http.server`…)
+- Chrome o Edge 89+ para Web Serial; cualquier navegador moderno para WiFi
+
+### Pasos
+
+```
+1. Copiar la carpeta PianoRoll/ en el directorio web del servidor
+2. Abrir http://localhost/PianoRoll/midiGrid.html en el navegador
+3. Conectar el ESP32 a la misma red WiFi o por USB-CDC
+4. Introducir la IP del ESP32 → pulsar Conectar  (o seleccionar modo Serie)
+5. Abrir un archivo MIDI con el botón 🎵 o arrastrarlo a la ventana
+6. Seleccionar canal → Mostrar  (o Todos para abrir todos los instrumentos)
+7. Pulsar ▶ Play
+```
+
+---
+
+## Estructura del proyecto
 
 ```
 PianoRoll/
-├── midiGrid.html          # Piano roll / secuenciador MIDI
-├── aTambor.html           # Drum machine
+├── midiGrid.html              # Secuenciador MIDI / piano roll principal
+├── aTambor.html               # Drum machine
 ├── js/
-│   ├── state.js           # Variables globales compartidas
-│   ├── midi-parser.js     # Lectura y parseo de archivos MIDI
-│   ├── piano-roll.js      # Renderizado del canvas y teclado lateral
-│   ├── editor.js          # Edición interactiva del grid
-│   ├── playback.js        # Motor de reproducción paso a paso
-│   ├── timeline-ruler.js  # Regla de compases tipo DAW
-│   ├── harmonic.js        # Análisis armónico y detección de tonalidad
-│   ├── chord-row.js       # Chord row y auto-avance
-│   ├── motor-map.js       # Mapeo nota MIDI → motor físico + LEDs
-│   ├── esp32-sequencer.js # Construcción de secuencias para ESP32
-│   ├── tabs.js            # Sistema de pestañas multi-documento
-│   ├── transpose.js       # Panel de transposición global
-│   ├── heat.js            # Motor de Atención (mapa de calor)
-│   ├── velocity-lane.js   # Carril de velocidades
-│   ├── minimap.js         # Minimap panorámico
-│   ├── history.js         # Historial undo/redo
-│   ├── persistence.js     # Guardar/cargar proyectos JSON
-│   ├── ws-connector.js    # Conexión WebSocket ESP32
-│   ├── serial-connector.js# Conexión Serie (Web Serial API)
-│   └── midiGrid.js        # Punto de entrada y cableado de eventos
-└── MIDI.js/               # Librería de reproducción MIDI + SoundFont
+│   ├── state.js               # Variables globales compartidas entre módulos
+│   ├── midi-parser.js         # Lectura y parseo de archivos MIDI (jasmid)
+│   ├── mml-parser.js          # Parser de Music Macro Language → eventos MIDI
+│   ├── midi-export.js         # Exportación de gridData a archivo .mid estándar
+│   ├── piano-roll.js          # Renderizado Canvas 2D y teclado lateral
+│   ├── editor.js              # Edición interactiva del grid (click, drag, selección)
+│   ├── velocity-lane.js       # Carril de velocidades con edición por arrastre
+│   ├── timeline-ruler.js      # Regla de compases tipo DAW con mapa de tempo
+│   ├── minimap.js             # Vista panorámica con viewport arrastrable
+│   ├── playback.js            # Motor de reproducción — AudioContext scheduler lookahead
+│   ├── harmonic.js            # Análisis armónico: Krumhansl-Kessler + Tonal.js
+│   ├── chord-row.js           # Chord row, popup de acorde y auto-avance
+│   ├── heat.js                # Motor de Atención — mapa de calor por softmax
+│   ├── esp32-sequencer.js     # Generador de secuencias de comandos para ESP32
+│   ├── ws-connector.js        # Conexión WebSocket al ESP32
+│   ├── serial-connector.js    # Conexión Serie vía Web Serial API
+│   ├── motor-map.js           # Tabla nota MIDI → motor físico + LEDs WS2812B
+│   ├── transpose.js           # Panel de transposición global con visualización piano
+│   ├── tabs.js                # Sistema de pestañas multi-documento
+│   ├── history.js             # Historial undo/redo por tab (50 pasos)
+│   ├── persistence.js         # Guardar / cargar proyectos JSON
+│   ├── theme.js               # Sistema de temas claro / oscuro
+│   ├── active-notes-panel.js  # Panel flotante de notas activas
+│   ├── recent-files.js        # Historial de archivos recientes (localStorage)
+│   └── midiGrid.js            # Punto de entrada: DOM, inicialización, eventos
+├── MIDI.js/                   # Librería MIDI.js + jasmid + soundfonts GM
+│   ├── build/MIDI.min.js
+│   ├── inc/jasmid/            # Parser binario MIDI
+│   └── examples/soundfont/    # Soundfonts GM en MP3
+└── tonal.min.js               # Tonal.js — teoría musical (acordes, escalas)
 ```
 
 ---
 
-## 🚀 Puesta en marcha
+## Hardware
 
-1. Servir los archivos desde un servidor local (ej: XAMPP → `localhost/PianoRoll/`)
-2. Abrir `midiGrid.html` o `aTambor.html` en el navegador
-3. Conectar el ESP32 a la misma red WiFi, anotar su IP
-4. Introducir la IP en el campo ESP32 y pulsar **Conectar**
-5. Cargar un archivo MIDI (botón 🎵 o arrastrarlo a la ventana)
-6. Seleccionar canal → **Mostrar** (o **Todos** para abrir todos los instrumentos)
-7. Pulsar **▶ Play**
+### Componentes
 
----
+| Componente | Cantidad | Notas |
+|------------|----------|-------|
+| ESP32 (cualquier variante) | 1 | Firmware aTambor, WebSocket puerto 81 |
+| PCA9685 (controlador PWM I2C) | 2 | Direcciones 0x40 y 0x41, hasta 32 motores |
+| Servomotores o solenoides | hasta 32 | 50 Hz PWM |
+| Strip LED WS2812B | 1 × 61 LEDs | Do1–Si5 cromático |
+| **Módulo XL4015 Buck 75W** | 1 | Regulación + protección sobretemperatura + voltímetro |
+| Fuente de alimentación | 1 | Ver rango de entrada XL4015: 8–36V |
 
----
-
-# ⚙️ Hardware
-
----
-
-## Componentes requeridos
-
-- **ESP32** con firmware aTambor (WebSocket en puerto 81)
-- **PCA9685** × 2 (controladores PWM I2C): 32 motores en total
-- **Servomotores o solenoides** × hasta 32
-- **Strip LED WS2812B** de 61 LEDs (Do1–Si5 cromático)
-- **Módulo Electronic Fuse** (protección sobrecorriente)
-- **Módulo P-MOSFET High-Side Switch** (corte por software)
-- **Fuente 5V** (lógica + LEDs) y **fuente/batería 12V** (solenoides)
-
----
-
-## Diagrama de bloques del sistema
-
-```mermaid
-graph TD
-    Browser["🖥️ Navegador\nmidiGrid / aTambor"]
-    ESP["🔲 ESP32\nFirmware aTambor\nWebSocket :81"]
-    FUSE["Módulo 1\nElectronic Fuse\nLM358 + PMOS\nUmbral ~14A"]
-    SW["Módulo 2\nP-MOSFET Switch\nIRF4905\nEN → ESP32"]
-    PCA0["PCA9685 #0\nI2C 0x40\nMotores 0–15"]
-    PCA1["PCA9685 #1\nI2C 0x41\nMotores 16–31"]
-    LED["WS2812B\n61 LEDs\nDo1–Si5"]
-    SOL["Solenoides × 16+"]
-    BAT["🔋 Batería / Fuente 12V"]
-    PWR5["Fuente 5V\n(lógica + LEDs)"]
-
-    Browser -->|"WiFi WebSocket\nws://IP:81"| ESP
-    ESP -->|I2C SDA/SCL| PCA0
-    ESP -->|I2C SDA/SCL| PCA1
-    ESP -->|Data GPIO| LED
-    ESP -->|"LOW=ON"| SW
-    FUSE -->|"FAULT"| ESP
-    BAT -->|12V| FUSE
-    FUSE -->|"corta si I > 14A"| SW
-    SW -->|"ON/OFF software"| PCA0
-    SW --> PCA1
-    PCA0 -->|PWM 50Hz| SOL
-    PCA1 -->|PWM 50Hz| SOL
-    PWR5 -->|VCC| ESP
-    PWR5 -->|VCC| LED
-    PWR5 -->|VDD lógica| PCA0
-    PWR5 -->|VDD lógica| PCA1
-```
-
----
-
-## Pines ESP32
-
-| Pin ESP32     | Señal        | Destino                   | Notas                        |
-|---------------|--------------|---------------------------|------------------------------|
-| GPIO **TODO** | I2C SDA      | PCA9685 #0 + #1 SDA       | Bus I2C compartido           |
-| GPIO **TODO** | I2C SCL      | PCA9685 #0 + #1 SCL       | Bus I2C compartido           |
-| GPIO **TODO** | WS2812B Data | LED strip DIN             | Resistencia 330Ω en serie    |
-| GPIO **TODO** | P-MOSFET EN  | Módulo switch (activo LOW)| LOW = solenoides ON          |
-| GPIO **TODO** | FAULT IN     | Módulo fuse (si dispone)  | HIGH = sobrecorriente        |
-| GPIO **TODO** | LED onboard  | LED estado WiFi           |                              |
-| 3V3           | VCC lógica   | PCA9685 VDD               | No alimentar motores con 3V3 |
-| GND           | Masa común   | PCA9685 GND · LED GND     |                              |
-
-> ⚠️ **Completa los números GPIO** según tu esquemático del firmware.
-
----
-
-## PCA9685 — Configuración I2C
-
-| Chip        | Dirección I2C | Motores | Canales PWM |
-|-------------|---------------|---------|-------------|
-| PCA9685 #0  | `0x40`        | 0 – 15  | ch 0 – 15   |
-| PCA9685 #1  | `0x41`        | 16 – 31 | ch 0 – 15   |
-
-Jumpers de dirección (A0–A5 en la placa):
-
-| Chip    | A0  | A1  | A2  | A3  | A4  | A5  |
-|---------|-----|-----|-----|-----|-----|-----|
-| PCA #0  | GND | GND | GND | GND | GND | GND |
-| PCA #1  | VCC | GND | GND | GND | GND | GND |
-
-Parámetros PWM: **50 Hz** · HomePWM reposo: **375** (≈ 1,46 ms)  
-Routing firmware: `PCA = motor ÷ 16` · `canal = motor mod 16`
-
----
-
-## Motor Map — Nota MIDI → motor físico
-
-| Nota | MIDI | Motor | PCA | Ch | Color      |
-|------|------|-------|-----|----|------------|
-| A1   | 33   | 12    | 0   | 12 | 🔴 rojo    |
-| B1   | 35   | 13    | 0   | 13 | 🔴 rojo    |
-| C2   | 36   | 0     | 0   | 0  | 🟠 naranja |
-| C#2  | 37   | 10    | 0   | 10 | 🟠 naranja |
-| D2   | 38   | 1     | 0   | 1  | 🟠 naranja |
-| D#2  | 39   | 11    | 0   | 11 | 🟠 naranja |
-| E2   | 40   | 2     | 0   | 2  | 🟠 naranja |
-| F2   | 41   | 3     | 0   | 3  | 🟠 naranja |
-| F#2  | 42   | 7     | 0   | 7  | 🟠 naranja |
-| G2   | 43   | 4     | 0   | 4  | 🟠 naranja |
-| G#2  | 44   | 8     | 0   | 8  | 🟠 naranja |
-| A2   | 45   | 5     | 0   | 5  | 🟠 naranja |
-| A#2  | 46   | 9     | 0   | 9  | 🟠 naranja |
-| B2   | 47   | 6     | 0   | 6  | 🟠 naranja |
-| C3   | 48   | 14    | 0   | 14 | 🟡 amarillo|
-| D3   | 50   | 15    | 0   | 15 | 🟡 amarillo|
-
----
-
-## Strip LED WS2812B
-
-| Parámetro      | Valor                                        |
-|----------------|----------------------------------------------|
-| Número de LEDs | 61                                           |
-| Rango          | LED 0 (sin motor) → LED 60 (Si5)            |
-| Nota base      | C1 (MIDI 24) = LED 1                         |
-| Fórmula índice | `ledIdx = MIDI_note − 23`                    |
-| Protocolo      | WS2812B (NeoPixel) 800 kHz                   |
-| Alimentación   | 5V independiente para >10 LEDs simultáneos   |
-| Resistencia    | 330 Ω en serie en el pin Data                |
-| Condensador    | 100–1000 µF entre VCC y GND del strip        |
-
-**Modos de color** (configurables desde la UI): Octava · Arcoíris · Calor · Blanco  
-**LED de anticipación**: rojo (hue FastLED = 0), N ms antes del golpe — configurable con el slider *Avance* del menú.
-
----
-
-## Protección de solenoides — Módulos P-MOSFET
-
-### Esquema de conexión
+### Diagrama de bloques
 
 ```
-BATERÍA 12V (+)
-       │
-       ▼
-┌─────────────────────────────────┐
-│  MÓDULO 1 — Electronic Fuse     │
-│  LM358 + P-MOSFET + pot         │
-│  Buscar: "adjustable overcurrent│
-│  protection module DC 12V"      │
-│  Ajustar umbral: ~14-15A        │
-└────────────┬──────────┬─────────┘
-             │          │
-        corta auto   FAULT ──► ESP32 GPIO
-             │
-             ▼
-┌─────────────────────────────────┐
-│  MÓDULO 2 — P-MOSFET Switch     │
-│  IRF4905 / IRF9540 + driver     │
-│  Buscar: "PMOS high side switch │
-│  module 15A 12V"                │
-│  EN ──► ESP32 GPIO (LOW = ON)   │
-└────────────┬────────────────────┘
-             │
-             ▼
-     V+ PCA9685 #0 y #1
-     (alimentación solenoides)
-
-BATERÍA 12V (−) ──────────────────► GND PCA9685 (masa común)
+┌─────────────────────────────────────────────────────────┐
+│                    NAVEGADOR (Chrome/Edge)               │
+│              midiGrid.html  ·  aTambor.html             │
+└──────────────────┬──────────────────────────────────────┘
+                   │ WiFi WebSocket ws://IP:81
+                   │   ó  USB-CDC Web Serial API
+                   ▼
+         ┌─────────────────┐
+         │     ESP32        │
+         │  Firmware aTambor│
+         └──┬──────┬───┬───┘
+            │I2C   │   │GPIO
+            ▼      ▼   ▼
+      ┌──────┐ ┌──────┐ ┌────────────────┐
+      │PCA   │ │PCA   │ │ WS2812B        │
+      │9685  │ │9685  │ │ 61 LEDs        │
+      │#0    │ │#1    │ │ Do1 – Si5      │
+      │0x40  │ │0x41  │ └────────────────┘
+      │M0–15 │ │M16–31│
+      └──┬───┘ └──┬───┘
+         │PWM     │PWM
+         ▼        ▼
+    ┌──────────────────────────────┐
+    │  Módulo XL4015 Buck 75W      │ ◄── Fuente 8–36V entrada
+    │  Regulación + OTP + OCP      │
+    │  Voltímetro display          │
+    └─────────────┬────────────────┘
+                  │ Vout ajustado
+    ┌─────────────▼────────────────┐
+    │    Servos / Solenoides × 16+ │
+    └──────────────────────────────┘
 ```
 
-### Conexión al ESP32
+### Configuración PCA9685
 
-| Módulo           | Pin módulo | ESP32         | Lógica                   |
-|------------------|-----------|---------------|--------------------------|
-| P-MOSFET switch  | EN / Gate | GPIO **TODO** | LOW = ON · HIGH = OFF    |
-| Electronic fuse  | FAULT     | GPIO **TODO** | HIGH = sobrecorriente    |
+| Chip | Dirección I2C | Motores | Jumpers A0–A5 |
+|------|--------------|---------|---------------|
+| PCA9685 #0 | `0x40` | 0 – 15 | todos a GND |
+| PCA9685 #1 | `0x41` | 16 – 31 | A0 a VCC, resto GND |
 
-### Qué buscar en AliExpress
+- Frecuencia PWM: **50 Hz**
+- HomePWM de reposo: **375** (≈ 1,46 ms)
+- Routing: `PCA = motor ÷ 16` · `canal = motor mod 16`
 
-| Módulo           | Términos de búsqueda                                    | Precio  |
-|------------------|---------------------------------------------------------|---------|
-| Electronic fuse  | `adjustable overcurrent protection module 12V LM358`   | 1–3 €   |
-| P-MOSFET switch  | `PMOS high side switch module 15A` · `P channel MOSFET trigger board` | 1–2 € |
+### Strip LED WS2812B
 
-### Especificaciones mínimas
+| Parámetro | Valor |
+|-----------|-------|
+| LEDs totales | 61 |
+| Rango | LED 0 (reservado) → LED 60 (Si5) |
+| Nota base | C1 (MIDI 24) = LED 1 |
+| Fórmula índice | `ledIdx = MIDI_note − 23` |
+| Protocolo | WS2812B 800 kHz |
+| Alimentación | 5V independiente |
+| Resistencia | 330 Ω en serie en el pin Data |
+| Condensador | 100–1000 µF entre VCC y GND del strip |
 
-| Parámetro          | Mínimo                              |
-|--------------------|-------------------------------------|
-| Tensión de entrada | ≥ 15V                               |
-| Corriente continua | ≥ 10A                               |
-| Corriente de pico  | ≥ 20A                               |
-| MOSFET             | IRF4905 · IRF9540 · IRF3205P        |
+Modos de color: **octava · arcoíris · calor · blanco**  
+LED de anticipación: rojo (hue FastLED = 0), N ms antes del golpe.
 
-### Protección adicional por canal
+### Motor Map por defecto
+```
+| Nota | MIDI | Motor | PCA | Ch |
+|------|------|-------|-----|----|
+| A1 | 33 | 12 | 0 | 12 |
+| B1 | 35 | 13 | 0 | 13 |
+| C2 | 36 | 0  | 0 | 0  |
+| C#2 | 37 | 10 | 0 | 10 |
+| D2 | 38 | 1  | 0 | 1  |
+| D#2 | 39 | 11 | 0 | 11 |
+| E2 | 40 | 2  | 0 | 2  |
+| F2 | 41 | 3  | 0 | 3  |
+| F#2 | 42 | 7  | 0 | 7  |
+| G2 | 43 | 4  | 0 | 4  |
+| G#2 | 44 | 8  | 0 | 8  |
+| A2 | 45 | 5  | 0 | 5  |
+| A#2 | 46 | 9  | 0 | 9  |
+| B2 | 47 | 6  | 0 | 6  |
+| C3 | 48 | 14 | 0 | 14 |
+| D3 | 50 | 15 | 0 | 15 |
 
 ```
-V+ ──[PTC 1A MF-R110]──[solenoide]──┐
-                                    │
-                [1N4007 ←]──────────┘  (cátodo → V+)
-                     │
-                    GND
-```
-
-PTC rearmable por canal + diodo flyback 1N4007 en cada solenoide.
-
----
-
-## Esquema de alimentación
-
-```
-Fuente 5V  ──┬──► ESP32
-             ├──► PCA9685 VDD (lógica)
-             └──► WS2812B VCC
-
-Batería 12V ─┬──► [Módulo fuse] → [Módulo MOSFET] → PCA9685 V+ (solenoides)
-             └──► GND común con fuente 5V  ⚠️
-```
-
-> ⚠️ **Masa común obligatoria** entre fuente 5V y batería 12V.  
-> ⚠️ **No conectar** los 12V al VDD del PCA9685 ni al ESP32.  
-> ⚠️ **Condensadores de desacople** 100µF cerca de cada PCA9685.
-
----
-
 ## Protocolo ESP32 ↔ Navegador
 
-**WebSocket** puerto 81 · `ws://IP:81`  
-**Serie** Web Serial API (USB-CDC)
+Transporte: **WebSocket** puerto 81 (`ws://IP:81`) o **Web Serial** 115 200 baud.
+```
+### Comandos navegador → ESP32
 
-### Comandos del navegador → ESP32
-
-| Comando  | Formato | Descripción |
-|----------|---------|-------------|
-| `PLAY`   | `PLAY\|midiGrid\|<stepMs>\|<advMs>\|<advHue>\n<seq>` | Cargar y ejecutar secuencia |
-| `APPEND` | `APPEND\n<seq>` | Encolar bloque siguiente |
-| `STOP`   | `STOP` | Detener reproducción |
-| `p;`     | `p;`   | Arrancar secuencia cargada (WS) |
+| Comando | Formato | Descripción |
+|---------|---------|-------------|
+| `PLAY` | `PLAY\|midiGrid\|<stepMs>\|<advMs>\|<advHue>\n<seq>` | Cargar y ejecutar secuencia |
+| `APPEND` | `APPEND\n<seq>` | Encolar bloque siguiente (streaming) |
+| `STOP` | `STOP` | Detener reproducción |
+| `p;` | `p;` | Arrancar secuencia ya cargada (WebSocket) |
 
 ### Instrucciones de secuencia
 
-| Instrucción  | Ejemplo          | Descripción |
-|--------------|------------------|-------------|
-| `e;`         | `e;`             | Reset motores al inicio del bloque |
-| `m N;`       | `m 0;`           | Seleccionar motor N |
-| `o PWM;`     | `o 375;`         | Posición de reposo (HomePWM) |
-| `t Ms;`      | `t 80;`          | Esperar Ms milisegundos |
-| `v Vel;`     | `v 80;`          | Aplicar velocidad (0=reposo, 1–100) |
-| `L m i h s;` | `L 0 13 20 230;` | Motor m → LED i, hue h, sat s |
-| `c Ms;`      | `c 500;`         | Marcador compás (corrección drift I2C) |
+| Instrucción | Ejemplo | Descripción |
+|-------------|---------|-------------|
+| `e;` | `e;` | Reset motores al inicio del bloque |
+| `m N;` | `m 0;` | Seleccionar motor N |
+| `o PWM;` | `o 375;` | Posición de reposo (HomePWM) |
+| `t Ms;` | `t 80;` | Esperar Ms milisegundos |
+| `v Vel;` | `v 80;` | Aplicar velocidad (0 = reposo, 1–100) |
+| `L m i h s;` | `L 0 13 20 230;` | Motor m → LED índice i, hue h, saturación s |
+| `c Ms;` | `c 500;` | Marcador de compás (corrección drift I2C) |
+
+Tiempos de golpe por defecto: **HIT = 80 ms · RETRACT = 150 ms**
 
 ### Mensajes ESP32 → navegador (JSON)
 
@@ -385,7 +323,22 @@ Batería 12V ─┬──► [Módulo fuse] → [Módulo MOSFET] → PCA9685 V+ 
 |---------|-------------|
 | `{"state":"playing"}` | Reproducción iniciada |
 | `{"state":"stopped"}` | Reproducción terminada |
-| `{"state":"beat","step":N}` | Beat N (corrección drift visual) |
+| `{"state":"beat","step":N}` | Beat N — corrección de deriva visual entre browser y ESP32 |
+
+---
+
+## Dependencias y compatibilidad
+
+| Componente | Versión | Uso |
+|------------|---------|-----|
+| MIDI.js + jasmid | incluido en `MIDI.js/` | Reproducción audio GM + parseo binario MIDI |
+| Tonal.js | incluido en `tonal.min.js` | Detección de acordes y escalas |
+| Web Audio API | nativo | AudioContext scheduler sample-accurate |
+| Web Serial API | Chrome / Edge 89+ | Conexión USB-CDC al ESP32 |
+| WebSocket API | todos los navegadores modernos | Conexión WiFi al ESP32 |
+| Canvas 2D | todos los navegadores modernos | Renderizado del piano roll |
+
+No requiere Node.js, npm ni ningún proceso de build. Todo el código es vanilla JavaScript.
 
 ---
 

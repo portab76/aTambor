@@ -348,14 +348,14 @@ function _anpPlayNote(midi, chipElement) {
 
     // ── Motores ESP32 ──────────────────────────────────────────
     if (typeof wsConnected !== 'undefined' && wsConnected &&
-        typeof MOTOR_MAP !== 'undefined' && typeof sendCommand === 'function') {
+        typeof motorForNote === 'function' && typeof sendCommand === 'function') {
 
-        const hitMs     = 80;
-        const retractMs = 150;
-
-        const cfg = MOTOR_MAP.find(m => m.note === midi);
-        if (cfg) {
-            const cmd = `e; m ${cfg.motor}; o ${cfg.homePwm}; t ${hitMs}; v ${cfg.vel}; t ${retractMs}; v 0; p;`;
+        const cfg = motorForNote(midi);
+        if (cfg && !cfg.muted) {
+            const hitMs     = 80;
+            const retractMs = 150;
+            const vel       = typeof _mmGetVel === 'function' ? _mmGetVel() : 40;
+            const cmd = `e; m ${cfg.motor}; o ${cfg.homePwm}; t ${hitMs}; v ${vel}; t ${retractMs}; v 0; p;`;
             sendCommand(cmd);
         }
     }

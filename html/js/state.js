@@ -22,7 +22,7 @@ let gridData    = { cells: {} }; // { "nota,step": { duration, velocity } }
 let noteRows    = [];            // Notas MIDI presentes en el rango visible (ordenadas ascendente)
 let totalSteps  = 0;
 let ticksPerStep = 0;            // ticks / semicorchea = ppqn / 4
-let stepWidth   = 40;            // píxeles por paso (zoom)
+let stepWidth   = 8;             // píxeles por paso (zoom)
 let rowHeight   = 25;            // píxeles por fila de nota
 
 // --- Reproducción ---

@@ -333,13 +333,13 @@ function initNoteLabelsEvents() {
             MIDI.noteOn(0, transposedNote, 90, 0);
         }
 
-        // Disparar motor físico en la nota transpuesta
+        // Disparar motor físico — motorForNote ya aplica transposeOffset internamente
         if (typeof motorForNote === 'function' && typeof sendCommand === 'function') {
-            const entry = motorForNote(transposedNote);
+            const entry = motorForNote(hit.note);
             if (entry && typeof entry.motor === 'number') {
                 const vel = 80;  // velocidad fija para click manual
                 const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${vel}; t 150; v 0; p;`;
-                console.log(`[_startNote] Motor: ${entry.motor}, transposedNote: ${transposedNote}, cmd: ${cmd}`);
+                console.log(`[_startNote] Motor: ${entry.motor}, note: ${hit.note}, transposedNote: ${transposedNote}, cmd: ${cmd}`);
                 sendCommand(cmd);
             } else {
                 console.warn(`[_startNote] No motor found for transposedNote: ${transposedNote}`);
@@ -436,7 +436,7 @@ function _doLoadBlankGrid(measures) {
     ppqn              = 96;
     ticksPerStep      = ppqn / 4;
     totalSteps        = measures * spm;
-    stepWidth         = 40;
+    stepWidth         = 8;
     midiData          = null;
     rawEvents         = [];
     tempoMap          = [{ tick: 0, bpm }];
@@ -679,8 +679,30 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
             ctx.lineWidth   = 0.5;
         }
 
+        // Motor muteado: sobreescribir color con gris semitransparente + raya diagonal
+        if (typeof motorForNote === 'function') {
+            const _motor = motorForNote(note);
+            if (_motor?.muted) {
+                ctx.fillStyle   = 'rgba(55,55,55,0.55)';
+                ctx.strokeStyle = 'rgba(130,130,130,0.6)';
+                ctx.lineWidth   = 0.5;
+            }
+        }
+
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
+
+        // Raya diagonal sobre nota muteada
+        if (typeof motorForNote === 'function' && motorForNote(note)?.muted) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(200,60,60,0.55)';
+            ctx.lineWidth   = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         // Resaltar nota seleccionada (selección rectangular)
         if (typeof _selCells !== 'undefined' && _selCells.has(key)) {

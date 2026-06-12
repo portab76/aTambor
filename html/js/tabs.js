@@ -14,7 +14,7 @@ function _tabDefaults() {
         noteRows:     [],
         totalSteps:   0,
         ticksPerStep: 0,
-        stepWidth:    40,
+        stepWidth:    8,
         rowHeight:    25,
 
         rawEvents:  [],
@@ -96,8 +96,6 @@ function _tabSaveCurrent() {
     t.currentKey          = currentKey;
     t.fusionStepsPerUnit  = fusionStepsPerUnit;
 
-    t.transposeOffset = transposeOffset;
-
     const gs = document.getElementById('gridScroll');
     if (gs) { t.scrollLeft = gs.scrollLeft; t.scrollTop = gs.scrollTop; }
 
@@ -152,8 +150,6 @@ function _tabRestoreFrom(t) {
     currentKey         = t.currentKey;
     fusionStepsPerUnit = t.fusionStepsPerUnit;
 
-    transposeOffset = t.transposeOffset;
-
     const hasGrid = Object.keys(gridData.cells).length > 0;
 
     // ── BPM ──
@@ -205,6 +201,14 @@ function _tabRestoreFrom(t) {
     if (typeof loadInstrumentBtn !== 'undefined')
         loadInstrumentBtn.disabled = (t.selectedChannel === null);
 
+    const openAllBtn = document.getElementById('openAllInstrumentsBtn');
+    if (openAllBtn) {
+        const chCount = instrumentSelect
+            ? instrumentSelect.querySelectorAll('option[value]:not([value=""])').length
+            : 0;
+        openAllBtn.disabled = chCount < 2;
+    }
+
     // ── Piano roll ──
     if (hasGrid) {
         applyZoom(t.stepWidth, t.rowHeight);
@@ -225,12 +229,8 @@ function _tabRestoreFrom(t) {
         }
     }
 
-    // ── Transposición ──
-    if (typeof _tpSlider === 'function') {
-        const slider = document.getElementById('transposeSlider');
-        if (slider) slider.value = t.transposeOffset;
-        _tpSlider(t.transposeOffset);
-    }
+    // ── Transposición: global, no por tab — refrescar UI con el valor actual ──
+    if (typeof _tpSlider === 'function') _tpSlider(transposeOffset);
 
     // ── A-B ──
     if (typeof _updateAbBtn === 'function') _updateAbBtn();
@@ -278,10 +278,16 @@ function _tabActiveSegs(t) {
 /** Cambia al tab idx guardando el estado actual. */
 function tabSwitch(idx) {
     if (idx === _activeTabIdx || idx < 0 || idx >= _tabs.length) return;
+    const wasPlaying = (typeof reproduciendo !== 'undefined') && reproduciendo;
     _tabSaveCurrent();
     _activeTabIdx = idx;
     _tabRestoreFrom(_tabs[_activeTabIdx]);
     _tabRender();
+    // Si había reproducción activa y el nuevo tab tiene notas, arrancar automáticamente
+    if (wasPlaying && typeof play === 'function' &&
+        typeof gridData !== 'undefined' && Object.keys(gridData.cells).length > 0) {
+        play();
+    }
 }
 
 /** Crea un tab vacío y cambia a él. */

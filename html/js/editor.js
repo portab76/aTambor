@@ -6,6 +6,7 @@
 // ============================================================
 
 let _dragging        = false;
+let _pasteOctaveOffset = 0;   // semitones de offset al pegar (múltiplos de 12)
 let _dragStartStep   = null;
 let _dragStartNote   = null;
 let _dragCurrentStep = null;
@@ -75,20 +76,78 @@ function setNoteDuration(step, note, newDuration) {
 function editVelocity(step, note) {
     const key = `${note},${step}`;
     if (!gridData.cells[key]) return;
+
     const cur = gridData.cells[key].velocity;
-    const val = prompt(`Velocity actual: ${cur}\nIntroduce nuevo valor (0-127):`, cur);
-    if (val !== null && !isNaN(val)) {
-        historyPush();
-        gridData.cells[key].velocity = Math.min(127, Math.max(0, parseInt(val)));
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-        _invalidateHeatMap();
-    }
+
+    // Tooltip inline: pequeño input flotante sobre el canvas, evita bloquear el hilo
+    const existing = document.getElementById('_velTooltip');
+    if (existing) existing.remove();
+
+    const rect  = canvas.getBoundingClientRect();
+    const x     = rect.left + step * stepWidth * (rect.width / canvas.width);
+    const rowIdx = noteRows.indexOf(note);
+    const y     = rect.top + rowIdx * rowHeight * (rect.height / canvas.height);
+
+    const tip = document.createElement('div');
+    tip.id    = '_velTooltip';
+    Object.assign(tip.style, {
+        position: 'fixed', zIndex: 9999,
+        left: `${Math.min(x, window.innerWidth - 120)}px`,
+        top:  `${Math.max(y - 36, 4)}px`,
+        background: '#1a1a30', border: '1px solid #6688cc',
+        borderRadius: '6px', padding: '4px 8px',
+        display: 'flex', alignItems: 'center', gap: '6px',
+        fontSize: '12px', color: '#ddeeff', boxShadow: '0 2px 8px #0008'
+    });
+    tip.innerHTML = `<span style="opacity:.7">vel</span>
+        <input id="_velInput" type="number" min="0" max="127" value="${cur}"
+               style="width:52px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+                      border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;">
+        <span style="opacity:.5;font-size:10px">↵</span>`;
+    document.body.appendChild(tip);
+
+    const input = document.getElementById('_velInput');
+    input.select();
+
+    const commit = () => {
+        const val = parseInt(input.value);
+        if (!isNaN(val)) {
+            historyPush();
+            gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
+            drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+            if (velLaneActive) drawVelocityLane();
+            _invalidateHeatMap();
+        }
+        tip.remove();
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') tip.remove();
+    });
+    // Click fuera del tooltip lo cierra y aplica
+    setTimeout(() => document.addEventListener('mousedown', function _outside(ev) {
+        if (!tip.contains(ev.target)) { document.removeEventListener('mousedown', _outside); commit(); }
+    }), 50);
 }
 
 // ---- Manejadores de eventos del canvas ----
 
+function _toggleMotorMute(note) {
+    if (typeof motorForNote !== 'function') return;
+    const entry = motorForNote(note);
+    if (!entry) return;
+    entry.muted = !entry.muted;
+    if (typeof _mmSaveToStorage      === 'function') _mmSaveToStorage();
+    if (typeof _renderMotorMapPanelRows === 'function') _renderMotorMapPanelRows();
+    if (typeof _renderMotorMapRows   === 'function') _renderMotorMapRows();
+    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+    if (typeof statusSpan !== 'undefined')
+        statusSpan.innerText = `Motor ${entry.motor} (${entry.name}): ${entry.muted ? 'muteado' : 'activo'}`;
+}
+
 function _onCanvasClick(e) {
-    if (e.ctrlKey || e.shiftKey) return;
+    if (e.ctrlKey || e.shiftKey || e.altKey) return;
     // Suprimir el click que el navegador dispara tras finalizar un arrastre
     if (_noteDragged) { _noteDragged = false; return; }
     const cell = _cellFromEvent(e);
@@ -101,6 +160,12 @@ function _onCanvasClick(e) {
 function _onMouseDown(e) {
     const cell = _cellFromEvent(e);
     if (!cell) return;
+
+    if (e.altKey) {
+        e.preventDefault();
+        _toggleMotorMute(cell.note);
+        return;
+    }
 
     if (e.shiftKey) {
         // Iniciar selección rectangular
@@ -182,27 +247,41 @@ function copyFragment() {
     _updateFragmentButtons();
 }
 
-function pasteFragment() {
+function pasteFragment(semitoneOffset) {
     if (!_clipboardFragment) return;
+    const offset = semitoneOffset !== undefined ? semitoneOffset : _pasteOctaveOffset;
     historyPush();
     const atStep = pasoActual;
 
-    // Expandir noteRows con notas del clipboard que no existan en el grid actual
-    const newNotes = [...new Set(_clipboardFragment.cells.map(c => c.note))]
-        .filter(n => !noteRows.includes(n));
+    // Expandir noteRows con las notas transpuestas que no existan en el grid
+    const newNotes = [...new Set(_clipboardFragment.cells.map(c => c.note + offset))]
+        .filter(n => n >= 0 && n <= 127 && !noteRows.includes(n));
     if (newNotes.length) {
         noteRows = [...new Set([...noteRows, ...newNotes])].sort((a, b) => a - b);
     }
 
     for (const c of _clipboardFragment.cells) {
+        const targetNote = Math.max(0, Math.min(127, c.note + offset));
         const targetStep = atStep + c.relStep;
         if (targetStep + c.duration > totalSteps) totalSteps = targetStep + c.duration;
-        gridData.cells[`${c.note},${targetStep}`] = { duration: c.duration, velocity: c.velocity };
+        gridData.cells[`${targetNote},${targetStep}`] = { duration: c.duration, velocity: c.velocity };
     }
     drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
     if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
     _invalidateHeatMap();
     if (typeof tabMarkDirty === 'function') tabMarkDirty();
+}
+
+/** Desplaza el offset de pegado en ±1 octava y actualiza el botón ⎗. */
+function setPasteOctave(delta) {
+    _pasteOctaveOffset += delta * 12;
+    const btn = document.getElementById('pasteFragBtn');
+    if (!btn) return;
+    const oct = _pasteOctaveOffset / 12;
+    btn.textContent = oct === 0 ? '⎗' : `⎗${oct > 0 ? '+' : ''}${oct}`;
+    btn.title = oct === 0
+        ? 'Pegar en posición del playhead (Ctrl+V)'
+        : `Pegar ${oct > 0 ? '+' : ''}${oct} octava${Math.abs(oct) !== 1 ? 's' : ''} (Ctrl+V)`;
 }
 
 function deleteFragment() {
@@ -284,13 +363,18 @@ function selectionClear() {
 }
 
 function _updateFragmentButtons() {
-    const hasRange = loopAB && loopA >= 0 && loopB > loopA;
-    const copyBtn   = document.getElementById('copyFragBtn');
-    const pasteBtn  = document.getElementById('pasteFragBtn');
-    const deleteBtn = document.getElementById('deleteFragBtn');
-    if (copyBtn)   copyBtn.disabled   = !hasRange;
-    if (deleteBtn) deleteBtn.disabled = !hasRange;
-    if (pasteBtn)  pasteBtn.disabled  = !_clipboardFragment;
+    const hasRange  = loopAB && loopA >= 0 && loopB > loopA;
+    const hasFrag   = !!_clipboardFragment;
+    const copyBtn      = document.getElementById('copyFragBtn');
+    const pasteBtn     = document.getElementById('pasteFragBtn');
+    const deleteBtn    = document.getElementById('deleteFragBtn');
+    const octDownBtn   = document.getElementById('pasteOctDownBtn');
+    const octUpBtn     = document.getElementById('pasteOctUpBtn');
+    if (copyBtn)     copyBtn.disabled    = !hasRange;
+    if (deleteBtn)   deleteBtn.disabled  = !hasRange;
+    if (pasteBtn)    pasteBtn.disabled   = !hasFrag;
+    if (octDownBtn)  octDownBtn.disabled = !hasFrag;
+    if (octUpBtn)    octUpBtn.disabled   = !hasFrag;
 }
 
 // ---- Registro de eventos (llamado desde main.js) ----

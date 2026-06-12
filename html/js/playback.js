@@ -4,9 +4,20 @@
 // Depende de: state.js, piano-roll.js
 // ============================================================
 
-let _playInterval    = null;   // handle del setInterval
+let _playInterval    = null;   // handle del setInterval de UI (playhead, chords)
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
 let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
+
+// ── AudioContext scheduler (timing sample-accurate) ───────────────────────────
+// El audio se agenda con lookahead de 100ms usando AudioContext.currentTime,
+// eliminando el jitter del setInterval (~5-30ms a BPM alto).
+// El setInterval solo mueve el playhead visual (tolerancia ±30ms es invisible).
+let _audioCtx          = null;   // AudioContext compartido con MIDI.js si existe
+let _scheduleAhead     = 0.100;  // segundos de lookahead (100ms)
+let _schedulerTimer    = null;   // setInterval del scheduler de audio (cada 25ms)
+let _nextNoteTime      = 0;      // AudioContext.currentTime del siguiente paso a agendar
+let _scheduleStep      = 0;      // paso que se agendará en la próxima llamada
+let _scheduleLoopStart = 0;      // paso de inicio del loop activo (para wrap A-B)
 
 let _esp32LastLoadedChordIndex = -1;  // índice del último acorde enviado al ESP32
 let _esp32LastLoadedStep       = 0;   // paso hasta el que está cargado el ESP32
@@ -103,18 +114,21 @@ function _sendPlayCommand(seq) {
         hasPlayCmd = true;
     }
 
-    const blocks  = validateSequenceSize(seqBody);
-    const adv     = (typeof ledAdvanceMs !== 'undefined') ? Math.round(ledAdvanceMs) : 0;
+    const blocks   = validateSequenceSize(seqBody);
+    const adv      = (typeof ledAdvanceMs !== 'undefined') ? Math.round(ledAdvanceMs) : 0;
+    // Hue FastLED del LED de anticipación: 0 = rojo. Se pasa como 5º parámetro del header.
+    const advHue   = 0;
+    const header   = `PLAY|midiGrid|${Math.round(stepMs)}|${adv}|${advHue}`;
     console.log(`[play] Enviando PLAY: ${seq.length}B → ${blocks.length} bloque(s) ≤8KB`);
 
     if (blocks.length === 1) {
         if (_serialActive) {
             // Serial: stream byte a byte — p; inline llega al firmware en orden garantizado
             const body    = hasPlayCmd ? blocks[0] + 'p;\n' : blocks[0];
-            sendCommand(`PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + body);
+            sendCommand(`${header}\n` + body);
         } else {
             // WebSocket: cada ws.send() es un frame independiente — p; debe ser mensaje separado
-            sendCommand(`PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + blocks[0]);
+            sendCommand(`${header}\n` + blocks[0]);
             if (hasPlayCmd) {
                 _pendingTimers.push(setTimeout(() => {
                     console.log('[play] Enviando p; (WS, bloque único)');
@@ -126,7 +140,7 @@ function _sendPlayCommand(seq) {
     }
 
     // Múltiples bloques: enviar por partes con timers
-    const fullCmd = `PLAY|midiGrid|${Math.round(stepMs)}|${adv}\n` + blocks[0];
+    const fullCmd = `${header}\n` + blocks[0];
     sendCommand(fullCmd);
 
     let lastDelay = 0;
@@ -194,13 +208,87 @@ function play() {
     _startPlaybackLoop();
 }
 
-/** Arranca el setInterval de audio (separado para poder llamarlo desde play y resume) */
+/** Obtiene (o reutiliza) el AudioContext. Intenta reutilizar el de MIDI.js. */
+function _getAudioCtx() {
+    if (_audioCtx && _audioCtx.state !== 'closed') return _audioCtx;
+    // MIDI.js expone su contexto en MIDI.Player.ctx o MIDI.audioContext
+    const midiCtx = (typeof MIDI !== 'undefined') &&
+                    (MIDI.Player?.ctx || MIDI.audioContext || null);
+    _audioCtx = midiCtx || new (window.AudioContext || window.webkitAudioContext)();
+    return _audioCtx;
+}
+
+/**
+ * Agenda notas reales vía MIDI.js hasta (currentTime + lookahead).
+ * Se llama cada 25ms desde _schedulerTimer.
+ * El setInterval de UI (_playInterval) solo actualiza el playhead visual.
+ */
+function _scheduleNotes() {
+    if (!reproduciendo) return;
+    const ctx    = _getAudioCtx();
+    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+    const loopEnd  = abActive ? loopB : totalSteps;
+
+    while (_nextNoteTime < ctx.currentTime + _scheduleAhead) {
+        if (_scheduleStep >= loopEnd) {
+            if (abActive) {
+                // Wrap al inicio del loop A-B
+                _scheduleStep    = loopA;
+                _nextNoteTime   += (_scheduleStep - loopA) * (MS_PER_STEP(_scheduleStep) / 1000);
+            } else {
+                break;  // El setInterval de UI detectará el fin y llamará stop()
+            }
+        }
+
+        const stepMs   = MS_PER_STEP(_scheduleStep);
+        const stepSec  = stepMs / 1000;
+        const offset   = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+
+        for (const [key, cell] of Object.entries(gridData.cells)) {
+            const [noteStr, stepStr] = key.split(',');
+            if (parseInt(stepStr) !== _scheduleStep) continue;
+
+            const note           = parseInt(noteStr);
+            const transposedNote = note + offset;
+            const velocity       = cell.velocity;
+            const durSec         = (cell.duration * stepMs) / 1000;
+
+            const motorOnly = document.getElementById('motorOnlyCheckbox')?.checked;
+            if (motorOnly && !motorForNote(note)) continue;
+            if (motorForNote(note)?.muted) continue;
+
+            if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {
+                // whenInSeconds: tiempo absoluto del AudioContext para esta nota
+                const when    = _nextNoteTime - ctx.currentTime;  // offset relativo a ahora
+                MIDI.noteOn( 0, transposedNote, velocity, Math.max(0, when));
+                MIDI.noteOff(0, transposedNote, Math.max(0, when) + durSec);
+            }
+        }
+
+        _nextNoteTime += stepSec;
+        _scheduleStep++;
+    }
+}
+
+/** Arranca el scheduler de audio + el setInterval de UI. */
 function _startPlaybackLoop() {
     reproduciendo = true;
     playBtn.disabled  = true;
     stopBtn.disabled  = false;
     statusSpan.innerText = "Reproduciendo...";
     _currentBpm = _bpmAtStep(pasoActual);
+
+    // Inicializar scheduler de audio
+    const ctx     = _getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    _scheduleStep      = pasoActual;
+    _scheduleLoopStart = pasoActual;
+    _nextNoteTime      = ctx.currentTime + 0.050;  // 50ms de arranque
+
+    // Scheduler de audio: cada 25ms — solo agenda notas, no toca el UI
+    _schedulerTimer = setInterval(_scheduleNotes, 25);
+
+    // setInterval de UI: actualiza playhead, scroll, chord highlight
     _tick();
     _playInterval = setInterval(_tick, MS_PER_STEP(pasoActual));
 }
@@ -215,6 +303,8 @@ function pause() {
     reproduciendo = false;
     clearInterval(_playInterval);
     _playInterval = null;
+    clearInterval(_schedulerTimer);
+    _schedulerTimer = null;
     _pendingTimers.forEach(clearTimeout);
     _pendingTimers = [];
     playBtn.disabled  = false;
@@ -232,6 +322,9 @@ function stop() {
     autoAdvanceActive = false;
     clearInterval(_playInterval);
     _playInterval = null;
+    clearInterval(_schedulerTimer);
+    _schedulerTimer = null;
+    _scheduleStep   = 0;
     _pendingTimers.forEach(clearTimeout);
     _pendingTimers = [];
     pasoActual       = 0;
@@ -294,6 +387,9 @@ function seekToStep(step) {
 
     if (typeof _selectChordAtStep === 'function') _selectChordAtStep(target);
 
+    // Resincronizar scheduler al nuevo punto de inicio
+    _scheduleStep = target;
+
     if (wasPlaying) play();
 }
 
@@ -318,33 +414,8 @@ function _tick() {
         return;
     }
 
-    // Reproducir notas que comienzan exactamente en este paso
-    let notasEnEstePaso = 0;
-    const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
-    for (const [key, cell] of Object.entries(gridData.cells)) {
-        const [noteStr, stepStr] = key.split(',');
-        if (parseInt(stepStr) !== pasoActual) continue;
-
-        const note           = parseInt(noteStr);
-        const transposedNote = note + offset;
-        const velocity       = cell.velocity;
-        const delayOff       = (cell.duration * MS_PER_STEP()) / 1000;
-
-        const motorOnly = document.getElementById('motorOnlyCheckbox')?.checked;
-        if (motorOnly && !motorForNote(note)) continue;
-        if (motorForNote(note)?.muted) continue;
-
-        notasEnEstePaso++;
-        if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {
-            MIDI.noteOn( 0, transposedNote, velocity, 0);
-            MIDI.noteOff(0, transposedNote, delayOff);
-        }
-    }
-
-    if (_tickCount < 5) {
-        console.log(`[tick ${pasoActual}] notas: ${notasEnEstePaso} | MIDI: ${typeof MIDI !== 'undefined'}`);
-        _tickCount++;
-    }
+    // Las notas de audio las agenda _scheduleNotes() con lookahead preciso.
+    // _tick() solo actualiza el UI visual (playhead, scroll, chord highlight).
 
     if (activeHighlight && document.getElementById('chordPanel')?.classList.contains('open')) {
         drawPianoRollWithHighlightAndPlayhead(
@@ -362,7 +433,9 @@ function _tick() {
     if (typeof _updateChordPanelFromPlayback === 'function') _updateChordPanelFromPlayback();
     pasoActual++;
 
-    // ── Cambio de tempo: reiniciar interval si el BPM cambió ─────
+    // ── Cambio de tempo: reiniciar interval de UI si el BPM cambió ──
+    // El scheduler de audio (_scheduleNotes) consulta MS_PER_STEP(_scheduleStep)
+    // en cada llamada, así que se adapta automáticamente sin reiniciarse.
     if (typeof tempoPoints !== 'undefined' && tempoPoints.length > 1) {
         const newBpm = _bpmAtStep(pasoActual);
         if (newBpm !== _currentBpm) {

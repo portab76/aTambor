@@ -3,11 +3,12 @@
 // Depende de: state.js, piano-roll.js (_OCT_RGB), history.js
 // ============================================================
 
-let velLaneActive = false;
+let velLaneActive = true;  // visible por defecto
 const _VEL_LANE_H = 64;
 
 let _velDragging = false;
 let _velLastStep = -1;
+let _velAllMode  = false;   // true = Shift+drag → todas las notas a la vez
 
 // ── Toggle ──────────────────────────────────────────────────
 
@@ -79,10 +80,32 @@ function drawVelocityLane() {
         ctx2.fillRect(x, y, w, 2);
     }
 
+    // En modo Shift+drag: línea horizontal que indica el nivel aplicado a todas
+    if (_velAllMode && _velDragging) {
+        const anyCell = Object.values(gridData.cells)[0];
+        if (anyCell) {
+            const refVel = anyCell.velocity;
+            const refY   = _VEL_LANE_H - 3 - Math.round((refVel / 127) * (_VEL_LANE_H - 6));
+            ctx2.save();
+            ctx2.strokeStyle = 'rgba(255,220,0,0.85)';
+            ctx2.lineWidth   = 1.5;
+            ctx2.setLineDash([4, 3]);
+            ctx2.beginPath();
+            ctx2.moveTo(0, refY);
+            ctx2.lineTo(velCanvas.width, refY);
+            ctx2.stroke();
+            ctx2.setLineDash([]);
+            ctx2.fillStyle = 'rgba(255,220,0,0.9)';
+            ctx2.font      = '9px monospace';
+            ctx2.fillText(`${refVel}`, 3, refY - 2);
+            ctx2.restore();
+        }
+    }
+
     // Etiqueta
     ctx2.fillStyle = CT.label || '#666666';
     ctx2.font      = '9px monospace';
-    ctx2.fillText('VEL', 3, 10);
+    ctx2.fillText(_velAllMode ? 'ALL' : 'VEL', 3, 10);
 }
 
 // ── Edición por arrastre ──────────────────────────────────────
@@ -94,6 +117,15 @@ function _velFromY(canvasY) {
 
 function _stepsAtX(canvasX) {
     return Math.max(0, Math.min(totalSteps - 1, Math.floor(canvasX / stepWidth)));
+}
+
+function _setAllVelocities(vel) {
+    let changed = false;
+    for (const cell of Object.values(gridData.cells)) {
+        cell.velocity = vel;
+        changed = true;
+    }
+    return changed;
 }
 
 function _editVelAtStep(step, vel) {
@@ -111,15 +143,22 @@ function _onVelMouseDown(e) {
     e.preventDefault();
     historyPush();
     _velDragging = true;
+    _velAllMode  = e.shiftKey;
     _velLastStep = -1;
 
     const velCanvas = document.getElementById('velocityLaneCanvas');
     const rect = velCanvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (velCanvas.width  / rect.width);
     const y = (e.clientY - rect.top)  * (velCanvas.height / rect.height);
-    const step = _stepsAtX(x);
-    _velLastStep = step;
-    _editVelAtStep(step, _velFromY(y));
+    const vel = _velFromY(y);
+
+    if (_velAllMode) {
+        _setAllVelocities(vel);
+    } else {
+        const step = _stepsAtX(x);
+        _velLastStep = step;
+        _editVelAtStep(step, vel);
+    }
     drawVelocityLane();
     drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
     if (typeof tabMarkDirty === 'function') tabMarkDirty();
@@ -132,8 +171,17 @@ function _onVelDocMouseMove(e) {
     const rect = velCanvas.getBoundingClientRect();
     const x    = (e.clientX - rect.left) * (velCanvas.width  / rect.width);
     const y    = Math.max(0, e.clientY - rect.top) * (velCanvas.height / rect.height);
-    const step = _stepsAtX(x);
     const vel  = _velFromY(y);
+
+    if (_velAllMode) {
+        if (_setAllVelocities(vel)) {
+            drawVelocityLane();
+            drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+        }
+        return;
+    }
+
+    const step = _stepsAtX(x);
     if (step === _velLastStep) return;
     _velLastStep = step;
     if (_editVelAtStep(step, vel)) {
@@ -145,7 +193,9 @@ function _onVelDocMouseMove(e) {
 function _onVelMouseUp() {
     if (!_velDragging) return;
     _velDragging = false;
+    _velAllMode  = false;
     _velLastStep = -1;
+    drawVelocityLane();   // elimina la línea guía amarilla
     if (typeof tabMarkDirty === 'function') tabMarkDirty();
 }
 

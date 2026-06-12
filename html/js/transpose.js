@@ -183,22 +183,8 @@ window._tpShift = function (delta, absolute) {
 
 // ── API pública ───────────────────────────────────────────────
 window.toggleTransposePanel = function () {
-    const panel  = document.getElementById('transposePanel');
-    const btn    = document.getElementById('transposePanelBtn');
-    if (!panel) return;
-
-    const visible = panel.style.display !== 'none';
-    panel.style.display = visible ? 'none' : '';
-    if (btn) btn.classList.toggle('btn-active', !visible);
-
-    if (!visible) {
-        // Primera apertura: calibrar slider y renderizar piano
-        const { min, max } = _sliderRange();
-        const slider = document.getElementById('transposeSlider');
-        if (slider) { slider.min = min; slider.max = max; }
-        const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
-        _tpRefreshUI(offset);
-    }
+    if (typeof toggleMotorEscalaPanel === 'function')
+        toggleMotorEscalaPanel('escala');
 };
 
 })();

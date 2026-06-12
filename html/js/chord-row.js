@@ -592,7 +592,7 @@ function _toggleAutoAdvance() {
     if (!reproduciendo) {
         _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
     } else {
-        // Ya reproduciendo: fijar loopB al final del segmento o lote actual
+        // Ya reproduciendo: fijar loopB al final del lote actual
         const segs = _activeSegments();
         if (_isSegmentBatchMode()) {
             const idx = segs.findIndex(s => pasoActual >= s.startStep && pasoActual < s.endStep);
@@ -601,6 +601,14 @@ function _toggleAutoAdvance() {
             const idx = typeof _chordPanelIndex !== 'undefined' ? _chordPanelIndex : 0;
             _batchStartSegIdx = idx;
             loopB = segs[Math.min(idx + BATCH_SIZE - 1, segs.length - 1)].endStep;
+        }
+        // Si pasoActual ya superó loopB, el siguiente _tick dispararía _startNextBatch
+        // inmediatamente, saltándose el lote actual. Volver al inicio del lote.
+        if (pasoActual >= loopB && _batchStartSegIdx >= 0) {
+            pasoActual = segs[_batchStartSegIdx].startStep;
+            loopA      = pasoActual;
+            loopAB     = true;
+            if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(pasoActual);
         }
         if (typeof _updateAbBtn      === 'function') _updateAbBtn();
         if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
@@ -644,12 +652,16 @@ function _playSegmentLoop(startStep, endStep) {
             }
         } else {
             // BATCH_SIZE segmentos de acorde por lote
-            const idx = segs.findIndex(s => s.startStep === startStep);
+            // Primero buscar coincidencia exacta de startStep; si falla, buscar por rango
+            let idx = segs.findIndex(s => s.startStep === startStep);
+            if (idx < 0) idx = segs.findIndex(s => startStep >= s.startStep && startStep < s.endStep);
             if (idx >= 0) {
                 _batchStartSegIdx = idx;
                 const last        = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
                 batchEndStep      = segs[last].endStep;
-                console.log(`[batch] Acordes ${idx + 1}–${last + 1}/${segs.length} [${startStep}–${batchEndStep})`);
+                console.log(`[batch] Acordes ${idx + 1}–${last + 1}/${segs.length} [${segs[idx].startStep}–${batchEndStep})`);
+            } else {
+                console.warn(`[batch] segmento no encontrado para startStep=${startStep} — se mantiene _batchStartSegIdx=${_batchStartSegIdx}`);
             }
         }
     }
@@ -685,7 +697,8 @@ function _startNextBatch() {
     }
 
     const nextSeg = segs[nextIdx];
-    if (typeof window._cpopNavTo === 'function') window._cpopNavTo(nextIdx);
+    // _cpopNavTo se mueve dentro de _launch (después de stop) para que el panel
+    // no adelante el estado visual mientras el lote anterior aún suena.
 
     // 1. Parar browser + enviar STOP al ESP32
     if (typeof stop === 'function') stop(); // pone autoAdvanceActive = false
@@ -698,18 +711,25 @@ function _startNextBatch() {
         if (_launched || !_pendingAutoAdvance) return; // cancelado por stop() manual
         _launched = true;
         _pendingAutoAdvance = false;
-        onStoppedCallback  = null;
         autoAdvanceActive  = true;
+        // Navegar el panel DESPUÉS del stop, con estado limpio
+        if (typeof window._cpopNavTo === 'function') window._cpopNavTo(nextIdx);
+        onStoppedCallback = null;
         _playSegmentLoop(nextSeg.startStep, nextSeg.endStep);
     };
 
     const _connected = (typeof wsConnected !== 'undefined' && wsConnected) ||
                        (typeof _serialActive !== 'undefined' && _serialActive);
 
-    // Esperar confirmación del ESP32 ("stopped") antes de enviar el PLAY
-    //const _fallback = setTimeout(_launch, 10);
-    //onStoppedCallback = () => { clearTimeout(_fallback); _launch(); };
-    _launch();   
+    if (_connected) {
+        // Esperar confirmación "stopped" del ESP32 antes de enviar el PLAY.
+        // Fallback de 350ms por si el mensaje nunca llega (WiFi con pérdidas).
+        const _fallback = setTimeout(_launch, 350);
+        onStoppedCallback = () => { clearTimeout(_fallback); _launch(); };
+    } else {
+        // Sin ESP32: arrancar inmediatamente
+        _launch();
+    }
 }
 
 // ─────────────────────────────────────────────
