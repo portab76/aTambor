@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tests — PianoRoll</title>
+    <style>
+        body { font-family: monospace; background: #14141f; color: #ddd; padding: 24px; }
+        h1 { font-size: 18px; color: #aaccff; }
+        h2 { font-size: 14px; color: #88aadd; margin: 20px 0 6px; }
+        #summary { font-size: 15px; margin: 12px 0 18px; padding: 8px 12px; border-radius: 6px; }
+        #summary.ok   { background: #14401f; color: #9f9; border: 1px solid #2a8a4a; }
+        #summary.fail { background: #401414; color: #f99; border: 1px solid #8a2a2a; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 5px 10px; margin: 3px 0; border-radius: 4px; }
+        li.pass { background: #16241a; }
+        li.fail { background: #2a1616; }
+        .tag { display: inline-block; width: 50px; font-weight: bold; }
+        .pass .tag { color: #6f6; }
+        .fail .tag { color: #f66; }
+        .detail { color: #f99; margin-left: 58px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Tests — PianoRoll</h1>
+    <div id="summary">Ejecutando…</div>
+    <div id="suites"></div>
+
+    <!-- DOM mínimo que dom-refs.js resuelve al cargar (midi-parser lo importa
+         transitivamente). Oculto: no forma parte de la UI de los tests. -->
+    <div style="display:none">
+        <input id="midiFileInput">
+        <select id="instrumentSelect"></select>
+        <button id="loadInstrumentBtn"></button>
+        <div id="debugInfo"></div>
+        <div id="statusMsg"></div>
+        <button id="playBtn"></button>
+        <button id="stopBtn"></button>
+        <canvas id="pianoRollCanvas"></canvas>
+        <div id="gridScroll"></div>
+        <div id="notesPanelScroll"></div>
+        <button id="openAllInstrumentsBtn"></button>
+        <!-- ESP32 (ws-connector) -->
+        <span id="esp32StatusDot"></span>
+        <span id="esp32StatusLabel"></span>
+        <button id="esp32RetryBtn"></button>
+        <input id="esp32IpInput" value="127.0.0.1">
+    </div>
+
+    <!-- Librerías globales requeridas por los módulos bajo test -->
+    <!-- jasmid (Stream + MidiFile): requerido por midi-parser -->
+    <script src="../MIDI.js/inc/jasmid/stream.js"></script>
+    <script src="../MIDI.js/inc/jasmid/midifile.js"></script>
+    <!-- Tonal.js: requerido por harmonic.findChord -->
+    <script src="../MIDI.js/tonal.min.js"></script>
+    <!-- Lógica pura de análisis armónico (window.HarmonicCore) -->
+    <script src="../js/harmonic-core.js"></script>
+
+    <script type="module">
+        import { runTests as runHarmonic }     from './harmonic.test.js';
+        import { runTests as runHarmonicCore } from './harmonic-core.test.js';
+        import { runTests as runMidiParser } from './midi-parser.test.js';
+        import { runTests as runMidiExport } from './midi-export.test.js';
+        import { runTests as runMmlParser }  from './mml-parser.test.js';
+        import { runTests as runWsConnector } from './ws-connector.test.js';
+        import { runTests as runPersistence } from './persistence.test.js';
+        import { runTests as runEditor }      from './editor.test.js';
+        import { runTests as runPianoRoll }   from './piano-roll.test.js';
+        import { runTests as runMotorHistory } from './motor-map-history.test.js';
+
+        const suites = [
+            { title: 'harmonic.js',      run: runHarmonic },
+            { title: 'harmonic-core.js', run: runHarmonicCore },
+            { title: 'midi-parser.js',  run: runMidiParser },
+            { title: 'midi-export.js',  run: runMidiExport },
+            { title: 'mml-parser.js',   run: runMmlParser },
+            { title: 'ws-connector.js', run: runWsConnector },
+            { title: 'persistence.js',  run: runPersistence },
+            { title: 'editor.js',       run: runEditor },
+            { title: 'piano-roll.js',   run: runPianoRoll },
+            { title: 'motor-map history', run: runMotorHistory },
+        ];
+
+        const container = document.getElementById('suites');
+        const summary   = document.getElementById('summary');
+
+        let totalPass = 0, totalCount = 0;
+
+        for (const suite of suites) {
+            const results = await suite.run();   // las suites pueden ser async
+            totalPass  += results.passed;
+            totalCount += results.tests.length;
+
+            const h2 = document.createElement('h2');
+            h2.textContent = `${suite.title} — ${results.passed}/${results.tests.length}`;
+            container.appendChild(h2);
+
+            const ul = document.createElement('ul');
+            for (const t of results.tests) {
+                const li = document.createElement('li');
+                li.className = t.ok ? 'pass' : 'fail';
+                li.innerHTML = `<span class="tag">${t.ok ? 'PASS' : 'FAIL'}</span>${t.name}` +
+                               (t.ok ? '' : `<div class="detail">${t.detail}</div>`);
+                ul.appendChild(li);
+            }
+            container.appendChild(ul);
+
+            // Consola (para automatización headless)
+            console.log(`[SUITE] ${suite.title}: ${results.passed}/${results.tests.length}`);
+            results.tests.forEach(t =>
+                console.log(`[TEST] ${t.ok ? 'PASS' : 'FAIL'} — ${t.name}${t.ok ? '' : ' :: ' + t.detail}`));
+        }
+
+        const totalFail = totalCount - totalPass;
+        const allOk = totalFail === 0;
+        summary.className = allOk ? 'ok' : 'fail';
+        summary.textContent =
+            `${totalPass}/${totalCount} tests OK` + (allOk ? '  ✓' : `  · ${totalFail} fallo(s)`);
+
+        console.log(`[TESTS] ${totalPass}/${totalCount} passed, ${totalFail} failed`);
+        const marker = document.createElement('div');
+        marker.id = 'DONE';
+        marker.dataset.passed = totalPass;
+        marker.dataset.failed = totalFail;
+        document.body.appendChild(marker);
+    </script>
+</body>
+</html>

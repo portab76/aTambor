@@ -132,8 +132,6 @@ http://localhost/PianoRoll/test/runner.html
 ```
 PianoRoll/
 ├── midiGrid.html              # App principal: piano roll, toolbar y modales (único entry point)
-├── aTambor.html               # Entorno legado de caja de ritmos (drum machine)
-├── index.html                 # Página índice
 ├── manifest.json              # Manifiesto PWA (nombre, iconos, standalone, theme #0d0d1c)
 ├── sw.js                      # Service worker: caché cache-first, funciona offline tras 1ª carga
 ├── icons/
