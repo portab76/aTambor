@@ -181,16 +181,11 @@ PianoRoll/
 │   ├── runner.html            # Ejecutor de toda la suite en el navegador
 │   └── *.test.js              # Suites por módulo (harmonic, midi-parser, ws-connector, …)
 │
-├── MIDI.js/                   # Librería MIDI.js + jasmid + Tonal.js + soundfonts GM
-│   ├── build/MIDI.min.js      # Reproducción de audio General MIDI
-│   ├── inc/jasmid/            # Parser binario de archivos MIDI (stream.js, midifile.js)
-│   ├── tonal.min.js           # Tonal.js — teoría musical (acordes, escalas)
-│   └── examples/soundfont/    # SoundFonts (acoustic_grand_piano, synth_drum; mp3 y ogg)
-│
-├── Esp32.2/                   # Firmware del ESP32
-├── CompresorOctava/           # Material de referencia del algoritmo de atención
-├── doc/ · img/                # Documentación e imágenes
-└── midigir_bck/               # Copia de respaldo
+└── MIDI.js/                   # Librería MIDI.js + jasmid + Tonal.js + soundfonts GM
+    ├── build/MIDI.min.js      # Reproducción de audio General MIDI
+    ├── inc/jasmid/            # Parser binario de archivos MIDI (stream.js, midifile.js)
+    ├── tonal.min.js           # Tonal.js — teoría musical (acordes, escalas)
+    └── examples/soundfont/    # SoundFonts (acoustic_grand_piano, synth_drum; mp3 y ogg)
 ```
 
 ---
