@@ -5,6 +5,12 @@
 // Depende de: state.js
 // ============================================================
 
+import { state } from './state.js';
+import { drawMinimap } from './minimap.js';
+import { _bpmAtStep, seekToStep } from './playback.js';
+import { _updateFragmentButtons } from './editor.js';
+import { statusSpan } from './dom-refs.js';
+
 const SECTION_H = 16;             // franja de marcadores de sección (parte superior)
 const RULER_H   = 34 + SECTION_H; // altura total del canvas de regla en px
 const _SECTION_COLORS = ['#ff6688','#66aaff','#66ffcc','#ffaa44','#cc88ff','#44ddff','#ffdd55'];
@@ -13,11 +19,11 @@ const _SECTION_COLORS = ['#ff6688','#66aaff','#66ffcc','#ffaa44','#cc88ff','#44d
  * Dibuja la regla completa sobre el canvas #timelineRulerCanvas.
  * Llamar después de buildGridFromChannel() cuando totalSteps y stepWidth estén listos.
  */
-function drawTimelineRuler() {
+export function drawTimelineRuler() {
     const canvas = document.getElementById('timelineRulerCanvas');
-    if (!canvas || !totalSteps || !stepWidth) return;
+    if (!canvas || !state.totalSteps || !state.stepWidth) return;
 
-    const W = totalSteps * stepWidth;
+    const W = state.totalSteps * state.stepWidth;
     canvas.width  = W;
     canvas.height = RULER_H;
 
@@ -38,11 +44,11 @@ function drawTimelineRuler() {
     rc.lineTo(W, SECTION_H - 0.5);
     rc.stroke();
 
-    if (typeof sectionMarkers !== 'undefined' && sectionMarkers.length) {
+    if (state.sectionMarkers && state.sectionMarkers.length) {
         rc.font = 'bold 9px "Segoe UI", monospace';
-        for (const sm of sectionMarkers) {
-            if (sm.step < 0 || sm.step > totalSteps) continue;
-            const x     = Math.round(sm.step * stepWidth);
+        for (const sm of state.sectionMarkers) {
+            if (sm.step < 0 || sm.step > state.totalSteps) continue;
+            const x     = Math.round(sm.step * state.stepWidth);
             const color = sm.color || '#aaaaff';
             // Línea vertical
             rc.strokeStyle = color;
@@ -74,12 +80,12 @@ function drawTimelineRuler() {
     rc.lineTo(W, RULER_H - 0.5);
     rc.stroke();
 
-    const spm     = currentTimeSig.stepsPerMeasure;
-    const spb     = currentTimeSig.stepsPerBeat;
-    const midBeat = (currentTimeSig.numerator > 2) ? Math.floor(spm / 2) : -1;
+    const spm     = state.currentTimeSig.stepsPerMeasure;
+    const spb     = state.currentTimeSig.stepsPerBeat;
+    const midBeat = (state.currentTimeSig.numerator > 2) ? Math.floor(spm / 2) : -1;
 
-    for (let step = 0; step <= totalSteps; step++) {
-        const x = step * stepWidth;
+    for (let step = 0; step <= state.totalSteps; step++) {
+        const x = step * state.stepWidth;
 
         const isMeasure = step % spm === 0;
         const isMidBeat = midBeat > 0 && step % spm === midBeat;
@@ -111,7 +117,7 @@ function drawTimelineRuler() {
             rc.lineTo(x + 0.5, RULER_H - 1);
             rc.stroke();
 
-        } else if (isEighth && stepWidth >= 20) {
+        } else if (isEighth && state.stepWidth >= 20) {
             rc.strokeStyle = '#252538';
             rc.lineWidth   = 1;
             rc.beginPath();
@@ -129,8 +135,8 @@ function drawTimelineRuler() {
             rc.fillText(String(measure), x + 4, SECTION_H + 13);
         }
 
-        if (isBeat && !isMeasure && stepWidth >= 14) {
-            const beatNum = (Math.floor(step / spb) % currentTimeSig.numerator) + 1;
+        if (isBeat && !isMeasure && state.stepWidth >= 14) {
+            const beatNum = (Math.floor(step / spb) % state.currentTimeSig.numerator) + 1;
             rc.fillStyle  = isMidBeat ? '#6060a0' : '#40405a';
             rc.font       = '9px monospace';
             rc.textAlign  = 'left';
@@ -139,17 +145,17 @@ function drawTimelineRuler() {
     }
 
     // ── Franja A-B ─────────────────────────────────────────
-    if (typeof loopAB !== 'undefined' && loopAB && loopA >= 0 && loopB > loopA) {
-        const xA = loopA * stepWidth;
-        const xB = Math.min(loopB * stepWidth, W);
+    if (state.loopAB && state.loopA >= 0 && state.loopB > state.loopA) {
+        const xA = state.loopA * state.stepWidth;
+        const xB = Math.min(state.loopB * state.stepWidth, W);
         rc.fillStyle = 'rgba(80,200,120,0.13)';
         rc.fillRect(xA, SECTION_H, xB - xA, RH);
     }
 
     // ── Marcadores A y B ───────────────────────────────────
     function _drawMarker(step, color, label) {
-        if (step < 0 || step > totalSteps) return;
-        const x = step * stepWidth;
+        if (step < 0 || step > state.totalSteps) return;
+        const x = step * state.stepWidth;
         rc.fillStyle = color;
         rc.beginPath();
         rc.moveTo(x - 5, SECTION_H);
@@ -170,16 +176,16 @@ function drawTimelineRuler() {
         rc.fillText(label, x + 3, RULER_H - 4);
     }
 
-    if (typeof loopA !== 'undefined' && loopA >= 0) _drawMarker(loopA, '#ffaa00', 'A');
-    if (typeof loopB !== 'undefined' && loopB >= 0) _drawMarker(loopB, '#44ddaa', 'B');
+    if (state.loopA >= 0) _drawMarker(state.loopA, '#ffaa00', 'A');
+    if (state.loopB >= 0) _drawMarker(state.loopB, '#44ddaa', 'B');
 
     // ── Marcadores de tempo ────────────────────────────────────
-    if (typeof tempoPoints !== 'undefined' && tempoPoints.length) {
+    if (state.tempoPoints && state.tempoPoints.length) {
         rc.font = 'bold 8px monospace';
-        for (let i = 0; i < tempoPoints.length; i++) {
-            const tp = tempoPoints[i];
-            if (tp.step > totalSteps) continue;
-            const x = Math.round(tp.step * stepWidth);
+        for (let i = 0; i < state.tempoPoints.length; i++) {
+            const tp = state.tempoPoints[i];
+            if (tp.step > state.totalSteps) continue;
+            const x = Math.round(tp.step * state.stepWidth);
 
             if (i > 0) {
                 rc.strokeStyle = tempoEditMode ? '#ff9900' : '#885500';
@@ -205,8 +211,8 @@ function drawTimelineRuler() {
     }
 
     // ── Línea de preview durante drag de marcador ──────────────
-    if (typeof _abDragPreviewStep !== 'undefined' && _abDragPreviewStep >= 0) {
-        const xP = _abDragPreviewStep * stepWidth;
+    if (_abDragPreviewStep >= 0) {
+        const xP = _abDragPreviewStep * state.stepWidth;
         rc.save();
         rc.strokeStyle = '#ffff00';
         rc.lineWidth   = 2;
@@ -219,10 +225,10 @@ function drawTimelineRuler() {
     }
 
     // Sincronizar playhead con posición actual
-    updateRulerPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
+    updateRulerPlayhead(state.pasoActual !== undefined ? state.pasoActual : -1);
 
     // Actualizar minimap
-    if (typeof drawMinimap === 'function') drawMinimap();
+    drawMinimap();
 }
 
 /**
@@ -243,10 +249,10 @@ let _tempoDragMoved = false;
 function _rulerStepFromEvent(e, area) {
     const rect = area.getBoundingClientRect();
     const x    = e.clientX - rect.left + area.scrollLeft;
-    return { x, step: Math.max(0, Math.min(totalSteps - 1, Math.floor(x / stepWidth))) };
+    return { x, step: Math.max(0, Math.min(state.totalSteps - 1, Math.floor(x / state.stepWidth))) };
 }
 
-function toggleTempoEditMode() {
+export function toggleTempoEditMode() {
     tempoEditMode = !tempoEditMode;
     const btn = document.getElementById('tempoEditBtn');
     if (btn) {
@@ -254,25 +260,23 @@ function toggleTempoEditMode() {
         btn.textContent = tempoEditMode ? '♩ Editando' : '♩ Tempo';
     }
     drawTimelineRuler();
-    if (typeof statusSpan !== 'undefined') {
-        statusSpan.innerText = tempoEditMode
-            ? 'Tempo: clic para añadir/editar · arrastra para mover · clic derecho para borrar'
-            : 'Modo edición de tempo desactivado';
-    }
+    statusSpan.innerText = tempoEditMode
+        ? 'Tempo: clic para añadir/editar · arrastra para mover · clic derecho para borrar'
+        : 'Modo edición de tempo desactivado';
 }
 
-function initRulerSeek() {
+export function initRulerSeek() {
     const area = document.getElementById('rulerScrollArea');
     if (!area) return;
 
     // ── Mousemove: hover cursor + preview de drag ─────────────
     area.addEventListener('mousemove', function (e) {
-        if (!totalSteps || !stepWidth) return;
+        if (!state.totalSteps || !state.stepWidth) return;
         const { x, step } = _rulerStepFromEvent(e, area);
 
         // Drag de punto de tempo
         if (_tempoDragging !== null) {
-            tempoPoints[_tempoDragging].step = Math.max(1, step);
+            state.tempoPoints[_tempoDragging].step = Math.max(1, step);
             _tempoDragMoved = true;
             drawTimelineRuler();
             return;
@@ -288,16 +292,16 @@ function initRulerSeek() {
 
         // Cambiar cursor según modo
         if (tempoEditMode) {
-            const HIT = Math.max(8, stepWidth * 0.4);
+            const HIT = Math.max(8, state.stepWidth * 0.4);
             let near = false;
-            for (let i = 1; i < tempoPoints.length; i++) {
-                if (Math.abs(x - tempoPoints[i].step * stepWidth) <= HIT) { near = true; break; }
+            for (let i = 1; i < state.tempoPoints.length; i++) {
+                if (Math.abs(x - state.tempoPoints[i].step * state.stepWidth) <= HIT) { near = true; break; }
             }
             area.style.cursor = near ? 'ew-resize' : 'crosshair';
-        } else if (loopAB) {
-            const HIT = Math.max(8, stepWidth * 0.4);
-            const nearA = loopA >= 0 && Math.abs(x - loopA * stepWidth) <= HIT;
-            const nearB = loopB >= 0 && Math.abs(x - loopB * stepWidth) <= HIT;
+        } else if (state.loopAB) {
+            const HIT = Math.max(8, state.stepWidth * 0.4);
+            const nearA = state.loopA >= 0 && Math.abs(x - state.loopA * state.stepWidth) <= HIT;
+            const nearB = state.loopB >= 0 && Math.abs(x - state.loopB * state.stepWidth) <= HIT;
             area.style.cursor = (nearA || nearB) ? 'pointer' : 'default';
         } else {
             area.style.cursor = 'default';
@@ -306,14 +310,14 @@ function initRulerSeek() {
 
     // ── Mousedown: iniciar drag de marcador ──────────────────
     area.addEventListener('mousedown', function (e) {
-        if (!totalSteps || !stepWidth) return;
+        if (!state.totalSteps || !state.stepWidth) return;
         const { x } = _rulerStepFromEvent(e, area);
 
         // En modo tempo: iniciar drag de punto (i>0; el punto inicial no se mueve)
         if (tempoEditMode) {
-            const HIT = Math.max(8, stepWidth * 0.4);
-            for (let i = 1; i < tempoPoints.length; i++) {
-                if (Math.abs(x - tempoPoints[i].step * stepWidth) <= HIT) {
+            const HIT = Math.max(8, state.stepWidth * 0.4);
+            for (let i = 1; i < state.tempoPoints.length; i++) {
+                if (Math.abs(x - state.tempoPoints[i].step * state.stepWidth) <= HIT) {
                     _tempoDragging  = i;
                     _tempoDragMoved = false;
                     e.preventDefault();
@@ -323,13 +327,13 @@ function initRulerSeek() {
             return;  // en modo tempo el mousedown sobre espacio vacío no hace nada
         }
 
-        if (!loopAB) return;
-        const HIT   = Math.max(8, stepWidth * 0.4);
-        const nearA = loopA >= 0 && Math.abs(x - loopA * stepWidth) <= HIT;
-        const nearB = loopB >= 0 && Math.abs(x - loopB * stepWidth) <= HIT;
+        if (!state.loopAB) return;
+        const HIT   = Math.max(8, state.stepWidth * 0.4);
+        const nearA = state.loopA >= 0 && Math.abs(x - state.loopA * state.stepWidth) <= HIT;
+        const nearB = state.loopB >= 0 && Math.abs(x - state.loopB * state.stepWidth) <= HIT;
         if (nearA || nearB) {
             _abDragging        = nearB ? 'B' : 'A';  // B tiene prioridad si coinciden
-            _abDragPreviewStep = nearB ? loopB : loopA;
+            _abDragPreviewStep = nearB ? state.loopB : state.loopA;
             _abDragMoved       = false;
             e.preventDefault();
         }
@@ -339,8 +343,8 @@ function initRulerSeek() {
     document.addEventListener('mouseup', function (e) {
         // Soltar punto de tempo
         if (_tempoDragging !== null) {
-            tempoPoints.sort((a, b) => a.step - b.step);
-            if (tempoPoints[0].step !== 0) tempoPoints.unshift({ step: 0, bpm: tempoPoints[0].bpm });
+            state.tempoPoints.sort((a, b) => a.step - b.step);
+            if (state.tempoPoints[0].step !== 0) state.tempoPoints.unshift({ step: 0, bpm: state.tempoPoints[0].bpm });
             _tempoDragging = null;
             drawTimelineRuler();
             return;
@@ -350,10 +354,10 @@ function initRulerSeek() {
         const { step } = _rulerStepFromEvent(e, area);
 
         if (_abDragging === 'A') {
-            loopA = step;
-            if (loopB >= 0 && loopB <= loopA) loopB = -1;
+            state.loopA = step;
+            if (state.loopB >= 0 && state.loopB <= state.loopA) state.loopB = -1;
         } else {
-            loopB = step > loopA ? step : -1;
+            state.loopB = step > state.loopA ? step : -1;
         }
 
         _abDragging        = null;
@@ -365,27 +369,27 @@ function initRulerSeek() {
 
     // ── Click: añadir/editar tempo, colocar A/B, o hacer seek ─
     area.addEventListener('click', function (e) {
-        if (!totalSteps || !stepWidth) return;
+        if (!state.totalSteps || !state.stepWidth) return;
         const { x, step } = _rulerStepFromEvent(e, area);
 
         // Shift+click (modo normal): añadir o editar marcador de sección
         if (e.shiftKey && !tempoEditMode) {
-            const HIT = Math.max(8, stepWidth * 0.4);
-            const idx = typeof sectionMarkers !== 'undefined'
-                ? sectionMarkers.findIndex(sm => Math.abs(x - sm.step * stepWidth) <= HIT)
+            const HIT = Math.max(8, state.stepWidth * 0.4);
+            const idx = state.sectionMarkers
+                ? state.sectionMarkers.findIndex(sm => Math.abs(x - sm.step * state.stepWidth) <= HIT)
                 : -1;
             if (idx >= 0) {
-                const newLabel = prompt('Nombre del marcador:', sectionMarkers[idx].label);
+                const newLabel = prompt('Nombre del marcador:', state.sectionMarkers[idx].label);
                 if (newLabel !== null && newLabel.trim()) {
-                    sectionMarkers[idx].label = newLabel.trim();
+                    state.sectionMarkers[idx].label = newLabel.trim();
                     drawTimelineRuler();
                 }
             } else {
                 const newLabel = prompt('Marcador de sección (Intro, Verso, Coro…):', '');
                 if (newLabel !== null && newLabel.trim()) {
-                    const color = _SECTION_COLORS[sectionMarkers.length % _SECTION_COLORS.length];
-                    sectionMarkers.push({ step, label: newLabel.trim(), color });
-                    sectionMarkers.sort((a, b) => a.step - b.step);
+                    const color = _SECTION_COLORS[state.sectionMarkers.length % _SECTION_COLORS.length];
+                    state.sectionMarkers.push({ step, label: newLabel.trim(), color });
+                    state.sectionMarkers.sort((a, b) => a.step - b.step);
                     drawTimelineRuler();
                 }
             }
@@ -395,19 +399,19 @@ function initRulerSeek() {
         // Modo tempo: editar punto existente o añadir nuevo
         if (tempoEditMode) {
             if (_tempoDragMoved) { _tempoDragMoved = false; return; }
-            const HIT = Math.max(8, stepWidth * 0.4);
+            const HIT = Math.max(8, state.stepWidth * 0.4);
             let hitIdx = -1;
-            for (let i = 0; i < tempoPoints.length; i++) {
-                if (Math.abs(x - tempoPoints[i].step * stepWidth) <= HIT) { hitIdx = i; break; }
+            for (let i = 0; i < state.tempoPoints.length; i++) {
+                if (Math.abs(x - state.tempoPoints[i].step * state.stepWidth) <= HIT) { hitIdx = i; break; }
             }
             if (hitIdx >= 0) {
                 // Editar BPM del punto existente
-                const cur   = Math.round(tempoPoints[hitIdx].bpm);
-                const input = prompt(`BPM en paso ${tempoPoints[hitIdx].step}:`, cur);
+                const cur   = Math.round(state.tempoPoints[hitIdx].bpm);
+                const input = prompt(`BPM en paso ${state.tempoPoints[hitIdx].step}:`, cur);
                 if (input === null) return;
                 const bpm = Math.max(20, Math.min(400, parseFloat(input)));
                 if (!isNaN(bpm)) {
-                    tempoPoints[hitIdx].bpm = bpm;
+                    state.tempoPoints[hitIdx].bpm = bpm;
                     if (hitIdx === 0) {
                         const bpmEl = document.getElementById('bpmInput');
                         if (bpmEl) bpmEl.value = Math.round(bpm);
@@ -416,17 +420,17 @@ function initRulerSeek() {
                 }
             } else {
                 // Añadir nuevo punto de tempo
-                const cur   = Math.round(typeof _bpmAtStep === 'function' ? _bpmAtStep(step) : 120);
+                const cur   = Math.round(_bpmAtStep(step));
                 const input = prompt(`Nuevo punto de tempo en paso ${step} (BPM):`, cur);
                 if (input === null) return;
                 const bpm = Math.max(20, Math.min(400, parseFloat(input)));
                 if (!isNaN(bpm)) {
-                    const existing = tempoPoints.findIndex(tp => tp.step === step);
+                    const existing = state.tempoPoints.findIndex(tp => tp.step === step);
                     if (existing >= 0) {
-                        tempoPoints[existing].bpm = bpm;
+                        state.tempoPoints[existing].bpm = bpm;
                     } else {
-                        tempoPoints.push({ step, bpm });
-                        tempoPoints.sort((a, b) => a.step - b.step);
+                        state.tempoPoints.push({ step, bpm });
+                        state.tempoPoints.sort((a, b) => a.step - b.step);
                     }
                     drawTimelineRuler();
                 }
@@ -436,39 +440,39 @@ function initRulerSeek() {
 
         if (_abDragMoved) { _abDragMoved = false; return; }   // ignorar si fue drag
 
-        if (typeof loopAB !== 'undefined' && loopAB) {
+        if (state.loopAB) {
             if (_abNextClick === 'A') {
-                loopA        = step;
-                loopB        = -1;
+                state.loopA  = step;
+                state.loopB  = -1;
                 _abNextClick = 'B';
             } else {
-                if (step > loopA) {
-                    loopB = step;
+                if (step > state.loopA) {
+                    state.loopB = step;
                 } else {
-                    loopA = step;
-                    loopB = -1;
+                    state.loopA = step;
+                    state.loopB = -1;
                 }
                 _abNextClick = 'A';
             }
             drawTimelineRuler();
             _updateAbBtn();
         } else {
-            if (typeof seekToStep === 'function') seekToStep(step);
+            seekToStep(step);
         }
     });
 
     // ── Contextmenu: eliminar punto de tempo o marcador de sección ──
     area.addEventListener('contextmenu', function (e) {
-        if (!totalSteps || !stepWidth) return;
+        if (!state.totalSteps || !state.stepWidth) return;
         const { x } = _rulerStepFromEvent(e, area);
-        const HIT = Math.max(8, stepWidth * 0.4);
+        const HIT = Math.max(8, state.stepWidth * 0.4);
 
         if (tempoEditMode) {
             e.preventDefault();
-            for (let i = 1; i < tempoPoints.length; i++) {
-                if (Math.abs(x - tempoPoints[i].step * stepWidth) <= HIT) {
-                    if (confirm(`¿Eliminar punto ♩${Math.round(tempoPoints[i].bpm)} en paso ${tempoPoints[i].step}?`)) {
-                        tempoPoints.splice(i, 1);
+            for (let i = 1; i < state.tempoPoints.length; i++) {
+                if (Math.abs(x - state.tempoPoints[i].step * state.stepWidth) <= HIT) {
+                    if (confirm(`¿Eliminar punto ♩${Math.round(state.tempoPoints[i].bpm)} en paso ${state.tempoPoints[i].step}?`)) {
+                        state.tempoPoints.splice(i, 1);
                         drawTimelineRuler();
                     }
                     return;
@@ -478,12 +482,12 @@ function initRulerSeek() {
         }
 
         // Modo normal: eliminar marcador de sección
-        if (typeof sectionMarkers !== 'undefined') {
-            const idx = sectionMarkers.findIndex(sm => Math.abs(x - sm.step * stepWidth) <= HIT);
+        if (state.sectionMarkers) {
+            const idx = state.sectionMarkers.findIndex(sm => Math.abs(x - sm.step * state.stepWidth) <= HIT);
             if (idx >= 0) {
                 e.preventDefault();
-                if (confirm(`¿Eliminar marcador "${sectionMarkers[idx].label}"?`)) {
-                    sectionMarkers.splice(idx, 1);
+                if (confirm(`¿Eliminar marcador "${state.sectionMarkers[idx].label}"?`)) {
+                    state.sectionMarkers.splice(idx, 1);
                     drawTimelineRuler();
                 }
             }
@@ -495,7 +499,7 @@ function initRulerSeek() {
 
 function _updateAbDragLine(contentX) {
     const line = document.getElementById('abDragLine');
-    if (!line || !stepWidth) return;
+    if (!line || !state.stepWidth) return;
     // contentX ya es coordenada de contenido (pixel en el grid scrollable)
     line.style.left    = (contentX - 1) + 'px';
     line.style.display = 'block';
@@ -506,35 +510,34 @@ function _hideAbDragLine() {
     if (line) line.style.display = 'none';
 }
 
-function _updateAbBtn() {
+export function _updateAbBtn() {
     const btn = document.getElementById('abLoopBtn');
     if (!btn) return;
-    if (loopAB) {
-        const hasRange = loopA >= 0 && loopB > loopA;
+    if (state.loopAB) {
+        const hasRange = state.loopA >= 0 && state.loopB > state.loopA;
         btn.classList.add('btn-active');
         btn.textContent = hasRange
             ? `▶ A→B`
-            : (loopA >= 0 ? 'A→ …B' : '→A');
+            : (state.loopA >= 0 ? 'A→ …B' : '→A');
     } else {
         btn.classList.remove('btn-active');
         btn.textContent = 'A→B';
     }
-    if (typeof _updateFragmentButtons === 'function') _updateFragmentButtons();
+    _updateFragmentButtons();
 }
 
-function toggleLoopAB() {
-    loopAB = !loopAB;
-    if (!loopAB) {
+export function toggleLoopAB() {
+    state.loopAB = !state.loopAB;
+    if (!state.loopAB) {
         // Al desactivar, limpiar rango y redibujar
-        loopA = loopB = -1;
+        state.loopA = state.loopB = -1;
         _abNextClick = 'A';
         drawTimelineRuler();
     } else {
         _abNextClick = 'A';
     }
     _updateAbBtn();
-    if (typeof statusSpan !== 'undefined')
-        statusSpan.innerText = loopAB ? 'Loop A-B: clic en regla para marcar inicio (A)' : 'Loop A-B desactivado';
+    statusSpan.innerText = state.loopAB ? 'Loop A-B: clic en regla para marcar inicio (A)' : 'Loop A-B desactivado';
 }
 
 /**
@@ -542,13 +545,13 @@ function toggleLoopAB() {
  * Llamar en cada tick de reproducción y en stop() (paso = -1 para ocultar).
  * @param {number} step  — paso actual (−1 = ocultar)
  */
-function updateRulerPlayhead(step) {
+export function updateRulerPlayhead(step) {
     const ph = document.getElementById('timelinePlayhead');
     if (!ph) return;
-    if (step < 0 || !totalSteps || !stepWidth) {
+    if (step < 0 || !state.totalSteps || !state.stepWidth) {
         ph.style.display = 'none';
         return;
     }
-    ph.style.left    = (step * stepWidth) + 'px';
+    ph.style.left    = (step * state.stepWidth) + 'px';
     ph.style.display = 'block';
 }

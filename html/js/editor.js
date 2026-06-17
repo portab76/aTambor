@@ -5,6 +5,69 @@
 // Depende de: state.js, piano-roll.js, heat.js
 // ============================================================
 
+import { state } from './state.js';
+import { historyPush } from './history.js';
+import { _refreshHeatMap } from './heat.js';
+import { drawPianoRollWithPlayhead } from './piano-roll.js';
+import { drawVelocityLane } from './velocity-lane.js';
+import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
+import { tabMarkDirty } from './tabs.js';
+import { motorForNote, _mmSaveToStorage, _renderMotorMapPanelRows, _renderMotorMapRows } from './motor-map.js';
+import { canvas, statusSpan } from './dom-refs.js';
+import { performHarmonicAnalysisFromGrid } from './harmonic.js';
+import { drawChordRow } from './chord-row.js';
+
+// ── Debounce del análisis armónico ────────────────────────────
+// El análisis armónico (Krumhansl-Kessler + detección de acordes) es costoso
+// en grids grandes. Tras una ráfaga de ediciones (drag, paste masivo) lo
+// lanzamos UNA sola vez, 300ms después del último cambio. El piano roll se
+// redibuja siempre de inmediato; solo se difieren el análisis y el chord row.
+const HARMONIC_DEBOUNCE_MS = 300;
+
+// Callback nombrado del módulo (no closure): lee state fresco al ejecutarse,
+// evitando retener referencias obsoletas.
+function _runHarmonicAnalysis() {
+    state._harmonicDebounceTimer = null;
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        // Grid vacío: limpiar el chord row y los segmentos.
+        state.currentHarmonicSegments = [];
+        state.currentFusedSegments    = [];
+        state.currentPhraseSegments   = [];
+        const chordRow = document.getElementById('chordRowContainer');
+        if (chordRow) chordRow.innerHTML = '';
+        return;
+    }
+    const analysis = performHarmonicAnalysisFromGrid();
+    if (!analysis) return;
+    state.currentHarmonicSegments = analysis.segments;
+    state.currentFusedSegments    = analysis.fusedSegments;
+    state.currentPhraseSegments   = analysis.phraseSegments;
+    state.currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
+
+    // Respetar el nivel de vista activo (pasos / acordes / frases / respiración).
+    const level = document.getElementById('viewLevelSelect')?.value || 'acordes';
+    let segs = state.currentHarmonicSegments;
+    if (level === 'acordes'     && state.currentFusedSegments.length)  segs = state.currentFusedSegments;
+    else if (level === 'frases' && state.currentPhraseSegments.length) segs = state.currentPhraseSegments;
+    else if (level === 'respiración' && state.breathingSegments.length) segs = state.breathingSegments;
+    else if (state.currentFusedSegments.length)                        segs = state.currentFusedSegments;
+
+    drawChordRow(segs, analysis.key);
+}
+
+/**
+ * Programa el análisis armónico tras 300ms, cancelando cualquier análisis
+ * pendiente de la ráfaga actual. El timer se guarda en state para poder
+ * cancelarlo sin closures que retengan refs obsoletas. Exportada para que
+ * otros módulos (y los tests) puedan reutilizar el debounce.
+ */
+export function scheduleHarmonicAnalysis() {
+    if (state._harmonicDebounceTimer !== null) {
+        clearTimeout(state._harmonicDebounceTimer);
+    }
+    state._harmonicDebounceTimer = setTimeout(_runHarmonicAnalysis, HARMONIC_DEBOUNCE_MS);
+}
+
 let _dragging        = false;
 let _pasteOctaveOffset = 0;   // semitones de offset al pegar (múltiplos de 12)
 let _dragStartStep   = null;
@@ -21,7 +84,7 @@ let _selDragEnd   = null;        // { step, rowIndex }
 
 // Helper: invalidar heat map después de ediciones
 function _invalidateHeatMap() {
-    if (heatMapActive && typeof _refreshHeatMap === 'function') {
+    if (state.heatMapActive) {
         _refreshHeatMap();
     }
 }
@@ -34,8 +97,8 @@ function _coordsFromEvent(e) {
     const mouseX = (e.clientX - rect.left) * (canvas.width  / rect.width);
     const mouseY = (e.clientY - rect.top)  * (canvas.height / rect.height);
     return {
-        step:     Math.max(0, Math.min(totalSteps - 1,    Math.floor(mouseX / stepWidth))),
-        rowIndex: Math.max(0, Math.min(noteRows.length - 1, Math.floor(mouseY / rowHeight))),
+        step:     Math.max(0, Math.min(state.totalSteps - 1,    Math.floor(mouseX / state.stepWidth))),
+        rowIndex: Math.max(0, Math.min(state.noteRows.length - 1, Math.floor(mouseY / state.rowHeight))),
     };
 }
 
@@ -43,11 +106,11 @@ function _cellFromEvent(e) {
     const rect   = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left) * (canvas.width  / rect.width);
     const mouseY = (e.clientY - rect.top)  * (canvas.height / rect.height);
-    const step     = Math.floor(mouseX / stepWidth);
-    const rowIndex = Math.floor(mouseY / rowHeight);
-    if (rowIndex < 0 || rowIndex >= noteRows.length) return null;
-    if (step  < 0 || step  >= totalSteps)            return null;
-    return { step, note: noteRows[rowIndex], rowIndex };
+    const step     = Math.floor(mouseX / state.stepWidth);
+    const rowIndex = Math.floor(mouseY / state.rowHeight);
+    if (rowIndex < 0 || rowIndex >= state.noteRows.length) return null;
+    if (step  < 0 || step  >= state.totalSteps)            return null;
+    return { step, note: state.noteRows[rowIndex], rowIndex };
 }
 
 // ---- Operaciones sobre celdas ----
@@ -55,38 +118,40 @@ function _cellFromEvent(e) {
 function toggleCell(step, note) {
     historyPush();
     const key = `${note},${step}`;
-    if (gridData.cells[key]) {
-        delete gridData.cells[key];
+    if (state.gridData.cells[key]) {
+        delete state.gridData.cells[key];
     } else {
-        gridData.cells[key] = { duration: 1, velocity: 40 };
+        state.gridData.cells[key] = { duration: 1, velocity: 40 };
     }
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     _invalidateHeatMap();
+    scheduleHarmonicAnalysis();
 }
 
 function setNoteDuration(step, note, newDuration) {
     const key = `${note},${step}`;
-    if (gridData.cells[key]) {
-        gridData.cells[key].duration = Math.max(1, newDuration);
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+    if (state.gridData.cells[key]) {
+        state.gridData.cells[key].duration = Math.max(1, newDuration);
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
         _invalidateHeatMap();
+        scheduleHarmonicAnalysis();
     }
 }
 
 function editVelocity(step, note) {
     const key = `${note},${step}`;
-    if (!gridData.cells[key]) return;
+    if (!state.gridData.cells[key]) return;
 
-    const cur = gridData.cells[key].velocity;
+    const cur = state.gridData.cells[key].velocity;
 
     // Tooltip inline: pequeño input flotante sobre el canvas, evita bloquear el hilo
     const existing = document.getElementById('_velTooltip');
     if (existing) existing.remove();
 
     const rect  = canvas.getBoundingClientRect();
-    const x     = rect.left + step * stepWidth * (rect.width / canvas.width);
-    const rowIdx = noteRows.indexOf(note);
-    const y     = rect.top + rowIdx * rowHeight * (rect.height / canvas.height);
+    const x     = rect.left + step * state.stepWidth * (rect.width / canvas.width);
+    const rowIdx = state.noteRows.indexOf(note);
+    const y     = rect.top + rowIdx * state.rowHeight * (rect.height / canvas.height);
 
     const tip = document.createElement('div');
     tip.id    = '_velTooltip';
@@ -113,8 +178,8 @@ function editVelocity(step, note) {
         const val = parseInt(input.value);
         if (!isNaN(val)) {
             historyPush();
-            gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
-            drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+            state.gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
+            drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
             if (velLaneActive) drawVelocityLane();
             _invalidateHeatMap();
         }
@@ -134,16 +199,14 @@ function editVelocity(step, note) {
 // ---- Manejadores de eventos del canvas ----
 
 function _toggleMotorMute(note) {
-    if (typeof motorForNote !== 'function') return;
     const entry = motorForNote(note);
     if (!entry) return;
     entry.muted = !entry.muted;
-    if (typeof _mmSaveToStorage      === 'function') _mmSaveToStorage();
-    if (typeof _renderMotorMapPanelRows === 'function') _renderMotorMapPanelRows();
-    if (typeof _renderMotorMapRows   === 'function') _renderMotorMapRows();
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-    if (typeof statusSpan !== 'undefined')
-        statusSpan.innerText = `Motor ${entry.motor} (${entry.name}): ${entry.muted ? 'muteado' : 'activo'}`;
+    _mmSaveToStorage();
+    _renderMotorMapPanelRows();
+    _renderMotorMapRows();
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    statusSpan.innerText = `Motor ${entry.motor} (${entry.name}): ${entry.muted ? 'muteado' : 'activo'}`;
 }
 
 function _onCanvasClick(e) {
@@ -193,7 +256,7 @@ function _onMouseDown(e) {
 function _onMouseMove(e) {
     if (_selDragging) {
         _selDragEnd = _coordsFromEvent(e);
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
         return;
     }
     if (!_dragging) return;
@@ -207,7 +270,7 @@ function _onDocumentMouseUp(e) {
         _selDragEnd  = _coordsFromEvent(e);
         _selectionFromRect();
         _selActive = _selCells.size > 0;
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     }
 }
 
@@ -223,9 +286,10 @@ function _onMouseUp(e) {
         const start    = Math.min(_dragStartStep, _dragCurrentStep);
         const duration = Math.abs(_dragCurrentStep - _dragStartStep) + 1;
         const key      = `${_dragStartNote},${start}`;
-        gridData.cells[key] = { duration, velocity: gridData.cells[key]?.velocity || 40 };
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+        state.gridData.cells[key] = { duration, velocity: state.gridData.cells[key]?.velocity || 40 };
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
         _invalidateHeatMap();
+        scheduleHarmonicAnalysis();
     }
 
     _dragStartStep   = null;
@@ -234,46 +298,47 @@ function _onMouseUp(e) {
 
 // ---- Operaciones de fragmento A-B ----
 
-function copyFragment() {
-    if (!loopAB || loopA < 0 || loopB <= loopA) return;
+export function copyFragment() {
+    if (!state.loopAB || state.loopA < 0 || state.loopB <= state.loopA) return;
     const cells = [];
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
-        if (step < loopA || step >= loopB) continue;
-        cells.push({ relStep: step - loopA, note: parseInt(noteStr), duration: cell.duration, velocity: cell.velocity });
+        if (step < state.loopA || step >= state.loopB) continue;
+        cells.push({ relStep: step - state.loopA, note: parseInt(noteStr), duration: cell.duration, velocity: cell.velocity });
     }
-    _clipboardFragment = { length: loopB - loopA, cells };
+    state._clipboardFragment = { length: state.loopB - state.loopA, cells };
     _updateFragmentButtons();
 }
 
-function pasteFragment(semitoneOffset) {
-    if (!_clipboardFragment) return;
+export function pasteFragment(semitoneOffset) {
+    if (!state._clipboardFragment) return;
     const offset = semitoneOffset !== undefined ? semitoneOffset : _pasteOctaveOffset;
     historyPush();
-    const atStep = pasoActual;
+    const atStep = state.pasoActual;
 
     // Expandir noteRows con las notas transpuestas que no existan en el grid
-    const newNotes = [...new Set(_clipboardFragment.cells.map(c => c.note + offset))]
-        .filter(n => n >= 0 && n <= 127 && !noteRows.includes(n));
+    const newNotes = [...new Set(state._clipboardFragment.cells.map(c => c.note + offset))]
+        .filter(n => n >= 0 && n <= 127 && !state.noteRows.includes(n));
     if (newNotes.length) {
-        noteRows = [...new Set([...noteRows, ...newNotes])].sort((a, b) => a - b);
+        state.noteRows = [...new Set([...state.noteRows, ...newNotes])].sort((a, b) => a - b);
     }
 
-    for (const c of _clipboardFragment.cells) {
+    for (const c of state._clipboardFragment.cells) {
         const targetNote = Math.max(0, Math.min(127, c.note + offset));
         const targetStep = atStep + c.relStep;
-        if (targetStep + c.duration > totalSteps) totalSteps = targetStep + c.duration;
-        gridData.cells[`${targetNote},${targetStep}`] = { duration: c.duration, velocity: c.velocity };
+        if (targetStep + c.duration > state.totalSteps) state.totalSteps = targetStep + c.duration;
+        state.gridData.cells[`${targetNote},${targetStep}`] = { duration: c.duration, velocity: c.velocity };
     }
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-    if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawTimelineRuler();
     _invalidateHeatMap();
-    if (typeof tabMarkDirty === 'function') tabMarkDirty();
+    scheduleHarmonicAnalysis();
+    tabMarkDirty();
 }
 
 /** Desplaza el offset de pegado en ±1 octava y actualiza el botón ⎗. */
-function setPasteOctave(delta) {
+export function setPasteOctave(delta) {
     _pasteOctaveOffset += delta * 12;
     const btn = document.getElementById('pasteFragBtn');
     if (!btn) return;
@@ -284,26 +349,27 @@ function setPasteOctave(delta) {
         : `Pegar ${oct > 0 ? '+' : ''}${oct} octava${Math.abs(oct) !== 1 ? 's' : ''} (Ctrl+V)`;
 }
 
-function deleteFragment() {
-    if (!loopAB || loopA < 0 || loopB <= loopA) return;
+export function deleteFragment() {
+    if (!state.loopAB || state.loopA < 0 || state.loopB <= state.loopA) return;
     historyPush();
-    const fragLen = loopB - loopA;
+    const fragLen = state.loopB - state.loopA;
     const newCells = {};
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
-        if (step >= loopA && step < loopB) continue;
-        const newStep = step >= loopB ? step - fragLen : step;
+        if (step >= state.loopA && step < state.loopB) continue;
+        const newStep = step >= state.loopB ? step - fragLen : step;
         newCells[`${noteStr},${newStep}`] = { ...cell };
     }
-    gridData.cells = newCells;
-    totalSteps = Math.max(0, totalSteps - fragLen);
-    loopA = loopB = -1;
-    loopAB = false;
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-    if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
-    if (typeof _updateAbBtn === 'function') _updateAbBtn();
+    state.gridData.cells = newCells;
+    state.totalSteps = Math.max(0, state.totalSteps - fragLen);
+    state.loopA = state.loopB = -1;
+    state.loopAB = false;
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawTimelineRuler();
+    _updateAbBtn();
     _invalidateHeatMap();
+    scheduleHarmonicAnalysis();
 }
 
 // ---- Selección rectangular ----
@@ -315,26 +381,27 @@ function _selectionFromRect() {
     const s1 = Math.min(_selDragStart.step,     _selDragEnd.step);
     const s2 = Math.max(_selDragStart.step,     _selDragEnd.step);
     _selCells = new Set();
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step     = parseInt(stepStr);
-        const rowIndex = noteRows.indexOf(parseInt(noteStr));
+        const rowIndex = state.noteRows.indexOf(parseInt(noteStr));
         if (rowIndex < r1 || rowIndex > r2) continue;
         if (step > s2 || step + cell.duration - 1 < s1) continue;
         _selCells.add(key);
     }
 }
 
-function selectionDelete() {
+export function selectionDelete() {
     if (!_selCells.size) return;
     historyPush();
-    for (const key of _selCells) delete gridData.cells[key];
+    for (const key of _selCells) delete state.gridData.cells[key];
     selectionClear();
-    if (heatMapActive && typeof _refreshHeatMap === 'function') _refreshHeatMap();
-    if (typeof tabMarkDirty === 'function') tabMarkDirty();
+    if (state.heatMapActive) _refreshHeatMap();
+    scheduleHarmonicAnalysis();
+    tabMarkDirty();
 }
 
-function selectionCopy() {
+export function selectionCopy() {
     if (!_selCells.size) return;
     let minStep = Infinity;
     for (const key of _selCells) {
@@ -346,25 +413,25 @@ function selectionCopy() {
     for (const key of _selCells) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
-        const cell = gridData.cells[key];
+        const cell = state.gridData.cells[key];
         cells.push({ relStep: step - minStep, note: parseInt(noteStr), duration: cell.duration, velocity: cell.velocity });
         maxEnd = Math.max(maxEnd, step - minStep + cell.duration);
     }
-    _clipboardFragment = { length: maxEnd, cells };
+    state._clipboardFragment = { length: maxEnd, cells };
     _updateFragmentButtons();
 }
 
-function selectionClear() {
+export function selectionClear() {
     _selActive    = false;
     _selCells     = new Set();
     _selDragStart = null;
     _selDragEnd   = null;
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
 }
 
-function _updateFragmentButtons() {
-    const hasRange  = loopAB && loopA >= 0 && loopB > loopA;
-    const hasFrag   = !!_clipboardFragment;
+export function _updateFragmentButtons() {
+    const hasRange  = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
+    const hasFrag   = !!state._clipboardFragment;
     const copyBtn      = document.getElementById('copyFragBtn');
     const pasteBtn     = document.getElementById('pasteFragBtn');
     const deleteBtn    = document.getElementById('deleteFragBtn');
@@ -377,9 +444,34 @@ function _updateFragmentButtons() {
     if (octUpBtn)    octUpBtn.disabled   = !hasFrag;
 }
 
+/** Devuelve el estado de selección actual (para serializar en tabs). */
+export function getSelectionState() {
+    return {
+        selCells:  [..._selCells],
+        selActive: _selActive,
+    };
+}
+
+/**
+ * Referencias vivas del estado de selección, para que piano-roll.js
+ * dibuje el overlay sin guards `typeof _selCells`. Devuelve el propio
+ * Set/objetos (no copias) — solo para lectura durante el render.
+ */
+export function getSelCells()   { return _selCells; }
+export function getSelDrag()    { return { dragging: _selDragging, start: _selDragStart, end: _selDragEnd }; }
+
+/** Restaura el estado de selección (al restaurar un tab). */
+export function setSelectionState(selCells, selActive) {
+    _selCells     = new Set(selCells || []);
+    _selActive    = selActive || false;
+    _selDragging  = false;
+    _selDragStart = null;
+    _selDragEnd   = null;
+}
+
 // ---- Registro de eventos (llamado desde main.js) ----
 
-function initCanvasEvents() {
+export function initCanvasEvents() {
     canvas.addEventListener('click',     _onCanvasClick);
     canvas.addEventListener('mousedown', _onMouseDown);
     canvas.addEventListener('mousemove', _onMouseMove);

@@ -11,9 +11,13 @@
 //   ws.send("PLAY|cancion|stepMs\n" + buildFullSequence(MOTOR_MAP))
 // ============================================================
 
+import { state } from './state.js';
+import { MOTOR_MAP, NUM_LEDS, ledForNote } from './motor-map.js';
+import { MS_PER_STEP } from './playback.js';
+
 // Parámetros de golpe (ms) — deben coincidir con los del firmware
-const HIT_MS     = 80;   // duración del golpe (solenoide extendido)
-const RETRACT_MS = 150;  // duración de la retracción (vuelta al neutro)
+export const HIT_MS     = 80;   // duración del golpe (solenoide extendido)
+export const RETRACT_MS = 150;  // duración de la retracción (vuelta al neutro)
 // Total mínimo de tiempo que consume un golpe: HIT_MS + RETRACT_MS = 230 ms
 
 // ── F1 — buildFullSequence ────────────────────────────────────
@@ -24,8 +28,8 @@ const RETRACT_MS = 150;  // duración de la retracción (vuelta al neutro)
  * @param {Array}  motorMap  — MOTOR_MAP de motor-map.js
  * @returns {string}         — bloque de comandos listo para enviar
  */
-function buildFullSequence(motorMap) {
-    const seq = _buildSequence(motorMap, 0, totalSteps);
+export function buildFullSequence(motorMap) {
+    const seq = _buildSequence(motorMap, 0, state.totalSteps);
     // Nota: el p; está al final de seq (en _buildSequence)
     return seq;
 }
@@ -39,8 +43,8 @@ function buildFullSequence(motorMap) {
  * @param {number} fromStep  — paso desde el que empezar (pasoActual)
  * @returns {string}
  */
-function buildRemainingSequence(motorMap, fromStep) {
-    return _buildSequence(motorMap, fromStep, totalSteps);
+export function buildRemainingSequence(motorMap, fromStep) {
+    return _buildSequence(motorMap, fromStep, state.totalSteps);
 }
 
 // ── F4 — buildRangeSequence ───────────────────────────────────
@@ -53,7 +57,7 @@ function buildRemainingSequence(motorMap, fromStep) {
  * @param {number} toStep    — paso de fin exclusivo (loopB)
  * @returns {string}
  */
-function buildRangeSequence(motorMap, fromStep, toStep) {
+export function buildRangeSequence(motorMap, fromStep, toStep) {
     return _buildSequence(motorMap, fromStep, toStep);
 }
 
@@ -66,13 +70,13 @@ function buildRangeSequence(motorMap, fromStep, toStep) {
  * @param {Array} motorMap
  * @returns {string}  — líneas "L motor ledIdx hue sat;\n"
  */
-function buildLedMappingCmd(motorMap) {
+export function buildLedMappingCmd(motorMap) {
     if (!motorMap) return '';
 
     let noteAvgHeat = null;
-    if ((typeof ledColorMode !== 'undefined') && ledColorMode === 'calor' && heatMapData) {
+    if (state.ledColorMode === 'calor' && state.heatMapData) {
         noteAvgHeat = new Map();
-        for (const [key, val] of heatMapData) {
+        for (const [key, val] of state.heatMapData) {
             const note = parseInt(key.split(',')[0]);
             const prev = noteAvgHeat.get(note) || { sum: 0, n: 0 };
             noteAvgHeat.set(note, { sum: prev.sum + val, n: prev.n + 1 });
@@ -99,7 +103,7 @@ function buildLedMappingCmd(motorMap) {
  * @param {string} cmd  — comando completo
  * @returns {Array<string>}  — array de 1 o 2 bloques
  */
-function validateSequenceSize(cmd, maxBytes = 8000 ) {
+export function validateSequenceSize(cmd, maxBytes = 8000 ) {
     if (cmd.length <= maxBytes) return [cmd];
 
     const blocks = [];
@@ -136,7 +140,7 @@ function validateSequenceSize(cmd, maxBytes = 8000 ) {
  * @returns {string}
  */
 function _buildSequence(motorMap, startStep, endStep) {
-    if (!gridData || !gridData.cells) return '';
+    if (!state.gridData || !state.gridData.cells) return '';
 
     const stepMs   = MS_PER_STEP();   // ms por semicorchea
     const totalMs  = (endStep - startStep) * stepMs;
@@ -146,7 +150,7 @@ function _buildSequence(motorMap, startStep, endStep) {
     const byMotor = {};
     let   hasCellsInRange = false;
 
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
 
@@ -155,7 +159,7 @@ function _buildSequence(motorMap, startStep, endStep) {
         hasCellsInRange = true;
 
         const midiNote = parseInt(noteStr);
-        const offset   = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const offset   = state.transposeOffset || 0;
         const cfg      = motorMap ? motorMap.find(m => m.note === midiNote - offset) : null;
         if (!cfg || cfg.muted) continue;
 
@@ -177,9 +181,9 @@ function _buildSequence(motorMap, startStep, endStep) {
 
     // Pre-calcular heat medio por nota (para modo 'calor') — usado en L y l commands
     let noteAvgHeat = null;
-    if ((typeof ledColorMode !== 'undefined') && ledColorMode === 'calor' && heatMapData) {
+    if (state.ledColorMode === 'calor' && state.heatMapData) {
         noteAvgHeat = new Map();
-        for (const [key, val] of heatMapData) {
+        for (const [key, val] of state.heatMapData) {
             const note = parseInt(key.split(',')[0]);
             const prev = noteAvgHeat.get(note) || { sum: 0, n: 0 };
             noteAvgHeat.set(note, { sum: prev.sum + val, n: prev.n + 1 });
@@ -263,8 +267,8 @@ function _buildSequence(motorMap, startStep, endStep) {
     // ── Marcadores de sincronía en límites de compás ─────────────
     // El firmware mide el drift I2C acumulado en cada compás y
     // corrige los timestamps de eventos futuros en consecuencia.
-    const stepsPerMeasure = (typeof currentTimeSig !== 'undefined' && currentTimeSig)
-        ? currentTimeSig.stepsPerMeasure : 16;
+    const stepsPerMeasure = (state.currentTimeSig && state.currentTimeSig.stepsPerMeasure)
+        ? state.currentTimeSig.stepsPerMeasure : 16;
     const firstBoundary = Math.ceil((startStep + 1) / stepsPerMeasure) * stepsPerMeasure;
     for (let s = firstBoundary; s < endStep; s += stepsPerMeasure) {
         cmd += `c ${Math.round((s - startStep) * stepMs)};\n`;
@@ -277,7 +281,7 @@ function _buildSequence(motorMap, startStep, endStep) {
 // ── _ledHueSat — color FastLED (hue 0-255, sat 0-255) por modo ──
 // Hue sigue la escala HSV de FastLED: 0=rojo, 85=verde, 128=cian, 160=azul, 213=magenta
 function _ledHueSat(motorEntry, ledIdx, noteAvgHeat) {
-    const mode = (typeof ledColorMode !== 'undefined') ? ledColorMode : 'rainbow';
+    const mode = state.ledColorMode || 'rainbow';
     switch (mode) {
         case 'octava': {
             // Colores por octava: rojo→naranja→amarillo→verde→cian→azul→violeta

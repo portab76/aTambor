@@ -3,33 +3,100 @@
 // Depende de: state.js, piano-roll.js, chord-row.js
 // ============================================================
 
+import { state } from './state.js';
+import { performHarmonicAnalysisFromGrid } from './harmonic.js';
+import { calcularBreathingPoints } from './heat.js';
+import { applyZoom } from './piano-roll.js';
+import { drawChordRow } from './chord-row.js';
+import { historyClear } from './history.js';
+import { _updateFragmentButtons } from './editor.js';
+import { _updateAbBtn } from './timeline-ruler.js';
+import { recentFilesAdd } from './recent-files.js';
+import { tabNew, tabMarkFileLoaded } from './tabs.js';
+
+// ── Callbacks de UI ───────────────────────────────────────────────────────────
+// persistence.js no toca botones ni selectores: tras aplicar los datos invoca
+// onApplied, y el entry point (midiGrid.js) habilita la interfaz.
+export const projectCallbacks = {
+    onApplied:      null,   // () => void           — datos aplicados, habilitar UI
+    onStatusChange: null,   // (msg: string) => void — mensaje de estado para el usuario
+};
+
+function _emitApplied()    { projectCallbacks.onApplied?.(); }
+function _emitStatus(msg)  { projectCallbacks.onStatusChange?.(msg); }
+
 /**
  * Guarda el estado completo del proyecto en un archivo JSON.
  */
-function saveProject() {
+export function saveProject() {
     const project = {
-        gridData,
-        noteRows,
-        totalSteps,
-        ticksPerStep: ppqn / 4,
-        selectedChannel,
-        currentKey,
-        harmonicSegments:  currentHarmonicSegments,
-        fusedSegments:     currentFusedSegments,
-        phraseSegments:    currentPhraseSegments,
-        tempoMap,
-        tempoPoints:    (typeof tempoPoints    !== 'undefined') ? tempoPoints.map(tp => ({ ...tp }))    : [],
-        sectionMarkers: (typeof sectionMarkers !== 'undefined') ? sectionMarkers.map(sm => ({ ...sm })) : [],
-        ppqn,
-        stepWidth,
-        rowHeight
+        gridData:      state.gridData,
+        noteRows:      state.noteRows,
+        totalSteps:    state.totalSteps,
+        ticksPerStep:  state.ppqn / 4,
+        selectedChannel: state.selectedChannel,
+        currentKey:    state.currentKey,
+        harmonicSegments: state.currentHarmonicSegments,
+        fusedSegments:    state.currentFusedSegments,
+        phraseSegments:   state.currentPhraseSegments,
+        tempoMap:      state.tempoMap,
+        tempoPoints:   state.tempoPoints.map(tp => ({ ...tp })),
+        sectionMarkers: (state.sectionMarkers || []).map(sm => ({ ...sm })),
+        ppqn:          state.ppqn,
+        stepWidth:     state.stepWidth,
+        rowHeight:     state.rowHeight
     };
-    const name = currentMidiFileName
-        ? currentMidiFileName.replace(/\.midi?$/i, '')
+    const name = state.currentMidiFileName
+        ? state.currentMidiFileName.replace(/\.midi?$/i, '')
         : 'midi_grid_project';
-    if (typeof recentFilesAdd === 'function') recentFilesAdd(name, project);
+    recentFilesAdd(name, project);
     _downloadJSON(project, `${name}.json`);
-    statusSpan.innerText = "Proyecto guardado.";
+    _emitStatus("Proyecto guardado.");
+}
+
+/**
+ * Valida la integridad de un objeto de proyecto antes de aplicarlo.
+ * Comprueba solo los campos OBLIGATORIOS; los opcionales (sectionMarkers,
+ * tempoPoints, stepWidth…) se rellenan con valores por defecto en
+ * _applyProjectData, así que su ausencia no invalida el proyecto.
+ *
+ * @param {*} p — objeto parseado del JSON
+ * @returns {{ valid: boolean, error: string|null }}
+ */
+export function validateProjectData(p) {
+    if (p === null || typeof p !== 'object' || Array.isArray(p)) {
+        return { valid: false, error: 'El archivo no contiene un objeto de proyecto válido.' };
+    }
+
+    // gridData con campo cells (objeto)
+    if (!p.gridData || typeof p.gridData !== 'object' || Array.isArray(p.gridData)) {
+        return { valid: false, error: 'Falta "gridData" o no es un objeto.' };
+    }
+    if (!p.gridData.cells || typeof p.gridData.cells !== 'object' || Array.isArray(p.gridData.cells)) {
+        return { valid: false, error: 'Falta "gridData.cells" o no es un objeto.' };
+    }
+
+    // noteRows (array)
+    if (!Array.isArray(p.noteRows)) {
+        return { valid: false, error: 'Falta "noteRows" o no es un array.' };
+    }
+
+    // totalSteps (número > 0)
+    if (typeof p.totalSteps !== 'number' || !Number.isFinite(p.totalSteps) || p.totalSteps <= 0) {
+        return { valid: false, error: '"totalSteps" debe ser un número mayor que 0.' };
+    }
+
+    // ppqn (número > 0)
+    if (typeof p.ppqn !== 'number' || !Number.isFinite(p.ppqn) || p.ppqn <= 0) {
+        return { valid: false, error: '"ppqn" debe ser un número mayor que 0.' };
+    }
+
+    // tempoMap (array no vacío)
+    if (!Array.isArray(p.tempoMap) || p.tempoMap.length === 0) {
+        return { valid: false, error: 'Falta "tempoMap" o está vacío.' };
+    }
+
+    return { valid: true, error: null };
 }
 
 /**
@@ -37,110 +104,57 @@ function saveProject() {
  * Usado por loadProject() y por el historial de recientes.
  * @param {Object} p — proyecto parseado (estructura de saveProject)
  */
-function _applyProjectData(p) {
-    gridData                = p.gridData;
-    noteRows                = p.noteRows;
-    totalSteps              = p.totalSteps;
-    ticksPerStep            = p.ticksPerStep;
-    selectedChannel         = p.selectedChannel;
-    currentKey              = p.currentKey;
-    currentHarmonicSegments = p.harmonicSegments || [];
-    currentFusedSegments    = p.fusedSegments    || [];
-    currentPhraseSegments   = p.phraseSegments   || [];
-    tempoMap                = p.tempoMap;
-    ppqn                    = p.ppqn;
+export function _applyProjectData(p) {
+    state.gridData                = p.gridData;
+    state.noteRows                = p.noteRows;
+    state.totalSteps              = p.totalSteps;
+    state.ticksPerStep            = p.ticksPerStep;
+    state.selectedChannel         = p.selectedChannel;
+    state.currentKey              = p.currentKey;
+    state.currentHarmonicSegments = p.harmonicSegments || [];
+    state.currentFusedSegments    = p.fusedSegments    || [];
+    state.currentPhraseSegments   = p.phraseSegments   || [];
+    state.tempoMap                = p.tempoMap;
+    state.ppqn                    = p.ppqn;
 
     // ── Tempo points ──────────────────────────────────
     if (p.tempoPoints && p.tempoPoints.length) {
-        tempoPoints = p.tempoPoints.map(tp => ({ ...tp }));
+        state.tempoPoints = p.tempoPoints.map(tp => ({ ...tp }));
     } else {
-        tempoPoints = [{ step: 0, bpm: tempoMap?.[0]?.bpm || 120 }];
+        state.tempoPoints = [{ step: 0, bpm: state.tempoMap?.[0]?.bpm || 120 }];
     }
-    sectionMarkers = (p.sectionMarkers || []).map(sm => ({ ...sm }));
-
-    // ── BPM ───────────────────────────────────────────
-    const bpmEl = document.getElementById('bpmInput');
-    if (bpmEl) bpmEl.value = Math.round(tempoPoints[0].bpm);
-
-    // ── Canal en el selector ──────────────────────────
-    if (selectedChannel !== null) {
-        const sel = instrumentSelect;
-        let opt = sel.querySelector(`option[value="${selectedChannel}"]`);
-        if (!opt) {
-            opt = document.createElement('option');
-            opt.value       = selectedChannel;
-            opt.textContent = `Canal ${selectedChannel + 1}`;
-            sel.appendChild(opt);
-        }
-        sel.value    = selectedChannel;
-        sel.disabled = false;
-        loadInstrumentBtn.disabled = false;
-    }
+    state.sectionMarkers = (p.sectionMarkers || []).map(sm => ({ ...sm }));
 
     // ── Re-analizar si el JSON no tiene segmentos guardados ──
-    if (currentHarmonicSegments.length === 0 &&
-        typeof performHarmonicAnalysisFromGrid === 'function') {
+    if (state.currentHarmonicSegments.length === 0) {
         const analysis = performHarmonicAnalysisFromGrid();
         if (analysis) {
-            currentHarmonicSegments = analysis.segments;
-            currentFusedSegments    = analysis.fusedSegments;
-            currentPhraseSegments   = analysis.phraseSegments;
-            currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
+            state.currentHarmonicSegments = analysis.segments;
+            state.currentFusedSegments    = analysis.fusedSegments;
+            state.currentPhraseSegments   = analysis.phraseSegments;
+            state.currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
         }
     }
 
-    if (typeof historyClear === 'function') historyClear();
+    historyClear();
 
-    // ── Redibujar ─────────────────────────────────────
+    // ── Redibujar grid (dimensiona el canvas) ─────────
     applyZoom(p.stepWidth || 8, p.rowHeight || 25);
 
-    // ── Habilitar botones de transporte y herramientas ─
-    playBtn.disabled = false;
-    _enableMeasureButtons();
-    const abBtn = document.getElementById('abLoopBtn');
-    if (abBtn) abBtn.disabled = false;
-    document.getElementById('activeNotesBtn').disabled = false;
-    const heatBtn2 = document.getElementById('heatMapBtn');
-    if (heatBtn2) heatBtn2.disabled = false;
-    const chordPanelBtn2 = document.getElementById('chordPanelBtn');
-    if (chordPanelBtn2) chordPanelBtn2.disabled = false;
-
-    // ── Selector de nivel armónico ────────────────────
-    const viewSel = document.getElementById('viewLevelSelect');
-    if (viewSel) {
-        viewSel.disabled = false;
-        const hasSegs = currentHarmonicSegments.length > 0;
-        // Habilitar/deshabilitar opciones según datos disponibles
-        viewSel.querySelector('option[value="acordes"]').disabled    = (currentFusedSegments.length   === 0);
-        viewSel.querySelector('option[value="frases"]').disabled     = (currentPhraseSegments.length  === 0);
-        viewSel.querySelector('option[value="respiración"]').disabled = (typeof breathingSegments === 'undefined' || breathingSegments.length === 0);
-        // Seleccionar nivel por defecto según datos disponibles
-        if (currentFusedSegments.length > 0)        viewSel.value = 'acordes';
-        else if (currentHarmonicSegments.length > 0) viewSel.value = 'pasos';
-        else                                          viewSel.value = 'pasos';
-    }
-
     // ── Respiración ───────────────────────────────────
-    if (typeof calcularBreathingPoints === 'function') {
-        calcularBreathingPoints();
-        if (viewSel) {
-            viewSel.querySelector('option[value="respiración"]').disabled =
-                (typeof breathingSegments === 'undefined' || breathingSegments.length === 0);
-        }
-    }
+    calcularBreathingPoints();
 
-    // ── Chord row ─────────────────────────────────────
+    // ── Chord row: nivel decidido desde el estado (no del DOM) ──
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) {
-        if (currentHarmonicSegments.length > 0 && typeof drawChordRow === 'function') {
-            const isMinor = currentKey && currentKey.endsWith('m');
-            const keyObj  = currentKey
-                ? { tonic: currentKey.replace('m', ''), mode: isMinor ? 'minor' : 'major', rootClass: 0 }
+        if (state.currentHarmonicSegments.length > 0) {
+            const isMinor = state.currentKey && state.currentKey.endsWith('m');
+            const keyObj  = state.currentKey
+                ? { tonic: state.currentKey.replace('m', ''), mode: isMinor ? 'minor' : 'major', rootClass: 0 }
                 : null;
-            const level = viewSel ? viewSel.value : 'pasos';
-            let segs = currentHarmonicSegments;
-            if (level === 'acordes'    && currentFusedSegments.length)  segs = currentFusedSegments;
-            if (level === 'frases'     && currentPhraseSegments.length) segs = currentPhraseSegments;
+            const segs = state.currentFusedSegments.length
+                ? state.currentFusedSegments
+                : state.currentHarmonicSegments;
             drawChordRow(segs, keyObj);
         } else {
             chordRow.innerHTML = '';
@@ -148,30 +162,44 @@ function _applyProjectData(p) {
     }
 
     // ── Botones de fragmento A-B y pegado ─────────────────────
-    if (typeof _updateFragmentButtons === 'function') _updateFragmentButtons();
-    if (typeof _updateAbBtn           === 'function') _updateAbBtn();
+    _updateFragmentButtons();
+    _updateAbBtn();
+
+    // ── Habilitación de la UI (botones, selectores) la hace el entry point ──
+    _emitApplied();
 }
 
 /**
  * Carga el estado del proyecto desde un archivo JSON.
  * @param {File} file
  */
-function loadProject(file) {
+export function loadProject(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
+        let p;
         try {
-            const p    = JSON.parse(e.target.result);
-            const name = file.name.replace(/\.json$/i, '');
-            const hasContent = Object.keys(gridData.cells).length > 0 || noteRows.length > 0;
-            if (hasContent && typeof tabNew === 'function') tabNew();
-            _applyProjectData(p);
-            if (typeof recentFilesAdd    === 'function') recentFilesAdd(name, p);
-            if (typeof tabMarkFileLoaded === 'function') tabMarkFileLoaded(name);
-            statusSpan.innerText = "Proyecto cargado.";
+            p = JSON.parse(e.target.result);
         } catch (err) {
-            console.error(err);
-            statusSpan.innerText = "Error al cargar el proyecto.";
+            console.error('[loadProject] JSON inválido:', err);
+            _emitStatus('Error: el archivo no es JSON válido.');
+            return;
         }
+
+        // Validar integridad ANTES de tocar el estado o crear tabs.
+        const { valid, error } = validateProjectData(p);
+        if (!valid) {
+            console.error('[loadProject] Proyecto inválido:', error);
+            _emitStatus('Proyecto inválido: ' + error);
+            return;
+        }
+
+        const name = file.name.replace(/\.json$/i, '');
+        const hasContent = Object.keys(state.gridData.cells).length > 0 || state.noteRows.length > 0;
+        if (hasContent) tabNew();
+        _applyProjectData(p);
+        recentFilesAdd(name, p);
+        tabMarkFileLoaded(name);
+        _emitStatus("Proyecto cargado.");
     };
     reader.readAsText(file);
 }

@@ -4,6 +4,17 @@
 // El portapapeles (_clipboardFragment) es COMPARTIDO entre tabs.
 // ============================================================
 
+import { state } from './state.js';
+import { getUndoRedoStacks, setUndoRedoStacks } from './history.js';
+import { getSelectionState, setSelectionState } from './editor.js';
+import { play, stop } from './playback.js';
+import { applyZoom, drawPianoRollWithPlayhead, toggleNewGridPanel, _enableMeasureButtons } from './piano-roll.js';
+import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
+import { drawChordRow } from './chord-row.js';
+import { _refreshHeatMap } from './heat.js';
+import { _tpSlider } from './transpose.js';
+import { playBtn, stopBtn, instrumentSelect, loadInstrumentBtn, statusSpan } from './dom-refs.js';
+
 // ── Estado por defecto de un tab vacío ───────────────────────
 function _tabDefaults() {
     return {
@@ -65,46 +76,48 @@ function _tabSaveCurrent() {
     const t = _tabs[_activeTabIdx];
     if (!t) return;
 
-    t.gridData    = JSON.parse(JSON.stringify(gridData));
-    t.noteRows    = [...noteRows];
-    t.totalSteps  = totalSteps;
-    t.ticksPerStep = ticksPerStep;
-    t.stepWidth   = stepWidth;
-    t.rowHeight   = rowHeight;
+    t.gridData    = JSON.parse(JSON.stringify(state.gridData));
+    t.noteRows    = [...state.noteRows];
+    t.totalSteps  = state.totalSteps;
+    t.ticksPerStep = state.ticksPerStep;
+    t.stepWidth   = state.stepWidth;
+    t.rowHeight   = state.rowHeight;
 
-    t.rawEvents  = rawEvents.map(e => ({ ...e }));
-    t.tempoMap   = tempoMap.map(e => ({ ...e }));
-    t.ppqn       = ppqn;
-    t.totalTicks = totalTicks;
-    t.midiData   = midiData ? JSON.parse(JSON.stringify(midiData)) : null;
+    t.rawEvents  = state.rawEvents.map(e => ({ ...e }));
+    t.tempoMap   = state.tempoMap.map(e => ({ ...e }));
+    t.ppqn       = state.ppqn;
+    t.totalTicks = state.totalTicks;
+    t.midiData   = state.midiData ? JSON.parse(JSON.stringify(state.midiData)) : null;
 
-    t.selectedChannel     = selectedChannel;
-    t.instrumentNames     = [...instrumentNames];
-    t.currentMidiFileName = currentMidiFileName;
+    t.selectedChannel     = state.selectedChannel;
+    t.instrumentNames     = [...state.instrumentNames];
+    t.currentMidiFileName = state.currentMidiFileName;
 
-    t.currentTimeSig = { ...currentTimeSig };
+    t.currentTimeSig = { ...state.currentTimeSig };
 
-    t.loopA  = loopA;
-    t.loopB  = loopB;
-    t.loopAB = loopAB;
-    t.pasoActual = pasoActual;
+    t.loopA  = state.loopA;
+    t.loopB  = state.loopB;
+    t.loopAB = state.loopAB;
+    t.pasoActual = state.pasoActual;
 
-    t.currentHarmonicSegments = JSON.parse(JSON.stringify(currentHarmonicSegments));
-    t.currentFusedSegments    = JSON.parse(JSON.stringify(currentFusedSegments));
-    t.currentPhraseSegments   = JSON.parse(JSON.stringify(currentPhraseSegments));
-    t.breathingSegments       = JSON.parse(JSON.stringify(breathingSegments));
-    t.currentKey          = currentKey;
-    t.fusionStepsPerUnit  = fusionStepsPerUnit;
+    t.currentHarmonicSegments = JSON.parse(JSON.stringify(state.currentHarmonicSegments));
+    t.currentFusedSegments    = JSON.parse(JSON.stringify(state.currentFusedSegments));
+    t.currentPhraseSegments   = JSON.parse(JSON.stringify(state.currentPhraseSegments));
+    t.breathingSegments       = JSON.parse(JSON.stringify(state.breathingSegments));
+    t.currentKey          = state.currentKey;
+    t.fusionStepsPerUnit  = state.fusionStepsPerUnit;
 
     const gs = document.getElementById('gridScroll');
     if (gs) { t.scrollLeft = gs.scrollLeft; t.scrollTop = gs.scrollTop; }
 
-    if (typeof _undoStack !== 'undefined') t.undoStack = _undoStack.map(s => JSON.parse(JSON.stringify(s)));
-    if (typeof _redoStack !== 'undefined') t.redoStack = _redoStack.map(s => JSON.parse(JSON.stringify(s)));
-    if (typeof _selCells  !== 'undefined') t.selCells  = [..._selCells];
-    if (typeof _selActive !== 'undefined') t.selActive = _selActive;
-    if (typeof tempoPoints     !== 'undefined') t.tempoPoints    = tempoPoints.map(tp => ({ ...tp }));
-    if (typeof sectionMarkers  !== 'undefined') t.sectionMarkers = sectionMarkers.map(sm => ({ ...sm }));
+    const { undoStack, redoStack } = getUndoRedoStacks();
+    t.undoStack = undoStack;
+    t.redoStack = redoStack;
+    const { selCells, selActive } = getSelectionState();
+    t.selCells  = selCells;
+    t.selActive = selActive;
+    t.tempoPoints    = state.tempoPoints.map(tp => ({ ...tp }));
+    t.sectionMarkers = state.sectionMarkers.map(sm => ({ ...sm }));
 
     const bpmEl = document.getElementById('bpmInput');
     if (bpmEl) t.bpm = parseFloat(bpmEl.value) || 120;
@@ -116,41 +129,41 @@ function _tabSaveCurrent() {
 // ── Restauración del estado desde un slot ────────────────────
 function _tabRestoreFrom(t) {
     // Parar reproducción
-    if (reproduciendo && typeof stop === 'function') stop();
+    if (state.reproduciendo) stop();
 
-    gridData     = JSON.parse(JSON.stringify(t.gridData));
-    noteRows     = [...t.noteRows];
-    totalSteps   = t.totalSteps;
-    ticksPerStep = t.ticksPerStep;
-    stepWidth    = t.stepWidth;
-    rowHeight    = t.rowHeight;
+    state.gridData     = JSON.parse(JSON.stringify(t.gridData));
+    state.noteRows     = [...t.noteRows];
+    state.totalSteps   = t.totalSteps;
+    state.ticksPerStep = t.ticksPerStep;
+    state.stepWidth    = t.stepWidth;
+    state.rowHeight    = t.rowHeight;
 
-    rawEvents  = t.rawEvents.map(e => ({ ...e }));
-    tempoMap   = t.tempoMap.map(e => ({ ...e }));
-    ppqn       = t.ppqn;
-    totalTicks = t.totalTicks;
-    midiData   = t.midiData ? JSON.parse(JSON.stringify(t.midiData)) : null;
+    state.rawEvents  = t.rawEvents.map(e => ({ ...e }));
+    state.tempoMap   = t.tempoMap.map(e => ({ ...e }));
+    state.ppqn       = t.ppqn;
+    state.totalTicks = t.totalTicks;
+    state.midiData   = t.midiData ? JSON.parse(JSON.stringify(t.midiData)) : null;
 
-    selectedChannel     = t.selectedChannel;
-    instrumentNames     = [...t.instrumentNames];
-    currentMidiFileName = t.currentMidiFileName;
+    state.selectedChannel     = t.selectedChannel;
+    state.instrumentNames     = [...t.instrumentNames];
+    state.currentMidiFileName = t.currentMidiFileName;
 
-    currentTimeSig = { ...t.currentTimeSig };
+    state.currentTimeSig = { ...t.currentTimeSig };
 
-    loopA  = t.loopA;
-    loopB  = t.loopB;
-    loopAB = t.loopAB;
-    pasoActual    = 0;
-    reproduciendo = false;
+    state.loopA  = t.loopA;
+    state.loopB  = t.loopB;
+    state.loopAB = t.loopAB;
+    state.pasoActual    = 0;
+    state.reproduciendo = false;
 
-    currentHarmonicSegments = JSON.parse(JSON.stringify(t.currentHarmonicSegments));
-    currentFusedSegments    = JSON.parse(JSON.stringify(t.currentFusedSegments));
-    currentPhraseSegments   = JSON.parse(JSON.stringify(t.currentPhraseSegments));
-    breathingSegments       = JSON.parse(JSON.stringify(t.breathingSegments));
-    currentKey         = t.currentKey;
-    fusionStepsPerUnit = t.fusionStepsPerUnit;
+    state.currentHarmonicSegments = JSON.parse(JSON.stringify(t.currentHarmonicSegments));
+    state.currentFusedSegments    = JSON.parse(JSON.stringify(t.currentFusedSegments));
+    state.currentPhraseSegments   = JSON.parse(JSON.stringify(t.currentPhraseSegments));
+    state.breathingSegments       = JSON.parse(JSON.stringify(t.breathingSegments));
+    state.currentKey         = t.currentKey;
+    state.fusionStepsPerUnit = t.fusionStepsPerUnit;
 
-    const hasGrid = Object.keys(gridData.cells).length > 0;
+    const hasGrid = Object.keys(state.gridData.cells).length > 0;
 
     // ── BPM ──
     const bpmEl = document.getElementById('bpmInput');
@@ -169,8 +182,8 @@ function _tabRestoreFrom(t) {
     }
 
     // ── Transport ──
-    if (typeof playBtn !== 'undefined') playBtn.disabled = !hasGrid;
-    if (typeof stopBtn !== 'undefined') stopBtn.disabled = false;
+    playBtn.disabled = !hasGrid;
+    stopBtn.disabled = false;
 
     // ── Botones de toolbar ──
     const abBtn         = document.getElementById('abLoopBtn');
@@ -183,23 +196,20 @@ function _tabRestoreFrom(t) {
     if (activeNotesBtn) activeNotesBtn.disabled = !hasGrid;
 
     // ── Botones de compases ──
-    if (hasGrid && typeof _enableMeasureButtons === 'function') _enableMeasureButtons();
+    if (hasGrid) _enableMeasureButtons();
 
     // ── Instrumento select ──
-    if (typeof instrumentSelect !== 'undefined') {
-        instrumentSelect.innerHTML = '<option value="">-- Canal --</option>';
-        t.instrumentNames.forEach((name, i) => {
-            if (!name) return;
-            const opt = document.createElement('option');
-            opt.value       = i;
-            opt.textContent = `${i + 1}: ${name}`;
-            if (i === t.selectedChannel) opt.selected = true;
-            instrumentSelect.appendChild(opt);
-        });
-        instrumentSelect.disabled = !hasGrid && !t.midiData;
-    }
-    if (typeof loadInstrumentBtn !== 'undefined')
-        loadInstrumentBtn.disabled = (t.selectedChannel === null);
+    instrumentSelect.innerHTML = '<option value="">-- Canal --</option>';
+    t.instrumentNames.forEach((name, i) => {
+        if (!name) return;
+        const opt = document.createElement('option');
+        opt.value       = i;
+        opt.textContent = `${i + 1}: ${name}`;
+        if (i === t.selectedChannel) opt.selected = true;
+        instrumentSelect.appendChild(opt);
+    });
+    instrumentSelect.disabled = !hasGrid && !t.midiData;
+    loadInstrumentBtn.disabled = (t.selectedChannel === null);
 
     const openAllBtn = document.getElementById('openAllInstrumentsBtn');
     if (openAllBtn) {
@@ -213,14 +223,14 @@ function _tabRestoreFrom(t) {
     if (hasGrid) {
         applyZoom(t.stepWidth, t.rowHeight);
     } else {
-        if (typeof drawPianoRollWithPlayhead === 'function') drawPianoRollWithPlayhead(-1);
-        if (typeof drawTimelineRuler        === 'function') drawTimelineRuler();
+        drawPianoRollWithPlayhead(-1);
+        drawTimelineRuler();
     }
 
     // ── Chord row ──
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) {
-        if (t.currentHarmonicSegments.length && typeof drawChordRow === 'function') {
+        if (t.currentHarmonicSegments.length) {
             const keyObj = _tabParseKey(t.currentKey);
             const segs   = _tabActiveSegs(t);
             drawChordRow(segs, keyObj);
@@ -230,32 +240,29 @@ function _tabRestoreFrom(t) {
     }
 
     // ── Transposición: global, no por tab — refrescar UI con el valor actual ──
-    if (typeof _tpSlider === 'function') _tpSlider(transposeOffset);
+    _tpSlider(state.transposeOffset);
 
     // ── A-B ──
-    if (typeof _updateAbBtn === 'function') _updateAbBtn();
+    _updateAbBtn();
 
     // ── Heat map ──
-    heatMapData = null;
-    if (heatMapActive && hasGrid && typeof _refreshHeatMap === 'function') _refreshHeatMap();
+    state.heatMapData = null;
+    if (state.heatMapActive && hasGrid) _refreshHeatMap();
 
     // ── Historial Undo/Redo ──
-    if (typeof _undoStack  !== 'undefined') _undoStack  = (t.undoStack || []).map(s => JSON.parse(JSON.stringify(s)));
-    if (typeof _redoStack  !== 'undefined') _redoStack  = (t.redoStack || []).map(s => JSON.parse(JSON.stringify(s)));
-    if (typeof _selCells   !== 'undefined') { _selCells = new Set(t.selCells || []); _selActive = t.selActive || false; _selDragging = false; _selDragStart = null; _selDragEnd = null; }
-    if (typeof tempoPoints    !== 'undefined') tempoPoints    = (t.tempoPoints    || [{ step: 0, bpm: 120 }]).map(tp => ({ ...tp }));
-    if (typeof sectionMarkers !== 'undefined') sectionMarkers = (t.sectionMarkers || []).map(sm => ({ ...sm }));
+    setUndoRedoStacks(t.undoStack, t.redoStack);
+    setSelectionState(t.selCells, t.selActive);
+    state.tempoPoints    = (t.tempoPoints    || [{ step: 0, bpm: 120 }]).map(tp => ({ ...tp }));
+    state.sectionMarkers = (t.sectionMarkers || []).map(sm => ({ ...sm }));
 
     // ── Scroll ──
     const gs = document.getElementById('gridScroll');
     if (gs) { gs.scrollLeft = t.scrollLeft; gs.scrollTop = t.scrollTop; }
 
     // ── Status ──
-    if (typeof statusSpan !== 'undefined') {
-        statusSpan.innerText = hasGrid
-            ? `${t.name} · ${Object.keys(gridData.cells).length} notas`
-            : 'Tab vacío — abre un MIDI (🎵) o crea un grid nuevo (📄 Nuevo).';
-    }
+    statusSpan.innerText = hasGrid
+        ? `${t.name} · ${Object.keys(state.gridData.cells).length} notas`
+        : 'Tab vacío — abre un MIDI (🎵) o crea un grid nuevo (📄 Nuevo).';
 }
 
 // ── Helpers internos ─────────────────────────────────────────
@@ -276,22 +283,21 @@ function _tabActiveSegs(t) {
 // ── API pública ──────────────────────────────────────────────
 
 /** Cambia al tab idx guardando el estado actual. */
-function tabSwitch(idx) {
+export function tabSwitch(idx) {
     if (idx === _activeTabIdx || idx < 0 || idx >= _tabs.length) return;
-    const wasPlaying = (typeof reproduciendo !== 'undefined') && reproduciendo;
+    const wasPlaying = state.reproduciendo;
     _tabSaveCurrent();
     _activeTabIdx = idx;
     _tabRestoreFrom(_tabs[_activeTabIdx]);
     _tabRender();
     // Si había reproducción activa y el nuevo tab tiene notas, arrancar automáticamente
-    if (wasPlaying && typeof play === 'function' &&
-        typeof gridData !== 'undefined' && Object.keys(gridData.cells).length > 0) {
+    if (wasPlaying && Object.keys(state.gridData.cells).length > 0) {
         play();
     }
 }
 
 /** Crea un tab vacío y cambia a él. */
-function tabNew() {
+export function tabNew() {
     _tabSaveCurrent();
     _tabs.push(_tabDefaults());
     _activeTabIdx = _tabs.length - 1;
@@ -304,8 +310,8 @@ function tabNew() {
  * Si el tab activo tiene contenido crea uno nuevo primero; luego abre
  * el panel de configuración de compases/BPM.
  */
-function tabNewWithDialog() {
-    const hasContent = Object.keys(gridData.cells).length > 0 || noteRows.length > 0;
+export function tabNewWithDialog() {
+    const hasContent = Object.keys(state.gridData.cells).length > 0 || state.noteRows.length > 0;
     if (hasContent) {
         _tabSaveCurrent();
         _tabs.push(_tabDefaults());
@@ -313,11 +319,11 @@ function tabNewWithDialog() {
         _tabRestoreFrom(_tabs[_activeTabIdx]);
         _tabRender();
     }
-    if (typeof toggleNewGridPanel === 'function') toggleNewGridPanel();
+    toggleNewGridPanel();
 }
 
 /** Cierra el tab idx. Siempre queda al menos 1. */
-function tabClose(idx) {
+export function tabClose(idx) {
     if (_tabs.length === 1) return;
     const t = _tabs[idx];
     const hasContent = Object.keys(t.gridData.cells).length > 0;
@@ -332,7 +338,7 @@ function tabClose(idx) {
 }
 
 /** Actualiza el nombre del tab activo y quita el flag dirty. */
-function tabMarkFileLoaded(name) {
+export function tabMarkFileLoaded(name) {
     const t = _tabs[_activeTabIdx];
     t.name    = name || 'Sin título';
     t.isDirty = false;
@@ -340,7 +346,7 @@ function tabMarkFileLoaded(name) {
 }
 
 /** Marca el tab activo como modificado (muestra ●). */
-function tabMarkDirty() {
+export function tabMarkDirty() {
     if (!_tabs[_activeTabIdx].isDirty) {
         _tabs[_activeTabIdx].isDirty = true;
         _tabRender();
@@ -373,6 +379,42 @@ function _tabRender() {
         el.appendChild(closeBtn);
         list.appendChild(el);
     });
+}
+
+// ── Helpers para el módulo raíz (midiGrid.js) ────────────────
+// Evitan que el entry point manipule _tabs / _activeTabIdx directamente.
+
+/** Guarda el estado actual en el slot activo. */
+export function tabSaveCurrent() { _tabSaveCurrent(); }
+
+/** Redibuja la barra de tabs. */
+export function tabRender() { _tabRender(); }
+
+/**
+ * Crea un nuevo tab pre-cargado, lo activa y restaura su estado.
+ * Devuelve el índice del nuevo tab.
+ * @param {Object} preload  campos a fusionar sobre _tabDefaults()
+ */
+export function tabPushPreloaded(preload = {}) {
+    _tabSaveCurrent();
+    const t = Object.assign(_tabDefaults(), preload);
+    _tabs.push(t);
+    _activeTabIdx = _tabs.length - 1;
+    _tabRestoreFrom(t);
+    _tabRender();
+    return _activeTabIdx;
+}
+
+/** Índice del primer slot que ocuparía el siguiente tab nuevo. */
+export function tabNextIndex() { return _tabs.length; }
+
+/** Aplica cambios al tab activo (nombre, dirty) y opcionalmente lo guarda. */
+export function tabUpdateActive({ name, isDirty } = {}, save = false) {
+    const t = _tabs[_activeTabIdx];
+    if (!t) return;
+    if (name !== undefined)    t.name    = name;
+    if (isDirty !== undefined) t.isDirty = isDirty;
+    if (save) _tabSaveCurrent();
 }
 
 document.addEventListener('DOMContentLoaded', () => { _tabRender(); });

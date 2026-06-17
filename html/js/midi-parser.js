@@ -4,6 +4,9 @@
 // Depende de: state.js
 // ============================================================
 
+import { state } from './state.js';
+import { instrumentSelect, loadInstrumentBtn } from './dom-refs.js';
+
 const GM_INSTRUMENTS = [
     "Acoustic Grand Piano","Bright Acoustic Piano","Electric Grand Piano","Honky-tonk Piano",
     "Electric Piano 1","Electric Piano 2","Harpsichord","Clavinet",
@@ -33,27 +36,31 @@ const GM_INSTRUMENTS = [
 
 /**
  * Parsea un archivo MIDI desde su representación binaria (string de bytes).
- * Actualiza las variables globales: ppqn, rawEvents, tempoMap, totalTicks,
- * instrumentNames, midiData.
- * Llama a enableInstrumentSelection() al terminar.
+ * Actualiza el estado (ppqn, rawEvents, tempoMap, totalTicks, instrumentNames,
+ * midiData, currentTimeSig) pero NO toca el DOM ni habilita la UI.
+ *
+ * Devuelve un objeto resultado para que el orquestador (midiGrid.js) gestione
+ * la interfaz:
+ *   { ppqn, rawEvents, tempoMap, totalTicks, instrumentNames, timeSig,
+ *     trackCount, channelsWithNotes, bpm, error? }
+ *
  * @param {string} binaryString - Resultado de FileReader.readAsArrayBuffer convertido a string
+ * @returns {Object} resultado del parseo (con `error` si el archivo es inválido)
  */
-function loadMIDIFile(binaryString) {
+export function loadMIDIFile(binaryString) {
     let parsed;
     try {
         parsed = MidiFile(binaryString);  // jasmid
     } catch (e) {
-        debugDiv.innerHTML = `<strong>Error al parsear MIDI:</strong> ${e}`;
-        statusSpan.innerText = "Error: archivo MIDI inválido.";
-        return;
+        return { error: String(e) };
     }
 
     // ticksPerBeat = PPQN según la nomenclatura de jasmid
-    ppqn = parsed.header.ticksPerBeat || 96;
-    rawEvents = [];
-    tempoMap  = [{ tick: 0, bpm: 120 }];
+    state.ppqn = parsed.header.ticksPerBeat || 96;
+    state.rawEvents = [];
+    state.tempoMap  = [{ tick: 0, bpm: 120 }];
     // Resetear compás antes de parsear (el meta-evento lo sobreescribirá si existe)
-    currentTimeSig = { numerator: 4, denominator: 4, stepsPerMeasure: 16, stepsPerBeat: 4 };
+    state.currentTimeSig = { numerator: 4, denominator: 4, stepsPerMeasure: 16, stepsPerBeat: 4 };
     const channelInstruments = {};
 
     // Cada pista usa deltaTime relativo → acumulamos ticks absolutos por pista
@@ -65,74 +72,70 @@ function loadMIDIFile(binaryString) {
             if (ev.type === 'channel') {
                 const ch = ev.channel;
                 if (ev.subtype === 'noteOn' && ev.velocity > 0) {
-                    rawEvents.push({ tick: absoluteTick, type: 'noteOn',  channel: ch, note: ev.noteNumber, velocity: ev.velocity });
+                    state.rawEvents.push({ tick: absoluteTick, type: 'noteOn',  channel: ch, note: ev.noteNumber, velocity: ev.velocity });
                 } else if (ev.subtype === 'noteOff' || (ev.subtype === 'noteOn' && ev.velocity === 0)) {
-                    rawEvents.push({ tick: absoluteTick, type: 'noteOff', channel: ch, note: ev.noteNumber, velocity: 0 });
+                    state.rawEvents.push({ tick: absoluteTick, type: 'noteOff', channel: ch, note: ev.noteNumber, velocity: 0 });
                 } else if (ev.subtype === 'programChange') {
                     channelInstruments[ch] = ev.programNumber;
                 }
             } else if (ev.type === 'meta' && ev.subtype === 'setTempo') {
-                tempoMap.push({ tick: absoluteTick, bpm: 60000000 / ev.microsecondsPerBeat });
+                state.tempoMap.push({ tick: absoluteTick, bpm: 60000000 / ev.microsecondsPerBeat });
             } else if (ev.type === 'meta' && ev.subtype === 'timeSignature') {
                 // Guardamos el primer evento de compás encontrado
-                if (currentTimeSig.numerator === 4 && currentTimeSig.denominator === 4
+                if (state.currentTimeSig.numerator === 4 && state.currentTimeSig.denominator === 4
                     && absoluteTick === 0) {
                     // jasmid ya convierte el denominador a valor real (4, 8, 16…)
                     const num = ev.numerator;
                     const den = ev.denominator;
                     const spb = Math.round(16 / den);   // steps por tiempo
                     const spm = num * spb;               // steps por compás
-                    currentTimeSig = { numerator: num, denominator: den,
-                                       stepsPerMeasure: spm, stepsPerBeat: spb };
+                    state.currentTimeSig = { numerator: num, denominator: den,
+                                             stepsPerMeasure: spm, stepsPerBeat: spb };
                 }
             }
         }
     }
 
-    tempoMap.sort((a, b) => a.tick - b.tick);
-    totalTicks = rawEvents.length > 0 ? Math.max(...rawEvents.map(e => e.tick)) : 0;
+    state.tempoMap.sort((a, b) => a.tick - b.tick);
+    state.totalTicks = state.rawEvents.length > 0 ? Math.max(...state.rawEvents.map(e => e.tick)) : 0;
 
-    instrumentNames = [];
+    state.instrumentNames = [];
     for (let ch = 0; ch < 16; ch++) {
         const prog = channelInstruments[ch];
-        instrumentNames[ch] = (prog !== undefined) ? (GM_INSTRUMENTS[prog] || `Prog ${prog}`) : `Canal ${ch + 1}`;
+        state.instrumentNames[ch] = (prog !== undefined) ? (GM_INSTRUMENTS[prog] || `Prog ${prog}`) : `Canal ${ch + 1}`;
     }
 
     const channelsWithNotes = new Set();
-    rawEvents.forEach(e => { if (e.type === 'noteOn') channelsWithNotes.add(e.channel); });
+    state.rawEvents.forEach(e => { if (e.type === 'noteOn') channelsWithNotes.add(e.channel); });
 
-    const bpm0 = Math.round(tempoMap[tempoMap.length > 1 ? 1 : 0]?.bpm || 120);
-    const bpmInput = document.getElementById('bpmInput');
-    if (bpmInput) bpmInput.value = bpm0;
-    debugDiv.innerHTML =
-        `<strong>MIDI parseado</strong><br>` +
-        (currentMidiFileName ? `<span style="color:#aaccff;word-break:break-all;">📄 ${currentMidiFileName}</span><br>` : '') +
-        `PPQN=${ppqn} | BPM: ${bpm0} | Compás: ${currentTimeSig.numerator}/${currentTimeSig.denominator} ` +
-        `(${currentTimeSig.stepsPerMeasure} pasos/compás) | ` +
-        `Duración: ${totalTicks} ticks | Pistas: ${parsed.tracks.length}<br>` +
-        `Canales con notas: ${Array.from(channelsWithNotes).map(c => c + 1).join(', ')}<br>` +
-        `Eventos totales: ${rawEvents.length}`;
+    const bpm0 = Math.round(state.tempoMap[state.tempoMap.length > 1 ? 1 : 0]?.bpm || 120);
 
-    // Actualizar etiqueta del ruler
-    const rulerLabel = document.getElementById('rulerTimeSigLabel');
-    if (rulerLabel) rulerLabel.textContent =
-        `${currentTimeSig.numerator} / ${currentTimeSig.denominator}`;
+    state.midiData = { ppqn: state.ppqn, totalTicks: state.totalTicks, rawEvents: state.rawEvents, tempoMap: state.tempoMap };
 
-    midiData = { ppqn, totalTicks, rawEvents, tempoMap };
-    enableInstrumentSelection();
-    statusSpan.innerText = "MIDI cargado. Selecciona un instrumento/canal.";
+    // Resultado para que midiGrid.js gestione la UI (debug, status, bpm, ruler, select).
+    return {
+        ppqn:              state.ppqn,
+        rawEvents:         state.rawEvents,
+        tempoMap:          state.tempoMap,
+        totalTicks:        state.totalTicks,
+        instrumentNames:   state.instrumentNames,
+        timeSig:           state.currentTimeSig,
+        trackCount:        parsed.tracks.length,
+        channelsWithNotes: Array.from(channelsWithNotes),
+        bpm:               bpm0,
+    };
 }
 
 /**
  * Rellena el <select> de canales/instrumentos con los canales que tienen notas.
  */
-function enableInstrumentSelection() {
+export function enableInstrumentSelection() {
     const channels = new Set();
-    rawEvents.forEach(e => { if (e.type === 'noteOn') channels.add(e.channel); });
+    state.rawEvents.forEach(e => { if (e.type === 'noteOn') channels.add(e.channel); });
 
     instrumentSelect.innerHTML = '<option value="">-- Selecciona canal/instrumento --</option>';
     for (const ch of channels) {
-        instrumentSelect.innerHTML += `<option value="${ch}">Canal ${ch + 1}: ${instrumentNames[ch]}</option>`;
+        instrumentSelect.innerHTML += `<option value="${ch}">Canal ${ch + 1}: ${state.instrumentNames[ch]}</option>`;
     }
     instrumentSelect.disabled = false;
     loadInstrumentBtn.disabled = false;

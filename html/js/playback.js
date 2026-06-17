@@ -4,6 +4,32 @@
 // Depende de: state.js, piano-roll.js
 // ============================================================
 
+import { state } from './state.js';
+import { sendStop, sendCommand } from './ws-connector.js';
+import { MOTOR_MAP, motorForNote } from './motor-map.js';
+import { buildFullSequence, buildRemainingSequence, buildRangeSequence, validateSequenceSize } from './esp32-sequencer.js';
+import { updateRulerPlayhead } from './timeline-ruler.js';
+import { _activeSegments, _selectChordAtStep, _updateChordPanelFromPlayback, _startNextBatch, cancelPendingAutoAdvance } from './chord-row.js';
+
+// ── Callbacks de UI ───────────────────────────────────────────────────────────
+// playback.js no toca el DOM directamente: dispara estos callbacks y deja que el
+// entry point (midiGrid.js) actualice botones, estado y playhead. Mantiene el
+// motor de reproducción desacoplado de la interfaz.
+export const playbackCallbacks = {
+    onStart:        null,   // () => void          — la reproducción ha arrancado
+    onStop:         null,   // () => void          — la reproducción se ha detenido (reset a 0)
+    onPause:        null,   // () => void          — la reproducción se ha pausado
+    onStatusChange: null,   // (msg: string) => void — mensaje de estado para el usuario
+    onStepChange:   null,   // (step: number) => void — el playhead está en `step` (-1 = oculto)
+};
+
+// Helpers internos para invocar los callbacks de forma segura.
+function _emitStart()        { playbackCallbacks.onStart?.(); }
+function _emitStop()         { playbackCallbacks.onStop?.(); }
+function _emitPause()        { playbackCallbacks.onPause?.(); }
+function _emitStatus(msg)    { playbackCallbacks.onStatusChange?.(msg); }
+function _emitStep(step)     { playbackCallbacks.onStepChange?.(step); }
+
 let _playInterval    = null;   // handle del setInterval de UI (playhead, chords)
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
 let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
@@ -25,10 +51,10 @@ let _appendSentAt              = null; // performance.now() del último APPEND e
 let _appendSentStep            = 0;   // paso de cierre de ese APPEND (para RTT)
 
 /** BPM efectivo en el paso dado, consultando tempoPoints (con fallback al input). */
-function _bpmAtStep(step) {
-    if (typeof tempoPoints !== 'undefined' && tempoPoints.length) {
-        let bpm = tempoPoints[0].bpm;
-        for (const tp of tempoPoints) {
+export function _bpmAtStep(step) {
+    if (state.tempoPoints && state.tempoPoints.length) {
+        let bpm = state.tempoPoints[0].bpm;
+        for (const tp of state.tempoPoints) {
             if (tp.step <= step) bpm = tp.bpm;
             else break;
         }
@@ -39,8 +65,8 @@ function _bpmAtStep(step) {
 }
 
 /** ms por semicorchea en el paso dado (por defecto pasoActual). */
-const MS_PER_STEP = (step) => {
-    const s   = step !== undefined ? step : (typeof pasoActual !== 'undefined' ? pasoActual : 0);
+export const MS_PER_STEP = (step) => {
+    const s   = step !== undefined ? step : (state.pasoActual || 0);
     return (60000 / _bpmAtStep(s)) / 4;
 };
 
@@ -59,7 +85,7 @@ function _chordIndexAtStep(step) {
 
 /** Construye y envía APPEND para el acorde chordIndex. */
 function _appendChordToEsp32(chordIndex) {
-    if (!wsConnected) return;
+    if (!state.wsConnected) return;
     const segs = _activeSegments();
     if (chordIndex < 0 || chordIndex >= segs.length) return;
 
@@ -115,14 +141,14 @@ function _sendPlayCommand(seq) {
     }
 
     const blocks   = validateSequenceSize(seqBody);
-    const adv      = (typeof ledAdvanceMs !== 'undefined') ? Math.round(ledAdvanceMs) : 0;
+    const adv      = Math.round(state.ledAdvanceMs || 0);
     // Hue FastLED del LED de anticipación: 0 = rojo. Se pasa como 5º parámetro del header.
     const advHue   = 0;
     const header   = `PLAY|midiGrid|${Math.round(stepMs)}|${adv}|${advHue}`;
     console.log(`[play] Enviando PLAY: ${seq.length}B → ${blocks.length} bloque(s) ≤8KB`);
 
     if (blocks.length === 1) {
-        if (_serialActive) {
+        if (state._serialActive) {
             // Serial: stream byte a byte — p; inline llega al firmware en orden garantizado
             const body    = hasPlayCmd ? blocks[0] + 'p;\n' : blocks[0];
             sendCommand(`${header}\n` + body);
@@ -167,35 +193,34 @@ function _sendPlayCommand(seq) {
  * Inicia la reproducción desde pasoActual.
  * G1: envía la secuencia completa al ESP32 y arranca el audio 20ms después.
  */
-function play() {
-    if (!gridData || Object.keys(gridData.cells).length === 0) {
-        statusSpan.innerText = "No hay notas en el grid.";
+export function play() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        _emitStatus("No hay notas en el grid.");
         return;
     }
-    if (reproduciendo) return;
+    if (state.reproduciendo) return;
 
-    if (!soundfontLoaded) {
-        statusSpan.innerText = "⚠ SoundFont no cargado aún. Espera unos segundos.";
+    if (!state.soundfontLoaded) {
+        _emitStatus("⚠ SoundFont no cargado aún. Espera unos segundos.");
         return;
     }
 
     // Si A-B está activo y A está marcado, arrancar desde loopA
-    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
-    if ((typeof loopAB !== 'undefined') && loopAB && loopA >= 0) pasoActual = loopA;
+    const abActive = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
+    if (state.loopAB && state.loopA >= 0) state.pasoActual = state.loopA;
 
     // ── G1: enviar secuencia completa al ESP32 (WiFi o Serial) ─────────────────
-    const isConnected = (typeof wsConnected !== 'undefined' && wsConnected) ||
-                        (typeof _serialActive !== 'undefined' && _serialActive);
-    console.log(`[play] wsConnected=${wsConnected}, _serialActive=${_serialActive}`);
+    const isConnected = state.wsConnected || state._serialActive;
+    console.log(`[play] wsConnected=${state.wsConnected}, _serialActive=${state._serialActive}`);
 
     if (isConnected) {
         const seq = abActive
-            ? buildRangeSequence(MOTOR_MAP, loopA, loopB)
-            : pasoActual > 0
-                ? buildRemainingSequence(MOTOR_MAP, pasoActual)
+            ? buildRangeSequence(MOTOR_MAP, state.loopA, state.loopB)
+            : state.pasoActual > 0
+                ? buildRemainingSequence(MOTOR_MAP, state.pasoActual)
                 : buildFullSequence(MOTOR_MAP);
 
-        console.log(`[seq] ${abActive ? `A-B [${loopA},${loopB})` : pasoActual > 0 ? `desde paso ${pasoActual}` : 'full'} · ${seq?.length ?? 0}B`);
+        console.log(`[seq] ${abActive ? `A-B [${state.loopA},${state.loopB})` : state.pasoActual > 0 ? `desde paso ${state.pasoActual}` : 'full'} · ${seq?.length ?? 0}B`);
 
         if (!seq) {
             console.warn('[play] Sin notas mapeadas a motores — se omite PLAY al ESP32');
@@ -204,7 +229,7 @@ function play() {
         }
     }
 
-    _playStartOffset = pasoActual;
+    _playStartOffset = state.pasoActual;
     _startPlaybackLoop();
 }
 
@@ -212,8 +237,7 @@ function play() {
 function _getAudioCtx() {
     if (_audioCtx && _audioCtx.state !== 'closed') return _audioCtx;
     // MIDI.js expone su contexto en MIDI.Player.ctx o MIDI.audioContext
-    const midiCtx = (typeof MIDI !== 'undefined') &&
-                    (MIDI.Player?.ctx || MIDI.audioContext || null);
+    const midiCtx = MIDI.Player?.ctx || MIDI.audioContext || null;
     _audioCtx = midiCtx || new (window.AudioContext || window.webkitAudioContext)();
     return _audioCtx;
 }
@@ -224,17 +248,17 @@ function _getAudioCtx() {
  * El setInterval de UI (_playInterval) solo actualiza el playhead visual.
  */
 function _scheduleNotes() {
-    if (!reproduciendo) return;
+    if (!state.reproduciendo) return;
     const ctx    = _getAudioCtx();
-    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
-    const loopEnd  = abActive ? loopB : totalSteps;
+    const abActive = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
+    const loopEnd  = abActive ? state.loopB : state.totalSteps;
 
     while (_nextNoteTime < ctx.currentTime + _scheduleAhead) {
         if (_scheduleStep >= loopEnd) {
             if (abActive) {
                 // Wrap al inicio del loop A-B
-                _scheduleStep    = loopA;
-                _nextNoteTime   += (_scheduleStep - loopA) * (MS_PER_STEP(_scheduleStep) / 1000);
+                _scheduleStep    = state.loopA;
+                _nextNoteTime   += (_scheduleStep - state.loopA) * (MS_PER_STEP(_scheduleStep) / 1000);
             } else {
                 break;  // El setInterval de UI detectará el fin y llamará stop()
             }
@@ -242,9 +266,9 @@ function _scheduleNotes() {
 
         const stepMs   = MS_PER_STEP(_scheduleStep);
         const stepSec  = stepMs / 1000;
-        const offset   = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const offset   = state.transposeOffset || 0;
 
-        for (const [key, cell] of Object.entries(gridData.cells)) {
+        for (const [key, cell] of Object.entries(state.gridData.cells)) {
             const [noteStr, stepStr] = key.split(',');
             if (parseInt(stepStr) !== _scheduleStep) continue;
 
@@ -257,7 +281,7 @@ function _scheduleNotes() {
             if (motorOnly && !motorForNote(note)) continue;
             if (motorForNote(note)?.muted) continue;
 
-            if (typeof MIDI !== 'undefined' && typeof MIDI.noteOn === 'function') {
+            if (typeof MIDI.noteOn === 'function') {
                 // whenInSeconds: tiempo absoluto del AudioContext para esta nota
                 const when    = _nextNoteTime - ctx.currentTime;  // offset relativo a ahora
                 MIDI.noteOn( 0, transposedNote, velocity, Math.max(0, when));
@@ -272,17 +296,16 @@ function _scheduleNotes() {
 
 /** Arranca el scheduler de audio + el setInterval de UI. */
 function _startPlaybackLoop() {
-    reproduciendo = true;
-    playBtn.disabled  = true;
-    stopBtn.disabled  = false;
-    statusSpan.innerText = "Reproduciendo...";
-    _currentBpm = _bpmAtStep(pasoActual);
+    state.reproduciendo = true;
+    _emitStart();
+    _emitStatus("Reproduciendo...");
+    _currentBpm = _bpmAtStep(state.pasoActual);
 
     // Inicializar scheduler de audio
     const ctx     = _getAudioCtx();
     if (ctx.state === 'suspended') ctx.resume();
-    _scheduleStep      = pasoActual;
-    _scheduleLoopStart = pasoActual;
+    _scheduleStep      = state.pasoActual;
+    _scheduleLoopStart = state.pasoActual;
     _nextNoteTime      = ctx.currentTime + 0.050;  // 50ms de arranque
 
     // Scheduler de audio: cada 25ms — solo agenda notas, no toca el UI
@@ -290,7 +313,7 @@ function _startPlaybackLoop() {
 
     // setInterval de UI: actualiza playhead, scroll, chord highlight
     _tick();
-    _playInterval = setInterval(_tick, MS_PER_STEP(pasoActual));
+    _playInterval = setInterval(_tick, MS_PER_STEP(state.pasoActual));
 }
 
 // ── pause() ──────────────────────────────────────────────────────────────────
@@ -298,17 +321,17 @@ function _startPlaybackLoop() {
 /**
  * Pausa la reproducción conservando la posición.
  */
-function pause() {
-    if (!reproduciendo) return;
-    reproduciendo = false;
+export function pause() {
+    if (!state.reproduciendo) return;
+    state.reproduciendo = false;
     clearInterval(_playInterval);
     _playInterval = null;
     clearInterval(_schedulerTimer);
     _schedulerTimer = null;
     _pendingTimers.forEach(clearTimeout);
     _pendingTimers = [];
-    playBtn.disabled  = false;
-    statusSpan.innerText = "Pausado.";
+    _emitPause();
+    _emitStatus("Pausado.");
 }
 
 // ── stop() ───────────────────────────────────────────────────────────────────
@@ -317,9 +340,9 @@ function pause() {
  * Detiene la reproducción y vuelve al inicio.
  * G2: limpia el interval de audio y envía STOP al ESP32.
  */
-function stop() {
-    reproduciendo     = false;
-    autoAdvanceActive = false;
+export function stop() {
+    state.reproduciendo     = false;
+    state.autoAdvanceActive = false;
     clearInterval(_playInterval);
     _playInterval = null;
     clearInterval(_schedulerTimer);
@@ -327,13 +350,13 @@ function stop() {
     _scheduleStep   = 0;
     _pendingTimers.forEach(clearTimeout);
     _pendingTimers = [];
-    pasoActual       = 0;
+    state.pasoActual = 0;
     _playStartOffset = 0;
-    playBtn.disabled  = false;
-    drawPianoRollWithPlayhead(-1);
+    _emitStop();          // el entry point resetea botones y dibuja el playhead a -1
+    _emitStep(-1);        // ocultar playhead del piano roll
     updateRulerPlayhead(-1);
     _clearChordHighlight();
-    statusSpan.innerText = "Detenido.";
+    _emitStatus("Detenido.");
 
     // Limpiar estado de streaming
     _esp32LastLoadedChordIndex = -1;
@@ -344,11 +367,11 @@ function stop() {
 
     // Cancelar cualquier auto-avance pendiente (evita lanzar el siguiente lote
     // si stop() fue llamado manualmente durante el window de 400ms)
-    if (typeof _pendingAutoAdvance !== 'undefined') _pendingAutoAdvance = false;
-    onStoppedCallback = null;
+    cancelPendingAutoAdvance();
+    state.onStoppedCallback = null;
 
     // G2: parar el ESP32
-    if (typeof sendStop === 'function') sendStop();
+    sendStop();
 }
 
 function _clearChordHighlight() {
@@ -368,24 +391,24 @@ function _clearChordHighlight() {
  * Si estaba reproduciendo, para y rearranea desde el nuevo punto.
  * @param {number} step
  */
-function seekToStep(step) {
-    const target = Math.max(0, Math.min(totalSteps - 1, step));
-    const wasPlaying = reproduciendo;
+export function seekToStep(step) {
+    const target = Math.max(0, Math.min(state.totalSteps - 1, step));
+    const wasPlaying = state.reproduciendo;
 
     if (wasPlaying) {
-        reproduciendo = false;
+        state.reproduciendo = false;
         clearInterval(_playInterval);
         _playInterval = null;
     }
 
-    pasoActual       = target;
+    state.pasoActual = target;
     _playStartOffset = target;
 
-    drawPianoRollWithPlayhead(target);
+    _emitStep(target);
     updateRulerPlayhead(target);
     _clearChordHighlight();
 
-    if (typeof _selectChordAtStep === 'function') _selectChordAtStep(target);
+    _selectChordAtStep(target);
 
     // Resincronizar scheduler al nuevo punto de inicio
     _scheduleStep = target;
@@ -397,19 +420,30 @@ function seekToStep(step) {
 
 let _tickCount = 0;
 
+/**
+ * Re-arma el interval del playhead con el nuevo MS_PER_STEP sin perder posición.
+ * Usado al cambiar el BPM en caliente. El scheduler de audio relee MS_PER_STEP
+ * en cada ciclo, así que solo hay que refrescar el interval visual.
+ */
+export function refreshPlaybackTempo() {
+    if (!state.reproduciendo || !_playInterval) return;
+    clearInterval(_playInterval);
+    _playInterval = setInterval(_tick, MS_PER_STEP(state.pasoActual));
+}
+
 function _tick() {
     // ── A-B loop tiene prioridad sobre loop normal ────────────
-    const abActive = (typeof loopAB !== 'undefined') && loopAB && loopA >= 0 && loopB > loopA;
+    const abActive = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
 
     // ── Fin de segmento ───────────────────────────────────────
-    if (abActive && pasoActual >= loopB) {
-        if (autoAdvanceActive) {
+    if (abActive && state.pasoActual >= state.loopB) {
+        if (state.autoAdvanceActive) {
             _startNextBatch();
             return;
         }
         stop();
         return;
-    } else if (pasoActual >= totalSteps) {
+    } else if (state.pasoActual >= state.totalSteps) {
         stop();
         return;
     }
@@ -417,33 +451,26 @@ function _tick() {
     // Las notas de audio las agenda _scheduleNotes() con lookahead preciso.
     // _tick() solo actualiza el UI visual (playhead, scroll, chord highlight).
 
-    if (activeHighlight && document.getElementById('chordPanel')?.classList.contains('open')) {
-        drawPianoRollWithHighlightAndPlayhead(
-            activeHighlight.classes,
-            activeHighlight.startStep,
-            activeHighlight.endStep,
-            pasoActual
-        );
-    } else {
-        drawPianoRollWithPlayhead(pasoActual);
-    }
-    updateRulerPlayhead(pasoActual);
-    _autoScroll(pasoActual);
-    _highlightCurrentChord(pasoActual);
-    if (typeof _updateChordPanelFromPlayback === 'function') _updateChordPanelFromPlayback();
-    pasoActual++;
+    // El dibujado del playhead lo decide el entry point (incluido el caso del
+    // panel de acordes abierto con highlight) a través de onStepChange.
+    _emitStep(state.pasoActual);
+    updateRulerPlayhead(state.pasoActual);
+    _autoScroll(state.pasoActual);
+    _highlightCurrentChord(state.pasoActual);
+    _updateChordPanelFromPlayback();
+    state.pasoActual++;
 
     // ── Cambio de tempo: reiniciar interval de UI si el BPM cambió ──
     // El scheduler de audio (_scheduleNotes) consulta MS_PER_STEP(_scheduleStep)
     // en cada llamada, así que se adapta automáticamente sin reiniciarse.
-    if (typeof tempoPoints !== 'undefined' && tempoPoints.length > 1) {
-        const newBpm = _bpmAtStep(pasoActual);
+    if (state.tempoPoints && state.tempoPoints.length > 1) {
+        const newBpm = _bpmAtStep(state.pasoActual);
         if (newBpm !== _currentBpm) {
             _currentBpm = newBpm;
             const bpmEl = document.getElementById('bpmInput');
             if (bpmEl) bpmEl.value = Math.round(newBpm);
             clearInterval(_playInterval);
-            _playInterval = setInterval(_tick, MS_PER_STEP(pasoActual));
+            _playInterval = setInterval(_tick, MS_PER_STEP(state.pasoActual));
         }
     }
 }
@@ -486,17 +513,17 @@ function _highlightCurrentChord(paso) {
 // Corrige la deriva visual entre setInterval del browser y millis() del ESP32.
 const _BEAT_DRIFT_TOLERANCE = 2;
 
-onBeatCallback = function(stepFromEsp32) {
-    if (!reproduciendo) return;
+state.onBeatCallback = function(stepFromEsp32) {
+    if (!state.reproduciendo) return;
 
     const adjustedStep = stepFromEsp32 + _playStartOffset;
-    const drift        = adjustedStep - pasoActual;
+    const drift        = adjustedStep - state.pasoActual;
 
     if (Math.abs(drift) > _BEAT_DRIFT_TOLERANCE) {
-        console.log(`[beat] Deriva: pasoActual ${pasoActual} → ${adjustedStep} (drift=${drift})`);
-        pasoActual = adjustedStep;
-        drawPianoRollWithPlayhead(pasoActual);
-        _autoScroll(pasoActual);
+        console.log(`[beat] Deriva: pasoActual ${state.pasoActual} → ${adjustedStep} (drift=${drift})`);
+        state.pasoActual = adjustedStep;
+        _emitStep(state.pasoActual);
+        _autoScroll(state.pasoActual);
     }
 };
 
@@ -506,7 +533,7 @@ function _autoScroll(paso) {
     const container = document.getElementById('gridScroll');
     if (!container) return;
 
-    const playheadX    = paso * stepWidth;
+    const playheadX    = paso * state.stepWidth;
     const visibleWidth = container.clientWidth;
     const scrollLeft   = container.scrollLeft;
 

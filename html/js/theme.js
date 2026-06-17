@@ -2,6 +2,10 @@
 // theme.js — Sistema de temas claro / oscuro
 // ============================================================
 
+import { state } from './state.js';
+import { drawPianoRollWithPlayhead, drawNoteLabels } from './piano-roll.js';
+import { drawTimelineRuler } from './timeline-ruler.js';
+
 const THEMES = {
     dark: {
         // Paleta CSS (se aplica como data-theme en <html>)
@@ -57,7 +61,7 @@ window.CANVAS_THEME = { ...THEMES.dark.canvas };
 let _currentTheme = 'dark';
 
 // ── Aplicar tema ─────────────────────────────────────────────
-function setTheme(name) {
+export function setTheme(name) {
     const t = THEMES[name];
     if (!t) return;
     _currentTheme = name;
@@ -103,14 +107,12 @@ function setTheme(name) {
     try { localStorage.setItem('midiGrid_theme', name); } catch (_) {}
 
     // 6. Redibujar canvas con la nueva paleta
-    if (typeof drawPianoRollWithPlayhead === 'function') {
-        drawPianoRollWithPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
-    }
-    if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
-    if (typeof drawNoteLabels === 'function') drawNoteLabels();
+    drawPianoRollWithPlayhead(state.pasoActual !== undefined ? state.pasoActual : -1);
+    drawTimelineRuler();
+    drawNoteLabels();
 }
 
-function toggleTheme() {
+export function toggleTheme() {
     setTheme(_currentTheme === 'dark' ? 'light' : 'dark');
 }
 

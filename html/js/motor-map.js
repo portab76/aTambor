@@ -1,6 +1,6 @@
 // ============================================================
 // motor-map.js — Mapeo MIDI note → motor físico ESP32
-// Depende de: nada (módulo autónomo)
+// Depende de: state.js
 //
 // API pública:
 //   MOTOR_MAP            — array de configuración (editable en runtime)
@@ -20,6 +20,12 @@
 // Routing firmware: chip = motor/16,  canal = motor%16
 // ============================================================
 
+import { state } from './state.js';
+import { sendCommand } from './ws-connector.js';
+import { HIT_MS, RETRACT_MS } from './esp32-sequencer.js';
+import { toggleMotorEscalaPanel } from './motor-escala-panel.js';
+import { historyPush } from './history.js';
+
 // ── Tabla de conversión nombre de nota → número MIDI ──────────
 // MIDI: C-1=0, C0=12, C1=24, C2=36, C3=48, C4=60, C5=72 ...
 // Convención aTambor: octava 1 = MIDI 24 (C1)
@@ -38,17 +44,17 @@ function _midiNote(noteName, octave) {
 
 // ── Configuración del strip LED WS2812B ───────────────────────
 // NUM_LEDS: total de LEDs en el strip (C1–B5 cromático).
-const NUM_LEDS      = 61;
-const LED_BASE_NOTE = _midiNote('B', 0);  // B0 = MIDI 23 → C1 = LED 1; B5 = MIDI 83 → LED 60
+export const NUM_LEDS      = 61;
+export const LED_BASE_NOTE = _midiNote('B', 0);  // B0 = MIDI 23 → C1 = LED 1; B5 = MIDI 83 → LED 60
 
 // LED index automático: no necesita campo 'led' en MOTOR_MAP.
-function ledForNote(midiNote) {
+export function ledForNote(midiNote) {
     return midiNote - LED_BASE_NOTE;   // C1→1 … B5→60
 }
 
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
 // Solo motores físicos (solenoides). Sin campo 'led' — se calcula con ledForNote(note).
-let MOTOR_MAP = [
+export let MOTOR_MAP = [
 
   { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a' },
   { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false, key: 's' },
@@ -98,7 +104,7 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
 })();
 
 // Guardar MOTOR_MAP completo en localStorage
-function _mmSaveToStorage() {
+export function _mmSaveToStorage() {
     try {
         localStorage.setItem(_MM_STORAGE_KEY, JSON.stringify(MOTOR_MAP));
     } catch(e) {
@@ -106,8 +112,46 @@ function _mmSaveToStorage() {
     }
 }
 
+// ── Undo/Redo del Motor Map (usado por history.js) ────────────
+
+/** Copia profunda de MOTOR_MAP para el historial. */
+export function getMotorMapSnapshot() {
+    return MOTOR_MAP.map(m => ({ ...m }));
+}
+
+/**
+ * Restaura MOTOR_MAP desde un snapshot (mutando en sitio, ya que MOTOR_MAP es
+ * un binding `let` que otros módulos importan) y refresca las tablas + storage.
+ */
+export function restoreMotorMap(snapshot) {
+    if (!Array.isArray(snapshot)) return;
+    MOTOR_MAP.length = 0;
+    for (const m of snapshot) MOTOR_MAP.push({ ...m });
+    _mmSaveToStorage();
+    _mmRebuildKeyMap();
+    _renderMotorMapPanelRows();
+    _renderMotorMapRows();
+}
+
+/**
+ * Edita un campo de una entrada de MOTOR_MAP registrando el cambio en el
+ * historial (Ctrl+Z). Punto único por el que pasan las ediciones de la UI
+ * (asignación de motor, homePWM, mute…), así el snapshot se toma ANTES de mutar.
+ * @param {number} i     índice en MOTOR_MAP
+ * @param {string} field 'motor' | 'homePwm' | 'muted' | 'led' | 'vel' | 'key'
+ * @param {*}      value  nuevo valor
+ */
+export function _mmEdit(i, field, value) {
+    const entry = MOTOR_MAP[i];
+    if (!entry) return;
+    if (entry[field] === value) return;   // sin cambio → no ensuciar el historial
+    historyPush();
+    entry[field] = value;
+    _mmSaveToStorage();
+}
+
 // Exportar configuración como archivo JSON descargable
-function motorMapExport() {
+export function motorMapExport() {
     const json = JSON.stringify(MOTOR_MAP, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -119,7 +163,7 @@ function motorMapExport() {
 }
 
 // Importar configuración desde archivo JSON
-function motorMapImport() {
+export function motorMapImport() {
     const input = document.createElement('input');
     input.type  = 'file';
     input.accept = '.json';
@@ -156,8 +200,8 @@ function motorMapImport() {
 // ── E2 — motorForNote ─────────────────────────────────────────
 // Devuelve la configuración del motor para una nota MIDI dada,
 // o null si esa nota no está mapeada a ningún motor físico.
-function motorForNote(midiNote) {
-    const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+export function motorForNote(midiNote) {
+    const offset = state.transposeOffset || 0;
     return MOTOR_MAP.find(m => m.note === midiNote - offset) ?? null;
 }
 
@@ -167,7 +211,7 @@ function motorForNote(midiNote) {
 // Los campos son editables en tiempo real — los cambios se aplican
 // inmediatamente en MOTOR_MAP sin recargar la página.
 
-function motorMapUI() {
+export function motorMapUI() {
     const PANEL_ID = 'motorMapPanel';
     const existing = document.getElementById(PANEL_ID);
     if (existing) { existing.remove(); return; }
@@ -248,13 +292,13 @@ function motorMapUI() {
         const hit  = 80;
         const gap  = 150;
         const cmd  = `e; m ${m.motor}; o ${m.homePwm}; t ${hit}; v 80; t${gap}; v 0; p;`;
-        if (typeof sendCommand === 'function') sendCommand(cmd);
+        sendCommand(cmd);
     });
 }
 
 let _mmSelectedIdx = null;
 
-function _renderMotorMapRows() {
+export function _renderMotorMapRows() {
     const tbody = document.getElementById('motorMapTbody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -282,7 +326,7 @@ function _renderMotorMapRows() {
             <td style="padding:3px 6px;text-align:center;">
                 <input type="checkbox" ${m.muted ? 'checked' : ''}
                     title="Silenciar este motor y nota"
-                    onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapRows();_renderMotorMapPanelRows();"
+                    onchange="_mmEdit(${i}, 'muted', this.checked);_renderMotorMapRows();_renderMotorMapPanelRows();"
                     onclick="event.stopPropagation();">
             </td>
             <td style="padding:3px 6px;text-align:center;">
@@ -305,8 +349,7 @@ function _editCell(idx, field, value, min, max) {
     return `<input type="number" value="${value}" min="${min}" max="${max}"
                 style="width:56px;background:#0e0e1e;color:#eee;border:1px solid #3a3a5a;
                        border-radius:3px;padding:1px 4px;font-size:11px;"
-                onchange="MOTOR_MAP[${idx}].${field}=parseInt(this.value);
-                          _mmSaveToStorage();
+                onchange="_mmEdit(${idx}, '${field}', parseInt(this.value));
                           document.getElementById('motorMapTbody') && _renderMotorMapRows();
                           _renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();">`;
@@ -318,9 +361,8 @@ function _editCell(idx, field, value, min, max) {
 
 let _mmPanelSelectedIdx = null;
 
-function toggleMotorMapPanel() {
-    if (typeof toggleMotorEscalaPanel === 'function')
-        toggleMotorEscalaPanel();
+export function toggleMotorMapPanel() {
+    toggleMotorEscalaPanel();
 }
 
 // ── Colores arcoíris por octava ───────────────────────────────
@@ -333,7 +375,7 @@ const _MM_OCT_COLORS = {
     6: { bg: '#0e051a', border: '#4a1a8b', text: '#bb66ff', stripe: '#3a0a6a' },
 };
 
-function _mmOctaveColor(midiNote) {
+export function _mmOctaveColor(midiNote) {
     const oct = Math.max(1, Math.min(6, Math.floor(midiNote / 12) - 1));
     return _MM_OCT_COLORS[oct] || _MM_OCT_COLORS[4];
 }
@@ -481,7 +523,7 @@ function _renderMiniKeyboard() {
 }
 
 // ── Render de filas con color por octava ─────────────────────
-function _renderMotorMapPanelRows() {
+export function _renderMotorMapPanelRows() {
     const tbody = document.getElementById('motorMapPanelTbody');
     if (!tbody) return;
 
@@ -525,16 +567,16 @@ function _renderMotorMapPanelRows() {
             <td style="font-weight:bold;color:${col.text};">${m.name}</td>
             <td><input class="mm-input" type="number" value="${m.motor}" min="0" max="127"
                 title="Motor ESP32"
-                onchange="MOTOR_MAP[${i}].motor=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
+                onchange="_mmEdit(${i}, 'motor', parseInt(this.value));_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
             <td><input class="mm-input" type="number" value="${m.homePwm}" min="150" max="600"
-                onchange="MOTOR_MAP[${i}].homePwm=parseInt(this.value);_mmSaveToStorage();_renderMotorMapPanelRows();"
+                onchange="_mmEdit(${i}, 'homePwm', parseInt(this.value));_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
             <td style="color:${col.border};font-size:10px;">PCA${pca}/ch${ch}</td>
             <td style="text-align:center;">
                 <input type="checkbox" ${m.muted ? 'checked' : ''}
                     title="Silenciar este motor y nota"
-                    onchange="MOTOR_MAP[${i}].muted=this.checked;_mmSaveToStorage();_renderMotorMapPanelRows();_renderMotorMapRows();"
+                    onchange="_mmEdit(${i}, 'muted', this.checked);_renderMotorMapPanelRows();_renderMotorMapRows();"
                     onclick="event.stopPropagation();">
             </td>
             <td style="text-align:center;" id="mm-key-cell-${i}">
@@ -559,7 +601,7 @@ function _mmFireNote(canvas, note) {
     canvas._lastPlayedNote = note;
 
     // 1. Sonido MIDI virtual
-    if (typeof MIDI !== 'undefined' && MIDI.noteOn) {
+    if (MIDI.noteOn) {
         MIDI.noteOff(0, note, 0);   // cortar nota anterior si sigue sonando
         MIDI.noteOn(0, note, 90, 0);
         setTimeout(() => MIDI.noteOff(0, note, 0), 250);
@@ -567,7 +609,7 @@ function _mmFireNote(canvas, note) {
 
     // 2. Motor ESP32 (solo si tiene motor asignado)
     const entry = MOTOR_MAP.find(m => m.note === note);
-    if (entry && typeof sendCommand === 'function') {
+    if (entry) {
         const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v 80; t150; v 0; p;`;
         sendCommand(cmd);
     }
@@ -641,14 +683,14 @@ function _mmHighlightKey(note, on) {
     }
 }
 
-function _mmPanelTest() {
+export function _mmPanelTest() {
     if (_mmPanelSelectedIdx === null) {
         alert('Selecciona una fila de la tabla primero.');
         return;
     }
     const m   = MOTOR_MAP[_mmPanelSelectedIdx];
     const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v 80; t150; v 0; p;`;
-    if (typeof sendCommand === 'function') sendCommand(cmd);
+    sendCommand(cmd);
 }
 
 // ============================================================
@@ -668,7 +710,7 @@ const _mmKeyDownTime = new Map();
 const _mmNoteOffTimers = new Map();
 
 // Reconstruye el mapa letra→motor desde MOTOR_MAP
-function _mmRebuildKeyMap() {
+export function _mmRebuildKeyMap() {
     _mmKeyMap.clear();
     MOTOR_MAP.forEach((m, i) => {
         if (m.key && m.key.length === 1) _mmKeyMap.set(m.key.toLowerCase(), i);
@@ -676,7 +718,7 @@ function _mmRebuildKeyMap() {
 }
 
 // Lee midiImportMaxVel (1-127) y lo convierte a escala ESP32 (1-100)
-function _mmGetVel() {
+export function _mmGetVel() {
     const raw = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
     return Math.round(Math.max(1, Math.min(127, raw)) * 100 / 127);
 }
@@ -684,19 +726,17 @@ function _mmGetVel() {
 // Envía NoteOn: establece home, luego N motor vel
 function _mmNoteOn(entry) {
     if (entry.muted) return;
-    if (typeof sendCommand !== 'function') return;
     const vel = _mmGetVel();
     sendCommand(`m ${entry.motor}; o ${entry.homePwm}; N ${entry.motor} ${vel};`);
 }
 
 // Envía NoteOff: devuelve el motor a home
 function _mmNoteOff(entry) {
-    if (typeof sendCommand !== 'function') return;
     sendCommand(`F ${entry.motor};`);
 }
 
 // Libera todos los motores activos — llamado al perder foco o cerrar panel
-function _mmReleaseAllNotes() {
+export function _mmReleaseAllNotes() {
     // Cancelar NoteOffs retrasados y disparar inmediatamente
     _mmNoteOffTimers.forEach((t, k) => {
         clearTimeout(t);
@@ -715,7 +755,7 @@ function _mmReleaseAllNotes() {
 }
 
 // Inicia el modo escucha en una celda: la próxima tecla pulsada se asigna al motor i
-function _mmListenForKey(i, cellEl) {
+export function _mmListenForKey(i, cellEl) {
     cellEl.textContent = '…';
     cellEl.style.background = '#2a2a5a';
     cellEl.style.outline    = '2px solid #4488ff';
@@ -727,12 +767,18 @@ function _mmListenForKey(i, cellEl) {
 
         if (e.key === 'Escape') {
             // Borrar asignación
-            MOTOR_MAP[i].key = '';
+            if (MOTOR_MAP[i].key !== '') {
+                historyPush();
+                MOTOR_MAP[i].key = '';
+            }
         } else if (e.key.length === 1) {
             const k = e.key.toLowerCase();
-            // Quitar la misma letra de cualquier motor que la tuviera
-            MOTOR_MAP.forEach(m => { if (m.key === k) m.key = ''; });
-            MOTOR_MAP[i].key = k;
+            if (MOTOR_MAP[i].key !== k) {
+                historyPush();
+                // Quitar la misma letra de cualquier motor que la tuviera
+                MOTOR_MAP.forEach(m => { if (m.key === k) m.key = ''; });
+                MOTOR_MAP[i].key = k;
+            }
         }
         _mmSaveToStorage();
         _mmRebuildKeyMap();
@@ -747,7 +793,7 @@ function _mmListenForKey(i, cellEl) {
 (function _mmInitKeyListeners() {
     document.addEventListener('keydown', (e) => {
         // Solo activo con panel motor visible
-        if (typeof _meOpen === 'undefined' || !_meOpen) return;
+        if (!state.motorEscalaPanelOpen) return;
         // Ignorar si el foco está en un campo editable
         const tag = document.activeElement?.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -793,8 +839,7 @@ function _mmListenForKey(i, cellEl) {
 
         // Garantizar duración mínima de golpe (HIT_MS + RETRACT_MS) aunque la
         // tecla se suelte antes — el servo necesita el ciclo completo para moverse.
-        const minMs   = ((typeof HIT_MS !== 'undefined' ? HIT_MS : 80) +
-                         (typeof RETRACT_MS !== 'undefined' ? RETRACT_MS : 150));
+        const minMs   = HIT_MS + RETRACT_MS;
         const elapsed = performance.now() - (_mmKeyDownTime.get(k) || 0);
         const delay   = Math.max(0, minMs - elapsed);
 

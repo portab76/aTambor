@@ -6,7 +6,11 @@
 //   toggleTransposePanel()  — muestra/oculta el panel desplegable
 // ============================================================
 
-(function () {
+import { state } from './state.js';
+import { MOTOR_MAP } from './motor-map.js';
+import { buildLedMappingCmd } from './esp32-sequencer.js';
+import { sendCommand } from './ws-connector.js';
+import { toggleMotorEscalaPanel } from './motor-escala-panel.js';
 
 // ── Constantes ────────────────────────────────────────────────
 const NOTE_NAMES  = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -132,7 +136,7 @@ function _rangeLabel(offset) {
 }
 
 // ── Rango dinámico del slider ─────────────────────────────────
-function _sliderRange() {
+export function _sliderRange() {
     if (!MOTOR_MAP || MOTOR_MAP.length === 0) return { min: -24, max: 24 };
     const notes = MOTOR_MAP.map(m => m.note);
     return {
@@ -145,10 +149,8 @@ function _sliderRange() {
 // Solo actualiza el mapping LED en el firmware (sin movimientos).
 // Los motores se transpondrán en el próximo Play.
 function _applyTranspose(newOffset) {
-    transposeOffset = newOffset;
-    const connected = (typeof wsConnected   !== 'undefined' && wsConnected)  ||
-                      (typeof _serialActive !== 'undefined' && _serialActive);
-    if (connected && typeof buildLedMappingCmd === 'function') {
+    state.transposeOffset = newOffset;
+    if ((state.wsConnected || state._serialActive) && MOTOR_MAP.length) {
         const ledCmd = buildLedMappingCmd(MOTOR_MAP);
         if (ledCmd) sendCommand('APPEND\n' + ledCmd);
     }
@@ -166,25 +168,25 @@ function _tpRefreshUI(offset) {
     if (slider) slider.value = offset;
 }
 
-// ── Handlers globales ─────────────────────────────────────────
-window._tpSlider = function (val) {
+// ── Handlers (exportados + en window para los onclick del HTML) ─
+export function _tpSlider(val) {
     const offset = parseInt(val, 10);
     _applyTranspose(offset);
     _tpRefreshUI(offset);
-};
+}
 
-window._tpShift = function (delta, absolute) {
-    const current = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+export function _tpShift(delta, absolute) {
+    const current = state.transposeOffset || 0;
     const { min, max } = _sliderRange();
     const offset = absolute ? delta : Math.max(min, Math.min(max, current + delta));
     _applyTranspose(offset);
     _tpRefreshUI(offset);
-};
+}
+
+window._tpSlider = _tpSlider;
+window._tpShift  = _tpShift;
 
 // ── API pública ───────────────────────────────────────────────
-window.toggleTransposePanel = function () {
-    if (typeof toggleMotorEscalaPanel === 'function')
-        toggleMotorEscalaPanel('escala');
-};
-
-})();
+export function toggleTransposePanel() {
+    toggleMotorEscalaPanel('escala');
+}

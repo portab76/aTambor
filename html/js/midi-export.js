@@ -5,6 +5,9 @@
 // Depende de: state.js
 // ============================================================
 
+import { state } from './state.js';
+import { statusSpan } from './dom-refs.js';
+
 // ── Codificación de enteros MIDI ──────────────────────────────
 
 /** Entero de 4 bytes big-endian (para headers). */
@@ -48,13 +51,11 @@ function _makeMTrk(eventBytes) {
  * Un evento de tempo cada vez que cambia en tempoPoints.
  */
 function _buildTempoTrack() {
-    const ticksPerStep = ppqn / 4;   // ppqn pulses = 1 negra = 4 semicorcheas
+    const ticksPerStep = state.ppqn / 4;   // ppqn pulses = 1 negra = 4 semicorcheas
     const events = [];
 
     // Time signature (asume currentTimeSig)
-    const ts = (typeof currentTimeSig !== 'undefined')
-        ? currentTimeSig
-        : { numerator: 4, denominator: 4 };
+    const ts = state.currentTimeSig || { numerator: 4, denominator: 4 };
     const denomPow = Math.round(Math.log2(ts.denominator));   // 4 → 2, 8 → 3
 
     events.push(
@@ -67,8 +68,8 @@ function _buildTempoTrack() {
     );
 
     // Tempo points → μs per quarter note
-    const points = (typeof tempoPoints !== 'undefined' && tempoPoints.length)
-        ? tempoPoints
+    const points = (state.tempoPoints && state.tempoPoints.length)
+        ? state.tempoPoints
         : [{ step: 0, bpm: 120 }];
 
     let lastTick = 0;
@@ -98,12 +99,12 @@ function _buildTempoTrack() {
  * Cada celda de gridData.cells genera un noteOn + noteOff.
  */
 function _buildNoteTrack() {
-    const ticksPerStep = ppqn / 4;
-    const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+    const ticksPerStep = state.ppqn / 4;
+    const offset = state.transposeOffset || 0;
 
     // Recopilar todos los eventos (noteOn + noteOff) con tick absoluto
     const evts = [];
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const note     = Math.min(127, Math.max(0, parseInt(noteStr) + offset));
         const step     = parseInt(stepStr);
@@ -135,18 +136,15 @@ function _buildNoteTrack() {
     return _makeMTrk(bytes);
 }
 
-// ── Punto de entrada público ──────────────────────────────────
+// ── Construcción del archivo .mid (puro, testeable) ───────────
 
 /**
- * Genera y descarga un archivo .mid desde el estado actual del grid.
- * Llama a esta función desde un botón de la toolbar.
+ * Serializa el estado actual del grid a un archivo MIDI estándar (binario).
+ * MIDI Tipo 1: track 0 = tempo + compás, track 1 = notas. PPQN = state.ppqn.
+ * No toca el DOM — devuelve los bytes para descargar o testear.
+ * @returns {Uint8Array}
  */
-function exportMIDI() {
-    if (!gridData || Object.keys(gridData.cells).length === 0) {
-        alert('No hay notas en el grid para exportar.');
-        return;
-    }
-
+export function buildMidiBytes() {
     const tempoTrack = _buildTempoTrack();
     const noteTrack  = _buildNoteTrack();
 
@@ -156,22 +154,36 @@ function exportMIDI() {
         ..._int32(6),              // longitud siempre 6
         ..._int16(1),              // formato 1 (multitracks)
         ..._int16(2),              // número de tracks
-        ..._int16(ppqn)            // resolución temporal
+        ..._int16(state.ppqn)      // resolución temporal
     ];
 
-    const midiBytes = new Uint8Array([...header, ...tempoTrack, ...noteTrack]);
+    return new Uint8Array([...header, ...tempoTrack, ...noteTrack]);
+}
+
+// ── Punto de entrada público ──────────────────────────────────
+
+/**
+ * Genera y descarga un archivo .mid desde el estado actual del grid.
+ * Llama a esta función desde un botón de la toolbar.
+ */
+export function exportMIDI() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        alert('No hay notas en el grid para exportar.');
+        return;
+    }
+
+    const midiBytes = buildMidiBytes();
     const blob      = new Blob([midiBytes], { type: 'audio/midi' });
     const url       = URL.createObjectURL(blob);
 
     const a    = document.createElement('a');
     a.href     = url;
-    const base = (typeof currentMidiFileName !== 'undefined' && currentMidiFileName)
-        ? currentMidiFileName.replace(/\.mid[i]?$/i, '')
+    const base = (state.currentMidiFileName)
+        ? state.currentMidiFileName.replace(/\.mid[i]?$/i, '')
         : 'composicion';
     a.download = `${base}_export.mid`;
     a.click();
     URL.revokeObjectURL(url);
 
-    if (typeof statusSpan !== 'undefined')
-        statusSpan.innerText = `MIDI exportado: ${a.download}`;
+    statusSpan.innerText = `MIDI exportado: ${a.download}`;
 }

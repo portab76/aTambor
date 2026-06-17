@@ -1,15 +1,70 @@
 // ============================================================
 // piano-roll.js — Construcción del grid y renderizado en canvas
-// Depende de: state.js  (canvas y ctx se declaran en main.js)
+// Depende de: state.js, dom-refs.js (canvas/ctx)
 // ============================================================
+
+import { state } from './state.js';
+import { canvas, ctx, statusSpan, playBtn } from './dom-refs.js';
+import { drawVelocityLane } from './velocity-lane.js';
+import { drawMinimap } from './minimap.js';
+import { drawTimelineRuler } from './timeline-ruler.js';
+import { drawChordRow } from './chord-row.js';
+import { motorForNote } from './motor-map.js';
+import { sendCommand } from './ws-connector.js';
+import { historyClear } from './history.js';
+import { tabMarkFileLoaded } from './tabs.js';
+import { getSelCells, getSelDrag } from './editor.js';
+import { gridScroll } from './dom-refs.js';
+
+// ── Virtualización vertical ───────────────────────────────────
+// El canvas tiene la altura completa (noteRows.length * rowHeight) y el scroll
+// es nativo (#gridScroll). Solo necesitamos *dibujar* las filas visibles, no
+// recorrer las 88 notas en cada repintado. Las coordenadas Y siguen siendo
+// absolutas (rowIndex * rowHeight); virtualizar solo acota qué filas se pintan.
+const ROW_OVERSCAN = 2;   // filas extra arriba/abajo para evitar bordes vacíos al hacer scroll
+
+/**
+ * Cálculo PURO del rango de filas visibles [first, last] (inclusive, con
+ * overscan). Separado de _visibleRowRange para poder testearlo sin DOM.
+ * @param {number} scrollTop  desplazamiento vertical (px)
+ * @param {number} viewH      altura visible del contenedor (px)
+ * @param {number} rowHeight  altura de fila (px)
+ * @param {number} rowCount   número total de filas
+ * @returns {[number, number]} [first, last]; [0, rowCount-1] si no hay layout
+ */
+export function computeVisibleRowRange(scrollTop, viewH, rowHeight, rowCount) {
+    if (rowCount <= 0) return [0, -1];
+    const rh = rowHeight || 1;
+    // viewH <= 0 → contenedor sin layout (oculto / headless): pintar todo.
+    if (!(viewH > 0)) return [0, rowCount - 1];
+
+    let first = Math.floor(scrollTop / rh) - ROW_OVERSCAN;
+    let last  = Math.ceil((scrollTop + viewH) / rh) + ROW_OVERSCAN;
+    first = Math.max(0, first);
+    last  = Math.min(rowCount - 1, last);
+    return [first, last];
+}
+
+/**
+ * Rango de filas visibles a partir del scroll real del contenedor #gridScroll.
+ * @returns {[number, number]}
+ */
+function _visibleRowRange() {
+    return computeVisibleRowRange(
+        (gridScroll && gridScroll.scrollTop) || 0,
+        (gridScroll && gridScroll.clientHeight) || 0,
+        state.rowHeight || 1,
+        state.noteRows.length
+    );
+}
 
 /**
  * Construye gridData a partir de los eventos noteOn/noteOff del canal seleccionado,
  * redimensiona el canvas y dibuja el piano roll.
  * @param {number} channel - Canal MIDI (0-15)
  */
-function buildGridFromChannel(channel) {
-    const channelEvents = rawEvents
+export function buildGridFromChannel(channel) {
+    const channelEvents = state.rawEvents
         .filter(e => e.channel === channel)
         .sort((a, b) => a.tick - b.tick);
 
@@ -39,24 +94,24 @@ function buildGridFromChannel(channel) {
     }
 
     // Resolución: semicorchea = ppqn / 4
-    ticksPerStep = ppqn / 4;
-    totalSteps   = Math.ceil(totalTicks / ticksPerStep);
+    state.ticksPerStep = state.ppqn / 4;
+    state.totalSteps   = Math.ceil(state.totalTicks / state.ticksPerStep);
 
     // Convertir tempoMap (ticks → pasos) en tempoPoints editables
-    tempoPoints = tempoMap
-        .map(t => ({ step: Math.round(t.tick / ticksPerStep), bpm: Math.round(t.bpm) }))
+    state.tempoPoints = state.tempoMap
+        .map(t => ({ step: Math.round(t.tick / state.ticksPerStep), bpm: Math.round(t.bpm) }))
         .filter((t, i, arr) => i === 0 || t.step !== arr[i - 1].step);
-    if (!tempoPoints.length || tempoPoints[0].step !== 0)
-        tempoPoints.unshift({ step: 0, bpm: tempoPoints[0]?.bpm || 120 });
+    if (!state.tempoPoints.length || state.tempoPoints[0].step !== 0)
+        state.tempoPoints.unshift({ step: 0, bpm: state.tempoPoints[0]?.bpm || 120 });
     const _bpmEl = document.getElementById('bpmInput');
-    if (_bpmEl) _bpmEl.value = Math.round(tempoPoints[0].bpm);
+    if (_bpmEl) _bpmEl.value = Math.round(state.tempoPoints[0].bpm);
 
     // Límite de seguridad del canvas (~32.767px max en la mayoría de navegadores).
     // Si la canción es muy larga, reducimos stepWidth automáticamente.
     const MAX_CANVAS_W = 16000; // margen conservador
-    if (totalSteps * stepWidth > MAX_CANVAS_W) {
-        stepWidth = Math.max(2, Math.floor(MAX_CANVAS_W / totalSteps));
-        console.warn(`[piano-roll] Canvas demasiado ancho. stepWidth reducido a ${stepWidth}px (${totalSteps} pasos)`);
+    if (state.totalSteps * state.stepWidth > MAX_CANVAS_W) {
+        state.stepWidth = Math.max(2, Math.floor(MAX_CANVAS_W / state.totalSteps));
+        console.warn(`[piano-roll] Canvas demasiado ancho. stepWidth reducido a ${state.stepWidth}px (${state.totalSteps} pasos)`);
     }
 
     // Rango de notas visible (con margen de una octava)
@@ -67,24 +122,24 @@ function buildGridFromChannel(channel) {
     }
     minNote  = Math.max(0,   minNote - 12);
     maxNote  = Math.min(127, maxNote + 12);
-    noteRows = [];
-    for (let n = minNote; n <= maxNote; n++) noteRows.push(n);
+    state.noteRows = [];
+    for (let n = minNote; n <= maxNote; n++) state.noteRows.push(n);
 
     // Convertir notas a celdas del grid
-    gridData = { cells: {} };
+    state.gridData = { cells: {} };
     for (const n of notesList) {
-        const startStep = Math.floor(n.tickOn / ticksPerStep);
-        const endStep   = Math.floor((n.tickOff - 1) / ticksPerStep);
+        const startStep = Math.floor(n.tickOn / state.ticksPerStep);
+        const endStep   = Math.floor((n.tickOff - 1) / state.ticksPerStep);
         const duration  = endStep - startStep + 1;
         if (duration <= 0) continue;
         const _minVel = parseInt(document.getElementById('midiImportMinVel')?.value) || 1;
         const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
-        gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel)) };
+        state.gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel)) };
     }
 
     // Redimensionar canvas
-    canvas.width  = totalSteps * stepWidth;
-    canvas.height = noteRows.length * rowHeight;
+    canvas.width  = state.totalSteps * state.stepWidth;
+    canvas.height = state.noteRows.length * state.rowHeight;
     canvas.style.width  = `${canvas.width}px`;
     canvas.style.height = `${canvas.height}px`;
 
@@ -95,10 +150,10 @@ function buildGridFromChannel(channel) {
 /**
  * Dibuja el fondo de cuadrícula y todas las notas del gridData actual.
  */
-function drawPianoRoll() {
+export function drawPianoRoll() {
     if (!ctx) return;
-    canvas.width  = totalSteps * stepWidth;
-    canvas.height = noteRows.length * rowHeight;
+    canvas.width  = state.totalSteps * state.stepWidth;
+    canvas.height = state.noteRows.length * state.rowHeight;
     canvas.style.width  = `${canvas.width}px`;
     canvas.style.height = `${canvas.height}px`;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -109,26 +164,30 @@ function drawPianoRoll() {
     const gridBar = CT.gridBar || '#555555';
     const label   = CT.label   || '#666666';
 
+    // Virtualización: solo pintamos la banda de filas visible (+ overscan).
+    const [firstRow, lastRow] = _visibleRowRange();
+
     // Fondo: notas negras del teclado (sostenidos/bemoles) en gris más oscuro
     const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
-    for (let row = 0; row < noteRows.length; row++) {
-        if (BLACK_KEYS.has(noteRows[row] % 12)) {
+    for (let row = firstRow; row <= lastRow; row++) {
+        if (BLACK_KEYS.has(state.noteRows[row] % 12)) {
             ctx.fillStyle = rowAlt;
-            ctx.fillRect(0, row * rowHeight, canvas.width, rowHeight);
+            ctx.fillRect(0, row * state.rowHeight, canvas.width, state.rowHeight);
         }
     }
 
-    // Cuadrícula
-    for (let step = 0; step <= totalSteps; step++) {
+    // Cuadrícula vertical (columnas: abarcan toda la altura del canvas)
+    for (let step = 0; step <= state.totalSteps; step++) {
         ctx.strokeStyle = (step % 16 === 0) ? gridBar : grid;
         ctx.lineWidth   = (step % 16 === 0) ? 1 : 0.5;
-        const x = step * stepWidth;
+        const x = step * state.stepWidth;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
+    // Cuadrícula horizontal (solo filas visibles)
     ctx.strokeStyle = grid;
     ctx.lineWidth = 0.5;
-    for (let row = 0; row <= noteRows.length; row++) {
-        const y = row * rowHeight;
+    for (let row = firstRow; row <= lastRow + 1; row++) {
+        const y = row * state.rowHeight;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
 
@@ -138,8 +197,8 @@ function drawPianoRoll() {
     // Numeración de compases
     ctx.fillStyle = label;
     ctx.font = "9px monospace";
-    for (let step = 0; step < totalSteps; step += 16) {
-        ctx.fillText(`${step / 16 + 1}`, step * stepWidth + 2, 10);
+    for (let step = 0; step < state.totalSteps; step += 16) {
+        ctx.fillText(`${step / 16 + 1}`, step * state.stepWidth + 2, 10);
     }
 }
 
@@ -147,15 +206,15 @@ function drawPianoRoll() {
  * Dibuja el piano roll y, opcionalmente, un playhead amarillo.
  * @param {number} playheadStep - Paso del playhead, o -1 para no dibujarlo.
  */
-function drawPianoRollWithPlayhead(playheadStep) {
-    if (typeof activeHighlight !== 'undefined' && activeHighlight) {
-        drawPianoRollWithHighlight(activeHighlight.classes, activeHighlight.startStep, activeHighlight.endStep);
+export function drawPianoRollWithPlayhead(playheadStep) {
+    if (state.activeHighlight) {
+        drawPianoRollWithHighlight(state.activeHighlight.classes, state.activeHighlight.startStep, state.activeHighlight.endStep);
     } else {
         drawPianoRoll();
     }
     if (playheadStep >= 0) {
         const phColor = (window.CANVAS_THEME && window.CANVAS_THEME.playhead) || 'rgba(255,230,0,0.9)';
-        const x = playheadStep * stepWidth;
+        const x = playheadStep * state.stepWidth;
         ctx.save();
         ctx.strokeStyle = phColor;
         ctx.lineWidth = 2;
@@ -163,19 +222,19 @@ function drawPianoRollWithPlayhead(playheadStep) {
         ctx.restore();
     }
     _drawSelectionOverlay();
-    if (typeof drawVelocityLane === 'function') drawVelocityLane();
-    if (typeof drawMinimap      === 'function') drawMinimap();
+    drawVelocityLane();
+    drawMinimap();
 }
 
 /**
  * Dibuja el piano roll con highlight de notas Y playhead simultáneamente.
  * Usado durante la reproducción cuando el popup de acorde está visible.
  */
-function drawPianoRollWithHighlightAndPlayhead(chordClasses, hlStartStep, hlEndStep, playheadStep) {
+export function drawPianoRollWithHighlightAndPlayhead(chordClasses, hlStartStep, hlEndStep, playheadStep) {
     drawPianoRollWithHighlight(chordClasses, hlStartStep, hlEndStep);
     if (playheadStep >= 0) {
         const phColor = (window.CANVAS_THEME && window.CANVAS_THEME.playhead) || 'rgba(255,230,0,0.9)';
-        const x = playheadStep * stepWidth;
+        const x = playheadStep * state.stepWidth;
         ctx.save();
         ctx.strokeStyle = phColor;
         ctx.lineWidth = 2;
@@ -189,25 +248,26 @@ function drawPianoRollWithHighlightAndPlayhead(chordClasses, hlStartStep, hlEndS
  * Redibuja el piano roll resaltando las notas cuya clase esté en chordClasses.
  * @param {Array<number>} chordClasses - Clases de altura (0-11) a resaltar
  */
-function drawPianoRollWithHighlight(chordClasses, hlStartStep = null, hlEndStep = null) {
+export function drawPianoRollWithHighlight(chordClasses, hlStartStep = null, hlEndStep = null) {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const CT2 = window.CANVAS_THEME || {};
+    const [firstRow, lastRow] = _visibleRowRange();
     const BLACK_KEYS = new Set([1, 3, 6, 8, 10]);
-    for (let row = 0; row < noteRows.length; row++) {
-        if (BLACK_KEYS.has(noteRows[row] % 12)) {
+    for (let row = firstRow; row <= lastRow; row++) {
+        if (BLACK_KEYS.has(state.noteRows[row] % 12)) {
             ctx.fillStyle = CT2.rowAlt || '#1e1e28';
-            ctx.fillRect(0, row * rowHeight, canvas.width, rowHeight);
+            ctx.fillRect(0, row * state.rowHeight, canvas.width, state.rowHeight);
         }
     }
     ctx.strokeStyle = CT2.grid || '#3a3a50'; ctx.lineWidth = 0.5;
-    for (let step = 0; step <= totalSteps; step++) {
-        const x = step * stepWidth;
+    for (let step = 0; step <= state.totalSteps; step++) {
+        const x = step * state.stepWidth;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
     }
-    for (let row = 0; row <= noteRows.length; row++) {
-        const y = row * rowHeight;
+    for (let row = firstRow; row <= lastRow + 1; row++) {
+        const y = row * state.rowHeight;
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
 
@@ -224,20 +284,20 @@ const _BLACK_KEYS_S = new Set([1, 3, 6, 8, 10]);
  * Dibuja la columna fija de etiquetas de notas (noteLabelsCanvas).
  * Se sincroniza verticalmente con el canvas principal vía JS en main.js.
  */
-function drawNoteLabels() {
+export function drawNoteLabels() {
     const labelsCanvas = document.getElementById('noteLabelsCanvas');
-    if (!labelsCanvas || noteRows.length === 0) return;
+    if (!labelsCanvas || state.noteRows.length === 0) return;
 
-    const h = noteRows.length * rowHeight;
+    const h = state.noteRows.length * state.rowHeight;
     labelsCanvas.height       = h;
     labelsCanvas.style.height = `${h}px`;
 
     const lCtx = labelsCanvas.getContext('2d');
     lCtx.clearRect(0, 0, _LABEL_W, h);
 
-    for (let i = 0; i < noteRows.length; i++) {
-        const note    = noteRows[i];
-        const y       = i * rowHeight;
+    for (let i = 0; i < state.noteRows.length; i++) {
+        const note    = state.noteRows[i];
+        const y       = i * state.rowHeight;
         const isBlack = _BLACK_KEYS_S.has(note % 12);
         const isC     = note % 12 === 0;
         const octave  = Math.floor(note / 12) - 1;
@@ -257,11 +317,11 @@ function drawNoteLabels() {
 
         // Fondo de fila
         lCtx.fillStyle = isBlack ? col.bg : `${col.bg}cc`;
-        lCtx.fillRect(0, y, _LABEL_W, rowHeight);
+        lCtx.fillRect(0, y, _LABEL_W, state.rowHeight);
 
         // Franja izquierda coloreada por octava
         lCtx.fillStyle = col.stripe;
-        lCtx.fillRect(0, y + 1, 6, rowHeight - 1);
+        lCtx.fillRect(0, y + 1, 6, state.rowHeight - 1);
 
         // Línea divisoria en cada Do (más visible)
         if (isC) {
@@ -273,30 +333,30 @@ function drawNoteLabels() {
         }
 
         // Texto
-        const fontSize = Math.min(13, rowHeight - 2);
+        const fontSize = Math.min(13, state.rowHeight - 2);
         if (fontSize < 5) continue;
 
-        const showLabel = rowHeight >= 10 || isC;
+        const showLabel = state.rowHeight >= 10 || isC;
         if (!showLabel) continue;
 
-        const motorCfg = (typeof motorForNote === 'function') ? motorForNote(note) : null;
+        const motorCfg = motorForNote(note);
 
         lCtx.textAlign    = "right";
         lCtx.textBaseline = "middle";
 
-        if (motorCfg !== null && rowHeight >= 16) {
+        if (motorCfg !== null && state.rowHeight >= 16) {
             // Nota con motor: nombre arriba, número de motor abajo
             const halfSize = Math.max(7, Math.floor(fontSize * 0.75));
             lCtx.font      = isC ? `bold ${halfSize}px monospace` : `${halfSize}px monospace`;
             lCtx.fillStyle = col.text;
-            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + rowHeight * 0.32);
+            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + state.rowHeight * 0.32);
             lCtx.font      = `bold ${halfSize}px monospace`;
             lCtx.fillStyle = '#ffcc44';
-            lCtx.fillText(`m:${motorCfg.motor}`, _LABEL_W - 4, y + rowHeight * 0.72);
+            lCtx.fillText(`m:${motorCfg.motor}`, _LABEL_W - 4, y + state.rowHeight * 0.72);
         } else {
             lCtx.font      = isC ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`;
             lCtx.fillStyle = col.text;
-            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + rowHeight / 2);
+            lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + state.rowHeight / 2);
         }
     }
 }
@@ -308,7 +368,7 @@ function drawNoteLabels() {
  * - mousedown → toca la nota y resalta la fila
  * - mouseup / mouseleave → suelta la nota
  */
-function initNoteLabelsEvents() {
+export function initNoteLabelsEvents() {
     const labelsCanvas = document.getElementById('noteLabelsCanvas');
     if (!labelsCanvas) return;
 
@@ -317,35 +377,31 @@ function initNoteLabelsEvents() {
     function _noteFromY(clientY) {
         const rect     = labelsCanvas.getBoundingClientRect();
         const mouseY   = (clientY - rect.top) * (labelsCanvas.height / rect.height);
-        const rowIndex = Math.floor(mouseY / rowHeight);
-        if (rowIndex < 0 || rowIndex >= noteRows.length) return null;
-        return { note: noteRows[rowIndex], rowIndex };
+        const rowIndex = Math.floor(mouseY / state.rowHeight);
+        if (rowIndex < 0 || rowIndex >= state.noteRows.length) return null;
+        return { note: state.noteRows[rowIndex], rowIndex };
     }
 
     function _startNote(clientY) {
         const hit = _noteFromY(clientY);
         if (!hit) return;
         _activeNote = hit.note;
-        const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const offset = state.transposeOffset || 0;
         const transposedNote = hit.note + offset;
 
-        if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOn) {
+        if (state.soundfontLoaded && MIDI.noteOn) {
             MIDI.noteOn(0, transposedNote, 90, 0);
         }
 
         // Disparar motor físico — motorForNote ya aplica transposeOffset internamente
-        if (typeof motorForNote === 'function' && typeof sendCommand === 'function') {
-            const entry = motorForNote(hit.note);
-            if (entry && typeof entry.motor === 'number') {
-                const vel = 80;  // velocidad fija para click manual
-                const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${vel}; t 150; v 0; p;`;
-                console.log(`[_startNote] Motor: ${entry.motor}, note: ${hit.note}, transposedNote: ${transposedNote}, cmd: ${cmd}`);
-                sendCommand(cmd);
-            } else {
-                console.warn(`[_startNote] No motor found for transposedNote: ${transposedNote}`);
-            }
+        const entry = motorForNote(hit.note);
+        if (entry && typeof entry.motor === 'number') {
+            const vel = 80;  // velocidad fija para click manual
+            const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${vel}; t 150; v 0; p;`;
+            console.log(`[_startNote] Motor: ${entry.motor}, note: ${hit.note}, transposedNote: ${transposedNote}, cmd: ${cmd}`);
+            sendCommand(cmd);
         } else {
-            console.warn(`[_startNote] sendCommand not available or motorForNote not defined`);
+            console.warn(`[_startNote] No motor found for transposedNote: ${transposedNote}`);
         }
 
         _highlightLabelRow(hit.rowIndex, true);
@@ -353,9 +409,9 @@ function initNoteLabelsEvents() {
 
     function _stopNote() {
         if (_activeNote === null) return;
-        const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+        const offset = state.transposeOffset || 0;
         const transposedNote = _activeNote + offset;
-        if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOff) {
+        if (state.soundfontLoaded && MIDI.noteOff) {
             MIDI.noteOff(0, transposedNote, 0);
         }
         _highlightLabelRow(null, false);
@@ -390,7 +446,7 @@ function _highlightLabelRow(rowIndex, on) {
     if (on && rowIndex !== null) {
         lCtx.save();
         lCtx.fillStyle = 'rgba(255,220,80,0.25)';
-        lCtx.fillRect(0, rowIndex * rowHeight, _LABEL_W, rowHeight);
+        lCtx.fillRect(0, rowIndex * state.rowHeight, _LABEL_W, state.rowHeight);
         lCtx.restore();
     } else {
         // Redibujar solo para limpiar el overlay
@@ -400,7 +456,7 @@ function _highlightLabelRow(rowIndex, on) {
 
 // ============================================================
 // ── toggleNewGridPanel — abre/cierra el panel de selección ───
-function toggleNewGridPanel() {
+export function toggleNewGridPanel() {
     const panel = document.getElementById('newGridPanel');
     const btn   = document.getElementById('newGridBtn');
     if (!panel) return;
@@ -410,7 +466,7 @@ function toggleNewGridPanel() {
 }
 
 // ── _doLoadBlankGrid — crea el grid con el nº de compases elegido ──
-function _doLoadBlankGrid(measures) {
+export function _doLoadBlankGrid(measures) {
     // Cerrar el panel
     const panel = document.getElementById('newGridPanel');
     if (panel) panel.style.display = 'none';
@@ -428,36 +484,36 @@ function _doLoadBlankGrid(measures) {
     const bpmInput = document.getElementById('newGridBpm');
     const bpm = bpmInput ? Math.max(20, Math.min(400, parseInt(bpmInput.value) || 120)) : 120;
 
-    const spm = currentTimeSig.stepsPerMeasure;  // 16 en 4/4
+    const spm = state.currentTimeSig.stepsPerMeasure;  // 16 en 4/4
 
     // Resetear estado
-    gridData          = { cells: {} };
-    noteRows          = motorNotes;
-    ppqn              = 96;
-    ticksPerStep      = ppqn / 4;
-    totalSteps        = measures * spm;
-    stepWidth         = 8;
-    midiData          = null;
-    rawEvents         = [];
-    tempoMap          = [{ tick: 0, bpm }];
-    pasoActual        = 0;
+    state.gridData          = { cells: {} };
+    state.noteRows          = motorNotes;
+    state.ppqn              = 96;
+    state.ticksPerStep      = state.ppqn / 4;
+    state.totalSteps        = measures * spm;
+    state.stepWidth         = 8;
+    state.midiData          = null;
+    state.rawEvents         = [];
+    state.tempoMap          = [{ tick: 0, bpm }];
+    state.pasoActual        = 0;
 
     // Sincronizar BPM con el input de la toolbar
     const toolbarBpm = document.getElementById('bpmInput');
     if (toolbarBpm) toolbarBpm.value = bpm;
 
     // Limpiar análisis armónico, frases, respiración y nombre MIDI
-    currentHarmonicSegments = [];
-    currentFusedSegments    = [];
-    currentPhraseSegments   = [];
-    breathingSegments       = [];
-    currentKey              = 'C';
-    currentMidiFileName     = '';
+    state.currentHarmonicSegments = [];
+    state.currentFusedSegments    = [];
+    state.currentPhraseSegments   = [];
+    state.breathingSegments       = [];
+    state.currentKey              = 'C';
+    state.currentMidiFileName     = '';
     const chordRow = document.getElementById('chordRowContainer');
     if (chordRow) chordRow.innerHTML = '';
 
-    tempoPoints = [{ step: 0, bpm }];
-    if (typeof historyClear === 'function') historyClear();
+    state.tempoPoints = [{ step: 0, bpm }];
+    historyClear();
 
     // Redimensionar canvas y redibujar (resetea zoom label al default 40/25)
     applyZoom(40, 25);
@@ -470,12 +526,11 @@ function _doLoadBlankGrid(measures) {
     statusSpan.innerText = `Grid vacío · ${motorNotes.length} notas · ${measures} compás${measures > 1 ? 'es' : ''} · ${bpm} BPM`;
 
     // Actualizar nombre del tab
-    if (typeof tabMarkFileLoaded === 'function')
-        tabMarkFileLoaded(`Sin título · ${measures} comp.`);
+    tabMarkFileLoaded(`Sin título · ${measures} comp.`);
 }
 
 // Alias de compatibilidad por si algo lo llama directamente
-function loadBlankGrid() { toggleNewGridPanel(); }
+export function loadBlankGrid() { toggleNewGridPanel(); }
 
 // ── Zoom ─────────────────────────────────────────────────────
 /**
@@ -483,44 +538,44 @@ function loadBlankGrid() { toggleNewGridPanel(); }
  * Redibujar todos los layers y restaura el scroll para que el punto
  * central visible no salte.
  */
-function applyZoom(newStepWidth, newRowHeight) {
-    if (!totalSteps || !noteRows.length) return;
+export function applyZoom(newStepWidth, newRowHeight) {
+    if (!state.totalSteps || !state.noteRows.length) return;
 
     const container = document.getElementById('gridScroll');
     // Guardar el paso que está en el centro del viewport para restaurarlo
     const centerStep = container
-        ? (container.scrollLeft + container.clientWidth / 2) / stepWidth
+        ? (container.scrollLeft + container.clientWidth / 2) / state.stepWidth
         : 0;
 
-    stepWidth = Math.max(8,  Math.min(80, Math.round(newStepWidth)));
-    rowHeight = Math.max(10, Math.min(50, Math.round(newRowHeight)));
+    state.stepWidth = Math.max(8,  Math.min(80, Math.round(newStepWidth)));
+    state.rowHeight = Math.max(10, Math.min(50, Math.round(newRowHeight)));
 
     // Redibujar todos los layers (drawPianoRoll ya redimensiona el canvas)
-    drawPianoRollWithPlayhead(typeof pasoActual !== 'undefined' ? pasoActual : -1);
+    drawPianoRollWithPlayhead(state.pasoActual);
     drawNoteLabels();
     drawTimelineRuler();
 
     // Redibujar chord row si hay análisis armónico
-    if (currentHarmonicSegments && currentHarmonicSegments.length) {
+    if (state.currentHarmonicSegments && state.currentHarmonicSegments.length) {
         const key = {
-            tonic: currentKey.replace('m', ''),
-            mode:  currentKey.endsWith('m') ? 'minor' : 'major',
+            tonic: state.currentKey.replace('m', ''),
+            mode:  state.currentKey.endsWith('m') ? 'minor' : 'major',
             rootClass: 0
         };
-        drawChordRow(currentHarmonicSegments, key);
+        drawChordRow(state.currentHarmonicSegments, key);
     }
 
     // Restaurar scroll centrado en el mismo paso
     if (container) {
-        container.scrollLeft = Math.max(0, centerStep * stepWidth - container.clientWidth / 2);
+        container.scrollLeft = Math.max(0, centerStep * state.stepWidth - container.clientWidth / 2);
     }
 
     // Actualizar indicador visual en toolbar
     const lbl = document.getElementById('zoomLabel');
-    if (lbl) lbl.textContent = stepWidth;
+    if (lbl) lbl.textContent = state.stepWidth;
 }
 
-function zoom(dir) { applyZoom(stepWidth + dir * 8, rowHeight + dir * 5); }
+export function zoom(dir) { applyZoom(state.stepWidth + dir * 8, state.rowHeight + dir * 5); }
 
 // ── addMeasures / removeMeasures ─────────────────────────────
 function _phraseMeasures() {
@@ -528,53 +583,53 @@ function _phraseMeasures() {
     return sel ? parseInt(sel.value) : 4;
 }
 
-function _enableMeasureButtons() {
+export function _enableMeasureButtons() {
     const a = document.getElementById('addMeasuresBtn');
     const r = document.getElementById('removeMeasuresBtn');
     if (a) a.disabled = false;
     if (r) r.disabled = false;
 }
 
-function addMeasures(n) {
-    if (!totalSteps) return;
+export function addMeasures(n) {
+    if (!state.totalSteps) return;
     const m = n || _phraseMeasures();
-    totalSteps += m * currentTimeSig.stepsPerMeasure;
-    canvas.width       = totalSteps * stepWidth;
+    state.totalSteps += m * state.currentTimeSig.stepsPerMeasure;
+    canvas.width       = state.totalSteps * state.stepWidth;
     canvas.style.width = `${canvas.width}px`;
     drawPianoRoll();
     drawTimelineRuler();
-    statusSpan.innerText = `${Math.round(totalSteps / currentTimeSig.stepsPerMeasure)} compases`;
+    statusSpan.innerText = `${Math.round(state.totalSteps / state.currentTimeSig.stepsPerMeasure)} compases`;
 }
 
-function removeMeasures(n) {
-    if (!totalSteps) return;
+export function removeMeasures(n) {
+    if (!state.totalSteps) return;
     const m       = n || _phraseMeasures();
-    const spm     = currentTimeSig.stepsPerMeasure;
-    const cutStep = totalSteps - m * spm;
+    const spm     = state.currentTimeSig.stepsPerMeasure;
+    const cutStep = state.totalSteps - m * spm;
     if (cutStep < spm) { statusSpan.innerText = 'Mínimo 1 compás'; return; }
 
     // Avisar si hay notas en los compases a eliminar
-    const hasNotes = Object.keys(gridData.cells).some(k => parseInt(k.split(',')[1]) >= cutStep);
+    const hasNotes = Object.keys(state.gridData.cells).some(k => parseInt(k.split(',')[1]) >= cutStep);
     if (hasNotes && !confirm(`¿Eliminar los últimos ${m} compás${m > 1 ? 'es' : ''} con sus notas?`)) return;
 
     // Borrar celdas fuera del nuevo rango
-    for (const key of Object.keys(gridData.cells)) {
-        if (parseInt(key.split(',')[1]) >= cutStep) delete gridData.cells[key];
+    for (const key of Object.keys(state.gridData.cells)) {
+        if (parseInt(key.split(',')[1]) >= cutStep) delete state.gridData.cells[key];
     }
 
-    totalSteps = cutStep;
-    if (pasoActual >= totalSteps) pasoActual = totalSteps - 1;
+    state.totalSteps = cutStep;
+    if (state.pasoActual >= state.totalSteps) state.pasoActual = state.totalSteps - 1;
 
-    canvas.width       = totalSteps * stepWidth;
+    canvas.width       = state.totalSteps * state.stepWidth;
     canvas.style.width = `${canvas.width}px`;
     drawPianoRoll();
     drawTimelineRuler();
-    statusSpan.innerText = `${Math.round(totalSteps / spm)} compases`;
+    statusSpan.innerText = `${Math.round(state.totalSteps / spm)} compases`;
 }
 
 // --- Función interna de dibujo de notas ---
 // Colores RGB base por octava — idénticos al panel de etiquetas de notas
-const _OCT_RGB = {
+export const _OCT_RGB = {
     1: [255, 102, 102],   // rojo    (Do1 - graves)
     2: [255, 153,  68],   // naranja (Do2)
     3: [221, 221,  68],   // amarillo(Do3)
@@ -631,17 +686,21 @@ function _drawHeatSymbol(ctx, x, y, w, h, heat) {
 }
 
 function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    const selCells = getSelCells();
+    const [firstRow, lastRow] = _visibleRowRange();
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const note     = parseInt(noteStr);
         const step     = parseInt(stepStr);
-        const rowIndex = noteRows.indexOf(note);
+        const rowIndex = state.noteRows.indexOf(note);
         if (rowIndex === -1) continue;
+        // Virtualización: omitir notas fuera de la banda de filas visible
+        if (rowIndex < firstRow || rowIndex > lastRow) continue;
 
-        const y = rowIndex * rowHeight;
-        const x = step * stepWidth;
-        const w = cell.duration * stepWidth;
-        const h = rowHeight;
+        const y = rowIndex * state.rowHeight;
+        const x = step * state.stepWidth;
+        const w = cell.duration * state.stepWidth;
+        const h = state.rowHeight;
 
         // Color base de la octava
         const oct          = Math.max(1, Math.min(6, Math.floor(note / 12) - 1));
@@ -661,9 +720,9 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
             ctx.fillStyle   = `rgb(${hr},${hg},${hb})`;
             ctx.strokeStyle = 'gold';
             ctx.lineWidth   = 2;
-        } else if (heatMapActive && heatMapData) {
+        } else if (state.heatMapActive && state.heatMapData) {
             // Modo heat map: interpolar frío-caliente según score de dominancia
-            const heat       = heatMapData.get(key) ?? 0.5;
+            const heat       = state.heatMapData.get(key) ?? 0.5;
             const [fr, fg, fb] = _heatColor(heat, or, og, ob, bright);
             ctx.fillStyle    = `rgb(${fr},${fg},${fb})`;
             // Borde más grueso y coloreado para notas muy calientes
@@ -680,20 +739,17 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
         }
 
         // Motor muteado: sobreescribir color con gris semitransparente + raya diagonal
-        if (typeof motorForNote === 'function') {
-            const _motor = motorForNote(note);
-            if (_motor?.muted) {
-                ctx.fillStyle   = 'rgba(55,55,55,0.55)';
-                ctx.strokeStyle = 'rgba(130,130,130,0.6)';
-                ctx.lineWidth   = 0.5;
-            }
+        if (motorForNote(note)?.muted) {
+            ctx.fillStyle   = 'rgba(55,55,55,0.55)';
+            ctx.strokeStyle = 'rgba(130,130,130,0.6)';
+            ctx.lineWidth   = 0.5;
         }
 
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
 
         // Raya diagonal sobre nota muteada
-        if (typeof motorForNote === 'function' && motorForNote(note)?.muted) {
+        if (motorForNote(note)?.muted) {
             ctx.save();
             ctx.strokeStyle = 'rgba(200,60,60,0.55)';
             ctx.lineWidth   = 1;
@@ -705,7 +761,7 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
         }
 
         // Resaltar nota seleccionada (selección rectangular)
-        if (typeof _selCells !== 'undefined' && _selCells.has(key)) {
+        if (selCells.has(key)) {
             ctx.save();
             ctx.fillStyle   = 'rgba(100,180,255,0.25)';
             ctx.strokeStyle = 'rgba(120,200,255,0.95)';
@@ -716,8 +772,8 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
         }
 
         // Dibuja símbolo de calor sobre notas muy dominantes
-        if (heatMapActive && heatMapData && w >= 8) {
-            const heat = heatMapData.get(key) ?? 0;
+        if (state.heatMapActive && state.heatMapData && w >= 8) {
+            const heat = state.heatMapData.get(key) ?? 0;
             if (heat > 0.80) _drawHeatSymbol(ctx, x, y, w, h, heat);
         }
     }
@@ -726,20 +782,20 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
 
 // Dibuja el rectángulo semitransparente mientras el usuario arrastra una selección
 function _drawSelectionOverlay() {
-    if (typeof _selDragging === 'undefined' || !_selDragging) return;
-    if (!_selDragStart || !_selDragEnd) return;
-    const s1 = Math.min(_selDragStart.step,     _selDragEnd.step);
-    const s2 = Math.max(_selDragStart.step,     _selDragEnd.step);
-    const r1 = Math.min(_selDragStart.rowIndex, _selDragEnd.rowIndex);
-    const r2 = Math.max(_selDragStart.rowIndex, _selDragEnd.rowIndex);
+    const { dragging, start, end } = getSelDrag();
+    if (!dragging || !start || !end) return;
+    const s1 = Math.min(start.step,     end.step);
+    const s2 = Math.max(start.step,     end.step);
+    const r1 = Math.min(start.rowIndex, end.rowIndex);
+    const r2 = Math.max(start.rowIndex, end.rowIndex);
     ctx.save();
     ctx.fillStyle   = 'rgba(100,180,255,0.15)';
     ctx.strokeStyle = 'rgba(120,200,255,0.85)';
     ctx.lineWidth   = 1.5;
-    ctx.fillRect  (s1 * stepWidth,   r1 * rowHeight,
-                   (s2 - s1 + 1) * stepWidth, (r2 - r1 + 1) * rowHeight);
-    ctx.strokeRect(s1 * stepWidth,   r1 * rowHeight,
-                   (s2 - s1 + 1) * stepWidth, (r2 - r1 + 1) * rowHeight);
+    ctx.fillRect  (s1 * state.stepWidth,   r1 * state.rowHeight,
+                   (s2 - s1 + 1) * state.stepWidth, (r2 - r1 + 1) * state.rowHeight);
+    ctx.strokeRect(s1 * state.stepWidth,   r1 * state.rowHeight,
+                   (s2 - s1 + 1) * state.stepWidth, (r2 - r1 + 1) * state.rowHeight);
     ctx.restore();
 }
 

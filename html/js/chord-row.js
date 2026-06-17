@@ -3,8 +3,16 @@
 // Depende de: state.js, harmonic.js, piano-roll.js
 // ============================================================
 
+import { state } from './state.js';
+import { findChord, getChordFunction, detectInversion } from './harmonic.js';
+import { drawPianoRollWithPlayhead, drawPianoRollWithHighlight } from './piano-roll.js';
+import { updateRulerPlayhead, _updateAbBtn, drawTimelineRuler } from './timeline-ruler.js';
+import { play, stop } from './playback.js';
+import { MOTOR_MAP } from './motor-map.js';
+import { sendCommand } from './ws-connector.js';
+
 // Segmentos por lote: equilibrio entre gap de reset y acumulación de drift I2C
-const BATCH_SIZE = 5;
+export const BATCH_SIZE = 5;
 
 
 const _NOTE_NAMES_CR = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -40,7 +48,7 @@ function _chordMeta(seg) {
         const nc  = [...new Set(seg.activeNotes.map(n => n % 12))].sort((a, b) => a - b);
         chord     = findChord(nc, seg.activeNotes[0] || null);
         chordName = chord.name;
-        chordFunc = currentKey ? getChordFunction(chord, currentKey) : '';
+        chordFunc = state.currentKey ? getChordFunction(chord, state.currentKey) : '';
     }
     return { isPhrase, chordName, chordFunc, chord };
 }
@@ -48,7 +56,7 @@ function _chordMeta(seg) {
 // ─────────────────────────────────────────────
 // Toggle del panel de acordes
 // ─────────────────────────────────────────────
-function toggleChordPanel() {
+export function toggleChordPanel() {
     const panel = document.getElementById('chordPanel');
     const btn   = document.getElementById('chordPanelBtn');
     if (!panel) return;
@@ -63,13 +71,13 @@ function toggleChordPanel() {
             document.addEventListener('keydown', _panelKeyHandler);
         }
     } else {
-        autoAdvanceActive = false;
-        activeHighlight   = null;
+        state.autoAdvanceActive = false;
+        state.activeHighlight   = null;
         if (_panelKeyHandler) {
             document.removeEventListener('keydown', _panelKeyHandler);
             _panelKeyHandler = null;
         }
-        drawPianoRollWithPlayhead(typeof reproduciendo !== 'undefined' && reproduciendo ? pasoActual : -1);
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     }
 }
 
@@ -89,8 +97,8 @@ function _highlightChordBlock(segIndex) {
     const startStep = parseInt(block.dataset.start);
     const gs = document.getElementById('gridScroll');
     const cr = document.getElementById('chordRowContainer');
-    if (gs && typeof stepWidth !== 'undefined') {
-        const blockX  = startStep * stepWidth;
+    if (gs && state.stepWidth) {
+        const blockX  = startStep * state.stepWidth;
         const visible = gs.clientWidth;
         const cur     = gs.scrollLeft;
         if (blockX < cur || blockX + block.offsetWidth > cur + visible) {
@@ -132,8 +140,8 @@ function _renderChordPanel(centerIndex) {
     const _currSeg = segs[_chordPanelIndex];
     const _hClasses = [...new Set(_currSeg.activeNotes.map(n => n % 12))];
     if (_hClasses.length) {
-        activeHighlight = { classes: _hClasses, startStep: _currSeg.startStep, endStep: _currSeg.endStep };
-        if ((typeof reproduciendo === 'undefined' || !reproduciendo) && typeof drawPianoRollWithHighlight === 'function') {
+        state.activeHighlight = { classes: _hClasses, startStep: _currSeg.startStep, endStep: _currSeg.endStep };
+        if (!state.reproduciendo) {
             drawPianoRollWithHighlight(_hClasses, _currSeg.startStep, _currSeg.endStep);
         }
     }
@@ -199,19 +207,19 @@ function _renderChordPanel(centerIndex) {
         // Grado romano + función
         const degree  = meta.isPhrase
             ? (seg.degrees ? seg.degrees.join(' – ') : '')
-            : _romanDegree(meta.chord, currentKey);
+            : _romanDegree(meta.chord, state.currentKey);
         const funcStr = meta.chordFunc ? ` — ${meta.chordFunc}` : '';
 
         // Inversión
         const inv = meta.isPhrase ? '—' : (
             seg.inversion ||
             (seg.activeNotes.length && meta.chord?.root !== undefined
-                ? (typeof detectInversion === 'function' ? detectInversion(seg.activeNotes, meta.chord.root) : '') : '')
+                ? detectInversion(seg.activeNotes, meta.chord.root) : '')
             || 'Estado fundamental'
         );
 
         // Tonalidad
-        const key    = (typeof currentKey !== 'undefined') ? currentKey : null;
+        const key    = state.currentKey || null;
         const keyStr = key
             ? (typeof key === 'object'
                 ? key.tonic + ' ' + (key.mode === 'major' ? 'Mayor' : 'Menor')
@@ -227,7 +235,7 @@ function _renderChordPanel(centerIndex) {
 
         // Duración / posición
         const steps    = seg.endStep - seg.startStep;
-        const spm      = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
+        const spm      = state.currentTimeSig ? state.currentTimeSig.stepsPerMeasure : 16;
         const measures = (steps / spm).toFixed(2);
         const posStr   = _stepToMusical(seg.startStep) + ' → ' + _stepToMusical(seg.endStep);
 
@@ -285,12 +293,12 @@ function _renderChordPanel(centerIndex) {
             const classes = [...new Set(s.activeNotes.map(n => n % 12))];
             if (classes.length) {
                 drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
-                activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
+                state.activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
             }
             _highlightChordBlock(idx);
-            if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
-                pasoActual = s.startStep;
-                if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(s.startStep);
+            if (!state.reproduciendo) {
+                state.pasoActual = s.startStep;
+                updateRulerPlayhead(s.startStep);
             }
             _renderChordPanel(idx);
         });
@@ -314,27 +322,26 @@ function _renderChordPanel(centerIndex) {
     if (nextBtn) nextBtn.disabled = (_chordPanelIndex >= segs.length - 1);
     if (autoBtn) {
         autoBtn.disabled = (_chordPanelIndex >= segs.length - 1);
-        autoBtn.classList.toggle('cpop-auto-on',
-            typeof autoAdvanceActive !== 'undefined' && autoAdvanceActive);
+        autoBtn.classList.toggle('cpop-auto-on', state.autoAdvanceActive);
     }
 }
 
 /** Reproduce en loop el segmento actualmente centrado en el panel. */
-function _cpanelPlayLoop() {
+export function _cpanelPlayLoop() {
     const segs = _activeSegments();
     const seg  = segs[_chordPanelIndex];
     if (seg) _playSegmentLoop(seg.startStep, seg.endStep);
 }
 
 /** Navega al acorde anterior sin reproducir. */
-function _cpanelPrevChord() {
+export function _cpanelPrevChord() {
     const segs = _activeSegments();
     const idx  = Math.max(0, _chordPanelIndex - 1);
     _cpanelGoToChord(segs, idx);
 }
 
 /** Navega al acorde siguiente sin reproducir. */
-function _cpanelNextChord() {
+export function _cpanelNextChord() {
     const segs = _activeSegments();
     const idx  = Math.min(segs.length - 1, _chordPanelIndex + 1);
     _cpanelGoToChord(segs, idx);
@@ -347,24 +354,24 @@ function _cpanelGoToChord(segs, idx) {
     const classes = [...new Set(s.activeNotes.map(n => n % 12))];
     if (classes.length) {
         drawPianoRollWithHighlight(classes, s.startStep, s.endStep);
-        activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
+        state.activeHighlight = { classes, startStep: s.startStep, endStep: s.endStep };
     }
     _highlightChordBlock(idx);
-    if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
-        pasoActual = s.startStep;
-        if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(s.startStep);
+    if (!state.reproduciendo) {
+        state.pasoActual = s.startStep;
+        updateRulerPlayhead(s.startStep);
     }
     _renderChordPanel(idx);
 }
 
 /** Actualiza el panel durante la reproducción (llamado desde _tick). */
-function _updateChordPanelFromPlayback() {
+export function _updateChordPanelFromPlayback() {
     const panel = document.getElementById('chordPanel');
     if (!panel || !panel.classList.contains('open')) return;
 
     const segs = _activeSegments();
     const idx  = segs.findIndex(s =>
-        typeof pasoActual !== 'undefined' && pasoActual >= s.startStep && pasoActual < s.endStep
+        state.pasoActual >= s.startStep && state.pasoActual < s.endStep
     );
 
     // Re-renderizar solo si cambió el segmento activo
@@ -375,7 +382,7 @@ function _updateChordPanelFromPlayback() {
         const bar = document.getElementById('chordColProgress');
         if (bar) {
             const seg = segs[idx];
-            const pct = (pasoActual - seg.startStep) / (seg.endStep - seg.startStep) * 100;
+            const pct = (state.pasoActual - seg.startStep) / (seg.endStep - seg.startStep) * 100;
             bar.style.width = Math.min(100, Math.max(0, pct)).toFixed(1) + '%';
         }
     }
@@ -385,7 +392,7 @@ function _updateChordPanelFromPlayback() {
 // Dibujo de la fila de bloques
 // ─────────────────────────────────────────────
 
-function drawChordRow(segments, key) {
+export function drawChordRow(segments, key) {
     const container = document.getElementById('chordRowContainer');
     if (!container) return;
     container.innerHTML = '';
@@ -395,11 +402,11 @@ function drawChordRow(segments, key) {
         return;
     }
 
-    container.style.width = `${totalSteps * stepWidth}px`;
+    container.style.width = `${state.totalSteps * state.stepWidth}px`;
 
     for (let i = 0; i < segments.length; i++) {
         const seg   = segments[i];
-        const width = (seg.endStep - seg.startStep) * stepWidth;
+        const width = (seg.endStep - seg.startStep) * state.stepWidth;
         if (width <= 0) continue;
 
         const isBreath = typeof seg.energy !== 'undefined';
@@ -425,7 +432,7 @@ function drawChordRow(segments, key) {
             const noteClasses = [...new Set(seg.activeNotes.map(n => n % 12))].sort((a,b) => a-b);
             chord     = findChord(noteClasses, seg.activeNotes[0] || null);
             chordName = chord.name;
-            chordFunc = key ? getChordFunction(chord, key) : "";
+            chordFunc = key ? getChordFunction(chord, key) : '';
             bgColor   = _chordFunctionColor(chordFunc);
         }
 
@@ -511,16 +518,16 @@ function _phraseCadenceColor(cadenceType) {
 // Helper: array activo según estado del checkbox
 // ─────────────────────────────────────────────
 
-function _activeSegments() {
+export function _activeSegments() {
     const sel = document.getElementById('viewLevelSelect');
     const val = sel ? sel.value : 'pasos';
-    if (val === 'respiración' && typeof breathingSegments    !== 'undefined' && breathingSegments.length)
-        return breathingSegments;
-    if (val === 'frases'      && typeof currentPhraseSegments !== 'undefined' && currentPhraseSegments.length)
-        return currentPhraseSegments;
-    if (val === 'acordes'     && typeof currentFusedSegments  !== 'undefined' && currentFusedSegments.length)
-        return currentFusedSegments;
-    return currentHarmonicSegments;
+    if (val === 'respiración' && state.breathingSegments.length)
+        return state.breathingSegments;
+    if (val === 'frases'      && state.currentPhraseSegments.length)
+        return state.currentPhraseSegments;
+    if (val === 'acordes'     && state.currentFusedSegments.length)
+        return state.currentFusedSegments;
+    return state.currentHarmonicSegments;
 }
 
 /** True cuando el auto-avance debe usar 1 segmento por lote (frases o respiración). */
@@ -533,21 +540,21 @@ function _isSegmentBatchMode() {
 // Click: popup + resaltado en el grid
 // ─────────────────────────────────────────────
 
-function onChordBlockClick(segment, segIndex, openPanel = true) {
+export function onChordBlockClick(segment, segIndex, openPanel = true) {
     // Highlight de notas en el piano roll
     const classes = [...new Set(segment.activeNotes.map(n => n % 12))];
     if (classes.length > 0) {
         drawPianoRollWithHighlight(classes, segment.startStep, segment.endStep);
-        activeHighlight = { classes, startStep: segment.startStep, endStep: segment.endStep };
+        state.activeHighlight = { classes, startStep: segment.startStep, endStep: segment.endStep };
     }
 
     // Highlight del bloque en el chord row
     _highlightChordBlock(segIndex);
 
     // Mover playhead si no está reproduciendo
-    if (typeof reproduciendo !== 'undefined' && !reproduciendo) {
-        pasoActual = segment.startStep;
-        if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(segment.startStep);
+    if (!state.reproduciendo) {
+        state.pasoActual = segment.startStep;
+        updateRulerPlayhead(segment.startStep);
     }
 
     // Abrir/actualizar el panel de acordes
@@ -581,37 +588,37 @@ function onChordBlockClick(segment, segIndex, openPanel = true) {
  * Activa/desactiva el modo APPEND predictivo (auto-avance compás a compás).
  * Si no hay reproducción activa, arranca el primer segmento.
  */
-function _toggleAutoAdvance() {
-    autoAdvanceActive = !autoAdvanceActive;
+export function _toggleAutoAdvance() {
+    state.autoAdvanceActive = !state.autoAdvanceActive;
 
     const btn = document.getElementById('cpanel-auto-btn');
-    if (btn) btn.classList.toggle('cpop-auto-on', autoAdvanceActive);
+    if (btn) btn.classList.toggle('cpop-auto-on', state.autoAdvanceActive);
 
-    if (!autoAdvanceActive) return;
+    if (!state.autoAdvanceActive) return;
 
-    if (!reproduciendo) {
+    if (!state.reproduciendo) {
         _playSegmentLoop(window._cpopStartStep, window._cpopEndStep);
     } else {
         // Ya reproduciendo: fijar loopB al final del lote actual
         const segs = _activeSegments();
         if (_isSegmentBatchMode()) {
-            const idx = segs.findIndex(s => pasoActual >= s.startStep && pasoActual < s.endStep);
-            if (idx >= 0) { _batchStartSegIdx = idx; loopB = segs[idx].endStep; }
+            const idx = segs.findIndex(s => state.pasoActual >= s.startStep && state.pasoActual < s.endStep);
+            if (idx >= 0) { state._batchStartSegIdx = idx; state.loopB = segs[idx].endStep; }
         } else {
-            const idx = typeof _chordPanelIndex !== 'undefined' ? _chordPanelIndex : 0;
-            _batchStartSegIdx = idx;
-            loopB = segs[Math.min(idx + BATCH_SIZE - 1, segs.length - 1)].endStep;
+            const idx = _chordPanelIndex || 0;
+            state._batchStartSegIdx = idx;
+            state.loopB = segs[Math.min(idx + BATCH_SIZE - 1, segs.length - 1)].endStep;
         }
         // Si pasoActual ya superó loopB, el siguiente _tick dispararía _startNextBatch
         // inmediatamente, saltándose el lote actual. Volver al inicio del lote.
-        if (pasoActual >= loopB && _batchStartSegIdx >= 0) {
-            pasoActual = segs[_batchStartSegIdx].startStep;
-            loopA      = pasoActual;
-            loopAB     = true;
-            if (typeof updateRulerPlayhead === 'function') updateRulerPlayhead(pasoActual);
+        if (state.pasoActual >= state.loopB && state._batchStartSegIdx >= 0) {
+            state.pasoActual = segs[state._batchStartSegIdx].startStep;
+            state.loopA      = state.pasoActual;
+            state.loopAB     = true;
+            updateRulerPlayhead(state.pasoActual);
         }
-        if (typeof _updateAbBtn      === 'function') _updateAbBtn();
-        if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+        _updateAbBtn();
+        drawTimelineRuler();
     }
 }
 
@@ -633,20 +640,20 @@ function _playAndAdvance(startStep, endStep) {
  * En modo "frases" o "respiración": 1 segmento por lote.
  * En otros modos: BATCH_SIZE segmentos de acorde por lote.
  */
-function _playSegmentLoop(startStep, endStep) {
-    if (typeof reproduciendo !== 'undefined' && reproduciendo) {
-        if (typeof stop === 'function') stop();
+export function _playSegmentLoop(startStep, endStep) {
+    if (state.reproduciendo) {
+        stop();
     }
 
     let batchEndStep = endStep;
-    if (typeof autoAdvanceActive !== 'undefined' && autoAdvanceActive) {
+    if (state.autoAdvanceActive) {
         const segs = _activeSegments();
         if (_isSegmentBatchMode()) {
             // 1 segmento por lote (frase o respiración)
             const idx = segs.findIndex(s => startStep >= s.startStep && startStep < s.endStep);
             if (idx >= 0) {
-                _batchStartSegIdx = idx;
-                batchEndStep      = segs[idx].endStep;
+                state._batchStartSegIdx = idx;
+                batchEndStep            = segs[idx].endStep;
                 console.log(`[batch] ${document.getElementById('viewLevelSelect')?.value} ` +
                             `${idx + 1}/${segs.length} [${startStep}–${batchEndStep})`);
             }
@@ -656,29 +663,32 @@ function _playSegmentLoop(startStep, endStep) {
             let idx = segs.findIndex(s => s.startStep === startStep);
             if (idx < 0) idx = segs.findIndex(s => startStep >= s.startStep && startStep < s.endStep);
             if (idx >= 0) {
-                _batchStartSegIdx = idx;
-                const last        = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
-                batchEndStep      = segs[last].endStep;
+                state._batchStartSegIdx = idx;
+                const last              = Math.min(idx + BATCH_SIZE - 1, segs.length - 1);
+                batchEndStep            = segs[last].endStep;
                 console.log(`[batch] Acordes ${idx + 1}–${last + 1}/${segs.length} [${segs[idx].startStep}–${batchEndStep})`);
             } else {
-                console.warn(`[batch] segmento no encontrado para startStep=${startStep} — se mantiene _batchStartSegIdx=${_batchStartSegIdx}`);
+                console.warn(`[batch] segmento no encontrado para startStep=${startStep} — se mantiene _batchStartSegIdx=${state._batchStartSegIdx}`);
             }
         }
     }
 
-    loopAB = true;
-    loopA  = startStep;
-    loopB  = batchEndStep;
-    pasoActual = startStep;
+    state.loopAB     = true;
+    state.loopA      = startStep;
+    state.loopB      = batchEndStep;
+    state.pasoActual = startStep;
 
-    if (typeof _updateAbBtn      === 'function') _updateAbBtn();
-    if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    _updateAbBtn();
+    drawTimelineRuler();
     updateRulerPlayhead(startStep);
-    if (typeof play === 'function') play();
+    play();
 }
 
 // Flag para el auto-avance pendiente — cancelado por stop() manual
 let _pendingAutoAdvance = false;
+
+/** Cancela un auto-avance pendiente (llamado por playback.stop()). */
+export function cancelPendingAutoAdvance() { _pendingAutoAdvance = false; }
 
 /**
  * Para el lote actual, resetea las colas del ESP32 y arranca el siguiente lote.
@@ -687,12 +697,12 @@ let _pendingAutoAdvance = false;
  * PLAY, evitando la race condition donde el nuevo bloque llega mientras el ESP32
  * aún está ejecutando el anterior.
  */
-function _startNextBatch() {
+export function _startNextBatch() {
     const segs    = _activeSegments();
-    const nextIdx = _batchStartSegIdx + (_isSegmentBatchMode() ? 1 : BATCH_SIZE);
+    const nextIdx = state._batchStartSegIdx + (_isSegmentBatchMode() ? 1 : BATCH_SIZE);
 
-    if (_batchStartSegIdx < 0 || nextIdx >= segs.length) {
-        if (typeof stop === 'function') stop();
+    if (state._batchStartSegIdx < 0 || nextIdx >= segs.length) {
+        stop();
         return;
     }
 
@@ -701,7 +711,7 @@ function _startNextBatch() {
     // no adelante el estado visual mientras el lote anterior aún suena.
 
     // 1. Parar browser + enviar STOP al ESP32
-    if (typeof stop === 'function') stop(); // pone autoAdvanceActive = false
+    stop(); // pone autoAdvanceActive = false
 
     // 2. Registrar la intención de arrancar el siguiente lote
     _pendingAutoAdvance = true;
@@ -710,22 +720,21 @@ function _startNextBatch() {
     const _launch = () => {
         if (_launched || !_pendingAutoAdvance) return; // cancelado por stop() manual
         _launched = true;
-        _pendingAutoAdvance = false;
-        autoAdvanceActive  = true;
+        _pendingAutoAdvance     = false;
+        state.autoAdvanceActive = true;
         // Navegar el panel DESPUÉS del stop, con estado limpio
         if (typeof window._cpopNavTo === 'function') window._cpopNavTo(nextIdx);
-        onStoppedCallback = null;
+        state.onStoppedCallback = null;
         _playSegmentLoop(nextSeg.startStep, nextSeg.endStep);
     };
 
-    const _connected = (typeof wsConnected !== 'undefined' && wsConnected) ||
-                       (typeof _serialActive !== 'undefined' && _serialActive);
+    const _connected = state.wsConnected || state._serialActive;
 
     if (_connected) {
         // Esperar confirmación "stopped" del ESP32 antes de enviar el PLAY.
         // Fallback de 350ms por si el mensaje nunca llega (WiFi con pérdidas).
         const _fallback = setTimeout(_launch, 350);
-        onStoppedCallback = () => { clearTimeout(_fallback); _launch(); };
+        state.onStoppedCallback = () => { clearTimeout(_fallback); _launch(); };
     } else {
         // Sin ESP32: arrancar inmediatamente
         _launch();
@@ -741,8 +750,8 @@ function _startNextBatch() {
  * Ejemplo: paso 32 en 4/4 → "C3·T1"  (Compás 3, Tiempo 1)
  */
 function _stepToMusical(step) {
-    const spm     = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
-    const spb     = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerBeat    : 4;
+    const spm     = state.currentTimeSig ? state.currentTimeSig.stepsPerMeasure : 16;
+    const spb     = state.currentTimeSig ? state.currentTimeSig.stepsPerBeat    : 4;
     const measure = Math.floor(step / spm) + 1;
     const beat    = Math.floor((step % spm) / spb) + 1;
     return `C${measure}·T${beat}`;
@@ -770,7 +779,7 @@ function _playNotes(notes, chips) {
     const DURATION_S = 1.2;
 
     // ── Audio MIDI virtual ─────────────────────────────────────
-    if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOn) {
+    if (state.soundfontLoaded && MIDI.noteOn) {
         notes.forEach(note => {
             MIDI.noteOn( 0, note, 90, 0);
             MIDI.noteOff(0, note, DURATION_S);
@@ -780,9 +789,7 @@ function _playNotes(notes, chips) {
     // ── Motores ESP32 ──────────────────────────────────────────
     // Para cada nota buscar si hay un motor asignado en MOTOR_MAP
     // y enviar un golpe de prueba individual.
-    if (typeof wsConnected !== 'undefined' && wsConnected &&
-        typeof MOTOR_MAP !== 'undefined' && typeof sendCommand === 'function') {
-
+    if (state.wsConnected) {
         const hitMs     = 80;
         const retractMs = 150;
 
@@ -806,7 +813,7 @@ function _playNotes(notes, chips) {
  * resalta su bloque en el chord row y abre el popup de info.
  * Llamado desde seekToStep() cuando el usuario clica en el ruler.
  */
-function _selectChordAtStep(step) {
+export function _selectChordAtStep(step) {
     const segs = _activeSegments();
     const idx  = segs.findIndex(s => step >= s.startStep && step < s.endStep);
     if (idx >= 0) onChordBlockClick(segs[idx], idx, false);

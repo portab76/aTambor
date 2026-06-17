@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MIDI Sequencer Grid</title>
+    <!-- PWA -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0d0d1c">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <style>
         /* ── Variables de tema ── */
         :root, [data-theme="dark"] {
@@ -686,7 +691,7 @@
                 <div>
                     <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:6px;">LEDS</div>
                     <select id="ledColorSelect" title="Color de los LEDs WS2812B"
-                            onchange="ledColorMode=this.value"
+                            onchange="state.ledColorMode=this.value"
                             style="width:100%;background:#1a1a2e;color:#aaa;border:1px solid #3a3a5a;
                                    border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;margin-bottom:8px;">
                         <option value="rainbow">Arcoíris</option>
@@ -699,7 +704,7 @@
                         <span>Avance:</span>
                         <input type="range" id="ledAdvanceInput" min="0" max="800" step="50" value="0"
                                style="flex:1;accent-color:#ff3333;"
-                               oninput="ledAdvanceMs=parseInt(this.value);document.getElementById('ledAdvanceVal').textContent=this.value+'ms'">
+                               oninput="state.ledAdvanceMs=parseInt(this.value);document.getElementById('ledAdvanceVal').textContent=this.value+'ms'">
                         <span id="ledAdvanceVal" style="min-width:36px;color:#ff3333;text-align:right;">0ms</span>
                     </label>
                 </div>
@@ -792,6 +797,8 @@
                   border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
     <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32">Conectar</button>
     <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
+    <button id="esp32RetryBtn" onclick="retryWebSocket()" title="Reintentar la conexión con el ESP32"
+            style="display:none;font-size:11px;background:#5a2a2a;border-color:#aa4444;color:#ffcccc;">↻ Reintentar</button>
     <button id="esp32LogBtn" onclick="openEsp32LogWindow()" title="Ver log ESP32">Log</button>
 
 
@@ -1124,61 +1131,7 @@
 .menu-btn:disabled { opacity:.38;cursor:default; }
 </style>
 
-<script>
-function toggleAppMenu() {
-    const menu  = document.getElementById('appMenu');
-    const arrow = document.getElementById('appMenuArrow');
-    const open  = menu.style.maxHeight && menu.style.maxHeight !== '0px';
-    menu.style.maxHeight  = open ? '0' : '500px';
-    arrow.style.transform = open ? '' : 'rotate(180deg)';
-}
-function closeAppMenu() {
-    const menu  = document.getElementById('appMenu');
-    const arrow = document.getElementById('appMenuArrow');
-    if (menu)  menu.style.maxHeight  = '0';
-    if (arrow) arrow.style.transform = '';
-}
-document.addEventListener('click', function(e) {
-    const btn = document.getElementById('appMenuBtn');
-    if (btn && !btn.contains(e.target) &&
-        !document.getElementById('appMenu')?.contains(e.target)) {
-        closeAppMenu();
-    }
-}, true);
-</script>
-
-<script>
-// ── Panel unificado Motor Map + Escala ──────────────────────
-let _meOpen = false;
-
-function toggleMotorEscalaPanel() {
-    const panel  = document.getElementById('motorEscalaPanel');
-    const toggle = document.getElementById('motorMapToggle');
-    const btn    = document.getElementById('motorEscalaBtn');
-    if (!panel) return;
-
-    _meOpen = !_meOpen;
-    panel.classList.toggle('me-open', _meOpen);
-    if (toggle) toggle.classList.toggle('me-open', _meOpen);
-    if (btn)    btn.classList.toggle('btn-active', _meOpen);
-
-    // Al cerrar el panel, liberar todos los motores activos por seguridad
-    if (!_meOpen && typeof _mmReleaseAllNotes === 'function') _mmReleaseAllNotes();
-
-    if (_meOpen) {
-        // Refrescar ambas secciones al abrir
-        if (typeof _renderMotorMapPanelRows === 'function') _renderMotorMapPanelRows();
-        if (typeof _tpSlider === 'function') {
-            if (typeof _sliderRange === 'function') {
-                const { min, max } = _sliderRange();
-                const sl = document.getElementById('transposeSlider');
-                if (sl) { sl.min = min; sl.max = max; }
-            }
-            _tpSlider(typeof transposeOffset !== 'undefined' ? transposeOffset : 0);
-        }
-    }
-}
-</script>
+<!-- toggleAppMenu / closeAppMenu / toggleMotorEscalaPanel ahora viven en js/midiGrid.js -->
 
 <!-- ══════════════ BARRA DE TABS ══════════════ -->
 <div id="tabBar">
@@ -1421,7 +1374,7 @@ function toggleMotorEscalaPanel() {
 </div><!-- /#motorEscalaPanel -->
 
 <!-- ══════════════ SCRIPTS ══════════════ -->
-<!-- Librerías MIDI.js + jasmid -->
+<!-- Librerías MIDI.js + jasmid (clásicas: exponen MIDI / Tonal en window) -->
 <script src="./MIDI.js/inc/shim/Base64.js"></script>
 <script src="./MIDI.js/inc/shim/Base64binary.js"></script>
 <script src="./MIDI.js/inc/shim/WebAudioAPI.js"></script>
@@ -1430,54 +1383,23 @@ function toggleMotorEscalaPanel() {
 <script src="./MIDI.js/build/MIDI.min.js"></script>
 <!-- Tonal.js — análisis armónico -->
 <script src="./MIDI.js/tonal.min.js"></script>
-<!-- Módulos del proyecto -->
-<script src="./js/ws-connector.js"></script>
-<script src="./js/serial-connector.js"></script>
+<!-- Lógica pura de análisis armónico (global window.HarmonicCore).
+     Compartida entre el hilo principal y el Web Worker (harmonic-worker.js). -->
+<script src="./js/harmonic-core.js"></script>
+
+<!-- Módulo raíz ES6: importa todos los módulos del proyecto -->
+<script type="module" src="js/midiGrid.js"></script>
+
+<!-- PWA: registro del service worker (cache-first, funciona offline) -->
 <script>
-function _connectEsp32() {
-    const mode = document.getElementById('connModeSelect').value;
-    if (mode === 'serial') {
-        if (typeof initSerial === 'function') initSerial();
-    } else {
-        if (typeof initWebSocket === 'function') initWebSocket();
-    }
-}
-function _onConnModeChange() {
-    const mode    = document.getElementById('connModeSelect').value;
-    const ipInput = document.getElementById('esp32IpInput');
-    const logBtn  = document.getElementById('esp32LogBtn');
-    ipInput.style.display = mode === 'wifi' ? '' : 'none';
-    logBtn.style.display  = '';
-    // Desconectar el canal anterior al cambiar de modo
-    if (mode === 'serial' && typeof closeWebSocket === 'function') closeWebSocket();
-    if (mode === 'wifi'   && typeof closeSerial    === 'function') closeSerial();
-    // Resetear offset del panel Escala al cambiar de modo
-    if (typeof window._tpSlider === 'function') window._tpSlider(0);
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('[PWA] Service worker registrado:', reg.scope))
+            .catch(err => console.warn('[PWA] Registro del service worker falló:', err));
+    });
 }
 </script>
-<script src="./js/motor-map.js"></script>
-<script src="./js/esp32-sequencer.js"></script>
-<script src="./js/state.js"></script>
-<script src="./js/midi-parser.js"></script>
-<script src="./js/piano-roll.js"></script>
-<script src="./js/timeline-ruler.js"></script>
-<script src="./js/harmonic.js"></script>
-<script src="./js/chord-row.js"></script>
-<script src="./js/active-notes-panel.js"></script>
-<script src="./js/playback.js"></script>
-<script src="./js/history.js"></script>
-<script src="./js/editor.js"></script>
-<script src="./js/persistence.js"></script>
-<script src="./js/mml-parser.js"></script>
-<script src="./js/transpose.js"></script>
-<script src="./js/heat.js"></script>
-<script src="./js/theme.js"></script>
-<script src="./js/tabs.js"></script>
-<script src="./js/velocity-lane.js"></script>
-<script src="./js/midi-export.js"></script>
-<script src="./js/minimap.js"></script>
-<script src="./js/recent-files.js"></script>
-<script src="./js/midiGrid.js"></script>
 
 <!-- Overlay drag & drop -->
 <div id="dropOverlay">

@@ -4,6 +4,11 @@
 // Depende de: state.js, motor-map.js, chord-row.js
 // ============================================================
 
+import { state } from './state.js';
+import { motorForNote, MOTOR_MAP, _mmOctaveColor, _mmSaveToStorage, _mmGetVel, _renderMotorMapRows, _renderMotorMapPanelRows } from './motor-map.js';
+import { sendCommand } from './ws-connector.js';
+import { drawNoteLabels } from './piano-roll.js';
+
 const _NOTE_NAMES_ANP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 let _anpCurrentFilter = 'all';  // 'all' o 'motor'
@@ -12,7 +17,7 @@ let _anpCurrentFilter = 'all';  // 'all' o 'motor'
 // Toggle panel abierto/cerrado
 // ─────────────────────────────────────────────
 
-function activeNotesPanelToggle() {
+export function activeNotesPanelToggle() {
     const existing = document.getElementById('activeNotesPanel');
     if (existing) {
         existing.remove();
@@ -32,7 +37,7 @@ function _anpRender(filterMode = 'all') {
     const existing = document.getElementById('activeNotesPanel');
     if (existing) existing.remove();
 
-    if (Object.keys(gridData.cells).length === 0) {
+    if (Object.keys(state.gridData.cells).length === 0) {
         console.log('No active notes to display');
         return;
     }
@@ -42,7 +47,7 @@ function _anpRender(filterMode = 'all') {
     // ─────────────────────────────────────────────
 
     const noteCountMap = {};
-    for (const key of Object.keys(gridData.cells)) {
+    for (const key of Object.keys(state.gridData.cells)) {
         const note = parseInt(key.split(',')[0]);
         noteCountMap[note] = (noteCountMap[note] || 0) + 1;
     }
@@ -274,7 +279,7 @@ function _anpRender(filterMode = 'all') {
                 if (isNaN(newMotor) || newMotor < 0 || newMotor > 127) return;
 
                 // Ajustar note por transposeOffset para buscar/crear en MOTOR_MAP
-                const offset = (typeof transposeOffset !== 'undefined') ? transposeOffset : 0;
+                const offset = state.transposeOffset || 0;
                 const mapNote = note - offset;
 
                 let entry = MOTOR_MAP.find(m => m.note === mapNote);
@@ -341,20 +346,18 @@ function _anpPlayNote(midi, chipElement) {
     const DURATION_S = 1.2;
 
     // ── Audio MIDI virtual ─────────────────────────────────────
-    if (soundfontLoaded && typeof MIDI !== 'undefined' && MIDI.noteOn) {
+    if (state.soundfontLoaded && MIDI.noteOn) {
         MIDI.noteOn( 0, midi, 90, 0);
         MIDI.noteOff(0, midi, DURATION_S);
     }
 
     // ── Motores ESP32 ──────────────────────────────────────────
-    if (typeof wsConnected !== 'undefined' && wsConnected &&
-        typeof motorForNote === 'function' && typeof sendCommand === 'function') {
-
+    if (state.wsConnected) {
         const cfg = motorForNote(midi);
         if (cfg && !cfg.muted) {
             const hitMs     = 80;
             const retractMs = 150;
-            const vel       = typeof _mmGetVel === 'function' ? _mmGetVel() : 40;
+            const vel       = _mmGetVel();
             const cmd = `e; m ${cfg.motor}; o ${cfg.homePwm}; t ${hitMs}; v ${vel}; t ${retractMs}; v 0; p;`;
             sendCommand(cmd);
         }
@@ -373,7 +376,7 @@ function _anpPlayNote(midi, chipElement) {
 // Refrescar panel si está abierto
 // ─────────────────────────────────────────────
 
-function activeNotesPanelRefresh() {
+export function activeNotesPanelRefresh() {
     const panel = document.getElementById('activeNotesPanel');
     if (!panel) return;
 

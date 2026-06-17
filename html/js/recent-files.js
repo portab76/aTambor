@@ -4,6 +4,12 @@
 // Depende de: state.js, persistence.js, tabs.js
 // ============================================================
 
+import { state } from './state.js';
+import { _applyProjectData } from './persistence.js';
+import { tabNew, tabMarkFileLoaded } from './tabs.js';
+import { closeAppMenu } from './app-menu.js';
+import { statusSpan } from './dom-refs.js';
+
 const _RF_KEY = 'aTambor_recentFiles';
 const _RF_MAX = 10;
 
@@ -22,7 +28,7 @@ function _rfSave(list) {
  * @param {string} name    — nombre del proyecto (sin extensión)
  * @param {Object} content — objeto de proyecto serializable
  */
-function recentFilesAdd(name, content) {
+export function recentFilesAdd(name, content) {
     const list = _rfGet().filter(e => e.name !== name);
     list.unshift({ name, ts: Date.now(), content });
     if (list.length > _RF_MAX) list.length = _RF_MAX;
@@ -30,7 +36,7 @@ function recentFilesAdd(name, content) {
 }
 
 /** Muestra u oculta la lista inline dentro del menú principal. */
-function toggleRecentInMenu() {
+export function toggleRecentInMenu() {
     const panel = document.getElementById('recentInMenuList');
     if (!panel) return;
     const isOpen = panel.style.display !== 'none';
@@ -74,20 +80,19 @@ function _rfAge(ts) {
  * Carga el proyecto nº idx del historial.
  * Abre en nueva tab si el tab activo ya tiene contenido.
  */
-function recentFilesLoad(idx) {
+export function recentFilesLoad(idx) {
     const list  = _rfGet();
     const entry = list[idx];
     if (!entry || !entry.content) return;
 
-    if (typeof closeAppMenu === 'function') closeAppMenu();
+    closeAppMenu();
 
-    const hasCont = Object.keys(gridData.cells).length > 0 || rawEvents.length > 0;
-    if (hasCont && typeof tabNew === 'function') tabNew();
+    const hasCont = Object.keys(state.gridData.cells).length > 0 || state.rawEvents.length > 0;
+    if (hasCont) tabNew();
 
     _applyProjectData(entry.content);
-    if (typeof tabMarkFileLoaded === 'function') tabMarkFileLoaded(entry.name);
-    if (typeof statusSpan !== 'undefined')
-        statusSpan.innerText = `"${entry.name}" cargado desde historial.`;
+    tabMarkFileLoaded(entry.name);
+    statusSpan.innerText = `"${entry.name}" cargado desde historial.`;
 
     // Refrescar timestamp en la lista
     list.splice(idx, 1);
@@ -96,7 +101,7 @@ function recentFilesLoad(idx) {
 }
 
 /** Borra todo el historial. */
-function recentFilesClear() {
+export function recentFilesClear() {
     localStorage.removeItem(_RF_KEY);
     const panel = document.getElementById('recentInMenuList');
     if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }

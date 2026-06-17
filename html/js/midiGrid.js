@@ -1,33 +1,127 @@
 // ============================================================
-// main.js — Punto de entrada: referencias DOM, inicialización
-// y cableado de event listeners entre módulos.
-// Se carga el último, cuando todos los módulos ya están disponibles.
+// midiGrid.js — Módulo raíz (entry point ES6)
+// Importa todos los módulos, cablea los event listeners y expone
+// en window las funciones a las que apuntan los atributos onclick
+// del HTML y las llamadas cruzadas `typeof X === 'function'`.
+//
+// Este es el ÚNICO script que carga midiGrid.html:
+//   <script type="module" src="js/midiGrid.js"></script>
 // ============================================================
 
-// ---- Helper: devuelve el array de segmentos según nivel seleccionado ----
+import { state } from './state.js';
+
+// ── Módulos de datos / análisis ──────────────────────────────
+import { loadMIDIFile, enableInstrumentSelection } from './midi-parser.js';
+import { loadMMLText, openMMLImportModal, closeMMLImportModal, mmlCallbacks } from './mml-parser.js';
+import {
+    performHarmonicAnalysis, performHarmonicAnalysisFromGrid, performHarmonicAnalysisAsync,
+    getHarmonicSegments, detectKey, findChord, analyzeChordsOnSegments,
+    fuseSegments, detectPhrases, getChordFunction, detectInversion,
+} from './harmonic.js';
+import { exportMIDI } from './midi-export.js';
+
+// ── Render del piano roll ────────────────────────────────────
+import {
+    buildGridFromChannel, drawPianoRoll, drawPianoRollWithPlayhead,
+    drawPianoRollWithHighlightAndPlayhead, drawPianoRollWithHighlight,
+    drawNoteLabels, initNoteLabelsEvents, toggleNewGridPanel,
+    _doLoadBlankGrid, loadBlankGrid, applyZoom, zoom, addMeasures, removeMeasures,
+    _enableMeasureButtons, _OCT_RGB,
+} from './piano-roll.js';
+
+// ── Regla de compases ────────────────────────────────────────
+import {
+    drawTimelineRuler, toggleTempoEditMode, initRulerSeek,
+    toggleLoopAB, updateRulerPlayhead, _updateAbBtn,
+} from './timeline-ruler.js';
+
+// ── Minimap, velocidades, calor ──────────────────────────────
+import { drawMinimap, initMinimap } from './minimap.js';
+import { toggleVelocityLane, drawVelocityLane, initVelocityLane } from './velocity-lane.js';
+import {
+    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints, toggleHeatMap,
+} from './heat.js';
+
+// ── Fila de acordes / panel armónico ─────────────────────────
+import {
+    drawChordRow, toggleChordPanel, onChordBlockClick, _selectChordAtStep,
+    _updateChordPanelFromPlayback, _activeSegments, _playSegmentLoop,
+    _startNextBatch, _toggleAutoAdvance, _cpanelPlayLoop, _cpanelPrevChord,
+    _cpanelNextChord, BATCH_SIZE,
+} from './chord-row.js';
+
+// ── Notas activas ────────────────────────────────────────────
+import { activeNotesPanelToggle, activeNotesPanelRefresh } from './active-notes-panel.js';
+
+// ── Reproducción ─────────────────────────────────────────────
+import { play, pause, stop, seekToStep, MS_PER_STEP, _bpmAtStep, refreshPlaybackTempo, playbackCallbacks } from './playback.js';
+
+// ── Historial / edición ──────────────────────────────────────
+import { historyPush, historyUndo, historyRedo, historyClear } from './history.js';
+import {
+    initCanvasEvents, copyFragment, pasteFragment, setPasteOctave,
+    deleteFragment, selectionDelete, selectionCopy, selectionClear,
+    _updateFragmentButtons,
+} from './editor.js';
+
+// ── Persistencia / recientes ─────────────────────────────────
+import { saveProject, loadProject, _applyProjectData, projectCallbacks } from './persistence.js';
+import {
+    recentFilesAdd, toggleRecentInMenu, recentFilesLoad, recentFilesClear,
+} from './recent-files.js';
+
+// ── Tabs ─────────────────────────────────────────────────────
+import {
+    tabSwitch, tabNew, tabNewWithDialog, tabClose, tabMarkFileLoaded, tabMarkDirty,
+    tabSaveCurrent, tabRender, tabPushPreloaded, tabNextIndex, tabUpdateActive,
+} from './tabs.js';
+
+// ── Tema ─────────────────────────────────────────────────────
+import { setTheme, toggleTheme } from './theme.js';
+
+// ── Transposición ────────────────────────────────────────────
+import { toggleTransposePanel, _sliderRange, _tpSlider, _tpShift } from './transpose.js';
+
+// ── Paneles / menú extraídos ─────────────────────────────────
+import { toggleAppMenu, closeAppMenu } from './app-menu.js';
+import { toggleMotorEscalaPanel } from './motor-escala-panel.js';
+
+// ── Referencias DOM compartidas ──────────────────────────────
+import {
+    fileInput, instrumentSelect, loadInstrumentBtn, debugDiv, statusSpan,
+    playBtn, stopBtn, canvas, ctx, gridScroll, notesPanelScroll,
+} from './dom-refs.js';
+
+// ── Hardware ESP32 ───────────────────────────────────────────
+import {
+    initWebSocket, sendCommand, sendStop, closeWebSocket, retryWebSocket, ESP32_IP,
+} from './ws-connector.js';
+import { initSerial, closeSerial } from './serial-connector.js';
+import {
+    buildFullSequence, buildRemainingSequence, buildRangeSequence,
+    buildLedMappingCmd, validateSequenceSize,
+} from './esp32-sequencer.js';
+import {
+    MOTOR_MAP, motorForNote, motorMapUI, motorMapExport, motorMapImport,
+    toggleMotorMapPanel, NUM_LEDS, ledForNote, _mmReleaseAllNotes,
+    _mmPanelTest, _renderMotorMapPanelRows, _renderMotorMapRows, _mmListenForKey, _mmEdit,
+} from './motor-map.js';
+
+// ============================================================
+// Helper: devuelve el array de segmentos según nivel seleccionado
+// ============================================================
 function _activeSegmentsFor(level, analysis) {
-    if (level === 'respiración' && typeof breathingSegments !== 'undefined' && breathingSegments.length)
-        return breathingSegments;
+    if (level === 'respiración' && state.breathingSegments.length)
+        return state.breathingSegments;
     if (level === 'frases'  && analysis?.phraseSegments?.length) return analysis.phraseSegments;
     if (level === 'acordes' && analysis?.fusedSegments?.length)  return analysis.fusedSegments;
-    return analysis?.segments || currentHarmonicSegments;
+    return analysis?.segments || state.currentHarmonicSegments;
 }
 
-// ---- Referencias al DOM (accesibles globalmente por todos los módulos) ----
-const fileInput         = document.getElementById('midiFileInput');
-const instrumentSelect  = document.getElementById('instrumentSelect');
-const loadInstrumentBtn = document.getElementById('loadInstrumentBtn');
-const debugDiv          = document.getElementById('debugInfo');
-const statusSpan        = document.getElementById('statusMsg');
-const playBtn           = document.getElementById('playBtn');
-const stopBtn           = document.getElementById('stopBtn');
-const canvas            = document.getElementById('pianoRollCanvas');
-const ctx               = canvas.getContext('2d');
+// Las referencias DOM (canvas, ctx, statusSpan, …) se importan de dom-refs.js.
 
 // ---- Sincronización de scroll: columna de notas sigue al grid ----
-const gridScroll       = document.getElementById('gridScroll');
-const notesPanelScroll = document.getElementById('notesPanelScroll');
-
+let _lastScrollTop = 0;
 gridScroll.addEventListener('scroll', () => {
     notesPanelScroll.scrollTop = gridScroll.scrollTop;
     const chordRow = document.getElementById('chordRowContainer');
@@ -36,14 +130,23 @@ gridScroll.addEventListener('scroll', () => {
     if (ruler) ruler.scrollLeft = gridScroll.scrollLeft;
     const velLane = document.getElementById('velocityLaneScroll');
     if (velLane) velLane.scrollLeft = gridScroll.scrollLeft;
-    if (typeof drawMinimap === 'function') drawMinimap();
+    drawMinimap();
+
+    // Virtualización: al desplazarse verticalmente cambia la banda de filas
+    // visibles, así que hay que repintar el piano roll para dibujar las nuevas
+    // filas. El scroll horizontal no lo necesita (las columnas ya ocupan toda
+    // la altura del canvas).
+    if (gridScroll.scrollTop !== _lastScrollTop) {
+        _lastScrollTop = gridScroll.scrollTop;
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    }
 });
 
 // ---- Carga de archivo MIDI ----
 fileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    currentMidiFileName = file.name;
+    state.currentMidiFileName = file.name;
     statusSpan.innerText = "Leyendo archivo...";
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -53,7 +156,7 @@ fileInput.addEventListener('change', (event) => {
         for (let i = 0; i < bytes.length; i++) {
             binaryString += String.fromCharCode(bytes[i]);
         }
-        loadMIDIFile(binaryString);
+        _applyMidiLoadResult(loadMIDIFile(binaryString));
     };
     reader.readAsArrayBuffer(file);
 });
@@ -86,18 +189,19 @@ document.body.addEventListener('drop', (e) => {
     if (!file) return;
 
     // Abrir en nueva tab si la actual ya tiene contenido
-    const hasContent = Object.keys(gridData.cells).length > 0 || rawEvents.length > 0;
-    if (hasContent && typeof tabNew === 'function') tabNew();
+    const hasContent = Object.keys(state.gridData.cells).length > 0 || state.rawEvents.length > 0;
+    if (hasContent) tabNew();
 
     // Mismo flujo que fileInput change
-    currentMidiFileName = file.name;
+    state.currentMidiFileName = file.name;
     statusSpan.innerText = 'Leyendo archivo...';
     const reader = new FileReader();
     reader.onload = (ev) => {
         const bytes = new Uint8Array(ev.target.result);
         let binaryString = '';
         for (let i = 0; i < bytes.length; i++) binaryString += String.fromCharCode(bytes[i]);
-        loadMIDIFile(binaryString);
+        const result = _applyMidiLoadResult(loadMIDIFile(binaryString));
+        if (!result || result.error) return;
 
         // Auto-seleccionar el primer canal con notas y construir el grid directamente
         const firstOpt = instrumentSelect.querySelector('option[value]:not([value=""])');
@@ -110,29 +214,190 @@ document.body.addEventListener('drop', (e) => {
     reader.readAsArrayBuffer(file);
 });
 
+// ---- Gestión de UI tras parsear un MIDI (resultado de loadMIDIFile) ----
+// loadMIDIFile solo puebla el estado y devuelve datos; aquí actualizamos el DOM.
+function _applyMidiLoadResult(result) {
+    if (!result || result.error) {
+        debugDiv.innerHTML = `<strong>Error al parsear MIDI:</strong> ${result?.error ?? 'desconocido'}`;
+        statusSpan.innerText = "Error: archivo MIDI inválido.";
+        return result;
+    }
+
+    const ts = result.timeSig;
+
+    // BPM input
+    const bpmInput = document.getElementById('bpmInput');
+    if (bpmInput) bpmInput.value = result.bpm;
+
+    // Panel de debug
+    debugDiv.innerHTML =
+        `<strong>MIDI parseado</strong><br>` +
+        (state.currentMidiFileName ? `<span style="color:#aaccff;word-break:break-all;">📄 ${state.currentMidiFileName}</span><br>` : '') +
+        `PPQN=${result.ppqn} | BPM: ${result.bpm} | Compás: ${ts.numerator}/${ts.denominator} ` +
+        `(${ts.stepsPerMeasure} pasos/compás) | ` +
+        `Duración: ${result.totalTicks} ticks | Pistas: ${result.trackCount}<br>` +
+        `Canales con notas: ${result.channelsWithNotes.map(c => c + 1).join(', ')}<br>` +
+        `Eventos totales: ${result.rawEvents.length}`;
+
+    // Etiqueta del ruler
+    const rulerLabel = document.getElementById('rulerTimeSigLabel');
+    if (rulerLabel) rulerLabel.textContent = `${ts.numerator} / ${ts.denominator}`;
+
+    // Rellenar el selector de canales y habilitar transporte
+    enableInstrumentSelection();
+    statusSpan.innerText = "MIDI cargado. Selecciona un instrumento/canal.";
+    return result;
+}
+
 // ---- Selección de canal/instrumento ----
 instrumentSelect.addEventListener('change', (e) => {
     const val = e.target.value;
-    selectedChannel          = val === "" ? null : parseInt(val);
-    loadInstrumentBtn.disabled = (selectedChannel === null);
+    state.selectedChannel      = val === "" ? null : parseInt(val);
+    loadInstrumentBtn.disabled = (state.selectedChannel === null);
 });
+
+// ---- Captura del estado MIDI actual (para clonar en tabs nuevos) ----
+function _captureSnapshot() {
+    return {
+        rawEvents:           state.rawEvents.map(e => ({ ...e })),
+        tempoMap:            state.tempoMap.map(e => ({ ...e })),
+        ppqn:                state.ppqn,
+        totalTicks:          state.totalTicks,
+        midiData:            state.midiData ? JSON.parse(JSON.stringify(state.midiData)) : null,
+        instrumentNames:     [...state.instrumentNames],
+        currentMidiFileName: state.currentMidiFileName,
+        currentTimeSig:      { ...state.currentTimeSig },
+    };
+}
+
+// ---- Habilita transporte y herramientas tras construir un grid ----
+function _enableChannelButtons() {
+    playBtn.disabled = false;
+    const exportBtn = document.getElementById('exportMidiMenuBtn');
+    if (exportBtn) exportBtn.disabled = false;
+    loadInstrumentBtn.disabled = false;
+    document.getElementById('activeNotesBtn').disabled = false;
+    _enableMeasureButtons();
+    const abBtn = document.getElementById('abLoopBtn');
+    if (abBtn) abBtn.disabled = false;
+    const heatBtn = document.getElementById('heatMapBtn');
+    if (heatBtn) heatBtn.disabled = false;
+    const chordPanelBtn = document.getElementById('chordPanelBtn');
+    if (chordPanelBtn) chordPanelBtn.disabled = false;
+}
+
+/**
+ * Construye el grid del canal `ch` y prepara la UI dependiente: análisis
+ * armónico, heat map / respiración, botones y chord row. NO crea el tab
+ * (el llamador decide si reutiliza el activo o crea uno nuevo).
+ * @returns {Object|null} el análisis armónico (o null si el canal no tiene notas)
+ */
+// Aplica un análisis armónico (de canal) al estado + UI: segmentos, tonalidad,
+// selector de vista y chord row. Compartido por las rutas sync y async.
+function _applyChannelAnalysis(analysis) {
+    if (!analysis) return;
+    state.currentHarmonicSegments = analysis.segments;
+    state.currentFusedSegments    = analysis.fusedSegments;
+    state.currentPhraseSegments   = analysis.phraseSegments;
+    state.currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
+
+    const viewSel = document.getElementById('viewLevelSelect');
+    if (viewSel) {
+        viewSel.disabled = false;
+        viewSel.value    = 'acordes';
+        viewSel.querySelector('option[value="frases"]').disabled      = (state.currentPhraseSegments.length === 0);
+        viewSel.querySelector('option[value="respiración"]').disabled = (state.breathingSegments.length === 0);
+    }
+    drawChordRow(_activeSegmentsFor('acordes', analysis), analysis.key);
+}
+
+// Indicador de "analizando…" en el chord row mientras trabaja el worker.
+function _showChordRowLoading() {
+    const chordRow = document.getElementById('chordRowContainer');
+    if (chordRow) {
+        chordRow.innerHTML =
+            '<div style="padding:8px 12px;color:#8888aa;font-size:12px;font-style:italic;">' +
+            '⏳ Analizando armonía…</div>';
+    }
+}
+
+/**
+ * Construye el grid del canal `ch` y prepara la UI dependiente.
+ * El análisis armónico (CPU-intensivo) se ejecuta en un Web Worker para no
+ * bloquear el hilo principal con archivos MIDI grandes.
+ * @param {number} ch
+ * @param {Object} [opts]
+ * @param {boolean} [opts.async=true] usar el worker (true) o análisis síncrono (false)
+ * @returns {Promise<Object|null>} resuelve con el análisis aplicado
+ */
+function _buildChannelGrid(ch, { async = true } = {}) {
+    buildGridFromChannel(ch);
+    historyClear();
+    state.pasoActual = 0;
+    drawTimelineRuler();
+
+    const finish = (analysis) => {
+        _applyChannelAnalysis(analysis);
+        calcularBreathingPoints();
+        _refreshHeatMap();
+        _enableChannelButtons();
+        return analysis;
+    };
+
+    if (!async) {
+        // Ruta síncrona (p.ej. openAllInstruments: muchos tabs en bucle).
+        return Promise.resolve(finish(performHarmonicAnalysis(ch)));
+    }
+
+    // Ruta asíncrona (carga de un canal/MIDI): worker + indicador de carga.
+    _showChordRowLoading();
+    return performHarmonicAnalysisAsync(ch)
+        .then(finish)
+        .catch(err => {
+            console.error('[harmonic] análisis async falló, fallback síncrono:', err);
+            return finish(performHarmonicAnalysis(ch));
+        });
+}
+
+/**
+ * Crea un tab nuevo para el canal `ch` (pre-cargado con el snapshot MIDI) y
+ * construye su grid completo. Lógica compartida por openAllInstruments() y el
+ * handler de loadInstrumentBtn.
+ * @returns {Object|null} el análisis armónico (o null si el canal no tiene notas)
+ */
+function _setupChannelTab(ch, snap, { name, async = false } = {}) {
+    tabPushPreloaded({
+        rawEvents:           snap.rawEvents.map(e => ({ ...e })),
+        tempoMap:            snap.tempoMap.map(e => ({ ...e })),
+        ppqn:                snap.ppqn,
+        totalTicks:          snap.totalTicks,
+        midiData:            snap.midiData ? JSON.parse(JSON.stringify(snap.midiData)) : null,
+        instrumentNames:     [...snap.instrumentNames],
+        currentMidiFileName: snap.currentMidiFileName,
+        currentTimeSig:      { ...snap.currentTimeSig },
+        selectedChannel:     ch,
+        ...(name ? { name } : {}),
+    });
+    enableInstrumentSelection();
+    return _buildChannelGrid(ch, { async });
+}
 
 // ---- Cargar instrumento y mostrar grid ----
 loadInstrumentBtn.addEventListener('click', () => {
-    if (selectedChannel === null) {
+    if (state.selectedChannel === null) {
         statusSpan.innerText = "Primero selecciona un canal.";
         return;
     }
 
     // H2: si hay reproducción activa → hot-swap en caliente
-    if (reproduciendo) {
+    if (state.reproduciendo) {
         // Reconstruir el grid con el nuevo canal sin parar el audio
-        buildGridFromChannel(selectedChannel);
+        buildGridFromChannel(state.selectedChannel);
         drawTimelineRuler();
 
         // Enviar al ESP32 solo los pasos que quedan por sonar
-        if (typeof wsConnected !== 'undefined' && wsConnected) {
-            const remaining = buildRemainingSequence(MOTOR_MAP, pasoActual);
+        if (state.wsConnected) {
+            const remaining = buildRemainingSequence(MOTOR_MAP, state.pasoActual);
             if (remaining) {
                 const blocks = validateSequenceSize(remaining);
                 sendCommand('APPEND\n' + blocks[0]);
@@ -143,11 +408,11 @@ loadInstrumentBtn.addEventListener('click', () => {
         }
 
         // Actualizar análisis armónico sin interrumpir la melodía
-        const analysis = performHarmonicAnalysis(selectedChannel);
+        const analysis = performHarmonicAnalysis(state.selectedChannel);
         if (analysis) {
-            currentHarmonicSegments = analysis.segments;
-            currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
-            drawChordRow(currentHarmonicSegments, analysis.key);
+            state.currentHarmonicSegments = analysis.segments;
+            state.currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
+            drawChordRow(state.currentHarmonicSegments, analysis.key);
         }
 
         // Recalcular heat map y puntos de respiración en modo hot-swap
@@ -158,140 +423,84 @@ loadInstrumentBtn.addEventListener('click', () => {
         if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
         statusSpan.innerText =
-            `🔄 Instrumento cambiado en caliente · Canal ${selectedChannel + 1} · ` +
-            `${Object.keys(gridData.cells).length} notas`;
+            `🔄 Instrumento cambiado en caliente · Canal ${state.selectedChannel + 1} · ` +
+            `${Object.keys(state.gridData.cells).length} notas`;
         return;
     }
 
     // H2: flujo normal (sin reproducción activa)
-    // Si el tab activo ya tiene contenido, abrir el canal en uno nuevo
-    if (Object.keys(gridData.cells).length > 0) {
-        const snap = {
-            rawEvents:           rawEvents.map(e => ({ ...e })),
-            tempoMap:            tempoMap.map(e => ({ ...e })),
-            ppqn, totalTicks,
-            midiData:            midiData ? JSON.parse(JSON.stringify(midiData)) : null,
-            instrumentNames:     [...instrumentNames],
-            currentMidiFileName,
-            currentTimeSig:      { ...currentTimeSig },
-        };
-        _tabSaveCurrent();
-        const t = _tabDefaults();
-        t.rawEvents           = snap.rawEvents;
-        t.tempoMap            = snap.tempoMap;
-        t.ppqn                = snap.ppqn;
-        t.totalTicks          = snap.totalTicks;
-        t.midiData            = snap.midiData;
-        t.instrumentNames     = [...snap.instrumentNames];
-        t.currentMidiFileName = snap.currentMidiFileName;
-        t.currentTimeSig      = { ...snap.currentTimeSig };
-        t.selectedChannel     = selectedChannel;
-        _tabs.push(t);
-        _activeTabIdx = _tabs.length - 1;
-        _tabRestoreFrom(t);
+    const ch = state.selectedChannel;
+
+    // Si el tab activo ya tiene contenido, abrir el canal en uno nuevo.
+    // (Si está vacío, reutilizamos el tab actual: no creamos uno nuevo.)
+    if (Object.keys(state.gridData.cells).length > 0) {
+        tabPushPreloaded({ ..._captureSnapshot(), selectedChannel: ch });
         // enableInstrumentSelection filtra por canales con noteOn (igual que al cargar el MIDI),
         // evitando que _tabRestoreFrom muestre canales con programChange pero sin notas.
-        if (typeof enableInstrumentSelection === 'function') enableInstrumentSelection();
-        _tabRender();
+        enableInstrumentSelection();
+        tabRender();
     }
 
-    statusSpan.innerText = `Construyendo grid para canal ${selectedChannel + 1}...`;
-    buildGridFromChannel(selectedChannel);
-    if (typeof historyClear === 'function') historyClear();
-    pasoActual = 0;
-    drawTimelineRuler();
+    statusSpan.innerText = `Construyendo grid para canal ${ch + 1}...`;
 
     // Volver al inicio del grid al cargar un nuevo canal
     const _gs = document.getElementById('gridScroll');
     if (_gs) _gs.scrollLeft = 0;  // el listener de scroll sincroniza chordRow y ruler
 
-    // Análisis armónico
-    const analysis = performHarmonicAnalysis(selectedChannel);
-    if (analysis) {
-        currentHarmonicSegments = analysis.segments;
-        currentFusedSegments    = analysis.fusedSegments;
-        currentPhraseSegments   = analysis.phraseSegments;
-        currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
-
-        // Habilitar select y opción frases
-        const sel = document.getElementById('viewLevelSelect');
-        sel.disabled = false;
-        sel.value = 'acordes';
-        sel.querySelector('option[value="frases"]').disabled = (currentPhraseSegments.length === 0);
-
-        drawChordRow(_activeSegmentsFor(sel.value, analysis), analysis.key);
-
-        // Conteo de cadencias por tipo
-        const cadCounts = currentPhraseSegments.reduce((acc, p) => {
-            acc[p.cadenceType] = (acc[p.cadenceType] || 0) + 1; return acc;
-        }, {});
-        const cadText = Object.entries(cadCounts)
-            .map(([t, n]) => `${n} ${t}`).join(', ') || '—';
-
-        debugDiv.innerHTML +=
-            `<br><strong>Análisis armónico:</strong> Tonalidad: ${currentKey} ` +
-            `(correlación: ${analysis.key.correlation.toFixed(2)}) | ` +
-            `Segmentos: ${currentHarmonicSegments.length} | ` +
-            `Bloques fusionados: ${currentFusedSegments.length} (cada ${fusionStepsPerUnit} pasos) | ` +
-            `Frases: ${currentPhraseSegments.length} (${cadText})`;
-    }
-
-    // Habilitar botón de notas activas
-    document.getElementById('activeNotesBtn').disabled = false;
-
     // Refrescar panel de notas activas si está abierto
     if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
-    playBtn.disabled = false;
-    const _exportBtn = document.getElementById('exportMidiMenuBtn');
-    if (_exportBtn) _exportBtn.disabled = false;
-    _enableMeasureButtons();
-    const abBtn = document.getElementById('abLoopBtn');
-    if (abBtn) abBtn.disabled = false;
-
-    // Calcular heat map y respiración
-    _refreshHeatMap();
-    calcularBreathingPoints();
-    const heatBtn = document.getElementById('heatMapBtn');
-    if (heatBtn) heatBtn.disabled = false;
-    if (heatMapActive) drawPianoRollWithPlayhead(-1);
-
-    // Habilitar opción "respiración" en el selector de vista
-    const selResp = document.getElementById('viewLevelSelect');
-    if (selResp) selResp.querySelector('option[value="respiración"]').disabled = (breathingSegments.length === 0);
-
-    // Habilitar botón del panel de acordes
-    const chordPanelBtn = document.getElementById('chordPanelBtn');
-    if (chordPanelBtn) chordPanelBtn.disabled = false;
-
-    statusSpan.innerText =
-        `Grid listo · Canal ${selectedChannel + 1} · ` +
-        `${Object.keys(gridData.cells).length} notas · ` +
-        `Tonalidad: ${currentKey}`;
-
-    const _numMeasures = Math.ceil(totalSteps / currentTimeSig.stepsPerMeasure);
+    // Debug del grid (no depende del análisis: disponible de inmediato)
+    const _numMeasures = Math.ceil(state.totalSteps / state.currentTimeSig.stepsPerMeasure);
     debugDiv.innerHTML +=
-        `<br><strong>Grid generado:</strong> ${instrumentNames[selectedChannel]}, ` +
+        `<br><strong>Grid generado:</strong> ${state.instrumentNames[ch]}, ` +
         `<strong>${_numMeasures} compases</strong>, ` +
-        `Pasos=${totalSteps}, Rango=${noteRows[0]}–${noteRows[noteRows.length - 1]}, ` +
-        `Zoom=${stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
+        `Pasos=${state.totalSteps}, Rango=${state.noteRows[0]}–${state.noteRows[state.noteRows.length - 1]}, ` +
+        `Zoom=${state.stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
 
     // Actualizar nombre del tab con el archivo MIDI cargado
-    if (typeof tabMarkFileLoaded === 'function') tabMarkFileLoaded(currentMidiFileName);
+    tabMarkFileLoaded(state.currentMidiFileName);
+
+    // Lógica de setup compartida — el análisis armónico corre en el worker.
+    // Todo lo que dependa de la tonalidad/segmentos se aplica al resolver.
+    _buildChannelGrid(ch, { async: true }).then((analysis) => {
+        // Redibujar con heat map si está activo (necesita los segmentos ya aplicados)
+        if (state.heatMapActive) drawPianoRollWithPlayhead(-1);
+
+        statusSpan.innerText =
+            `Grid listo · Canal ${ch + 1} · ` +
+            `${Object.keys(state.gridData.cells).length} notas · ` +
+            `Tonalidad: ${state.currentKey}`;
+
+        if (analysis) {
+            const cadCounts = state.currentPhraseSegments.reduce((acc, p) => {
+                acc[p.cadenceType] = (acc[p.cadenceType] || 0) + 1; return acc;
+            }, {});
+            const cadText = Object.entries(cadCounts)
+                .map(([t, n]) => `${n} ${t}`).join(', ') || '—';
+
+            debugDiv.innerHTML +=
+                `<br><strong>Análisis armónico:</strong> Tonalidad: ${state.currentKey} ` +
+                `(correlación: ${analysis.key.correlation.toFixed(2)}) | ` +
+                `Segmentos: ${state.currentHarmonicSegments.length} | ` +
+                `Bloques fusionados: ${state.currentFusedSegments.length} (cada ${state.fusionStepsPerUnit} pasos) | ` +
+                `Frases: ${state.currentPhraseSegments.length} (${cadText})`;
+        }
+    });
 });
 
 // ---- Select nivel de vista armónica ----
 document.getElementById('viewLevelSelect').addEventListener('change', function () {
     if (this.value === 'respiración') {
-        if (breathingSegments.length) drawChordRow(breathingSegments, null);
+        if (state.breathingSegments.length) drawChordRow(state.breathingSegments, null);
         return;
     }
-    if (!currentHarmonicSegments.length) return;
-    const key = { tonic: currentKey.replace('m', ''), mode: currentKey.endsWith('m') ? 'minor' : 'major', rootClass: 0 };
+    if (!state.currentHarmonicSegments.length) return;
+    const key = { tonic: state.currentKey.replace('m', ''), mode: state.currentKey.endsWith('m') ? 'minor' : 'major', rootClass: 0 };
     drawChordRow(_activeSegmentsFor(this.value, {
-        segments: currentHarmonicSegments,
-        fusedSegments: currentFusedSegments,
-        phraseSegments: currentPhraseSegments
+        segments: state.currentHarmonicSegments,
+        fusedSegments: state.currentFusedSegments,
+        phraseSegments: state.currentPhraseSegments
     }), key);
 });
 
@@ -305,16 +514,47 @@ document.getElementById('activeNotesBtn').addEventListener('click', function () 
 playBtn.onclick  = play;
 stopBtn.onclick  = stop;
 
+// ---- Callbacks de UI de playback.js (desacople DOM) ----
+// playback.js no toca el DOM: dispara estos callbacks y aquí actualizamos
+// botones, mensaje de estado y playhead del piano roll.
+playbackCallbacks.onStart = () => {
+    playBtn.disabled = true;
+    stopBtn.disabled = false;
+};
+playbackCallbacks.onStop = () => {
+    playBtn.disabled = false;
+};
+playbackCallbacks.onPause = () => {
+    playBtn.disabled = false;
+};
+playbackCallbacks.onStatusChange = (msg) => {
+    statusSpan.innerText = msg;
+};
+playbackCallbacks.onStepChange = (step) => {
+    // Si el panel de acordes está abierto y hay highlight activo, dibujar con él;
+    // si no, dibujar solo el playhead.
+    if (step >= 0 && state.activeHighlight &&
+        document.getElementById('chordPanel')?.classList.contains('open')) {
+        drawPianoRollWithHighlightAndPlayhead(
+            state.activeHighlight.classes,
+            state.activeHighlight.startStep,
+            state.activeHighlight.endStep,
+            step
+        );
+    } else {
+        drawPianoRollWithPlayhead(step);
+    }
+};
+
 // ---- BPM en caliente: sincroniza tempoPoints[0] y reinicia interval ----
 document.getElementById('bpmInput').addEventListener('change', () => {
     const bpm = parseFloat(document.getElementById('bpmInput').value) || 120;
-    if (typeof tempoPoints !== 'undefined' && tempoPoints.length) {
-        tempoPoints[0].bpm = bpm;
-        if (typeof drawTimelineRuler === 'function') drawTimelineRuler();
+    if (state.tempoPoints && state.tempoPoints.length) {
+        state.tempoPoints[0].bpm = bpm;
+        drawTimelineRuler();
     }
-    if (!reproduciendo || !_playInterval) return;
-    clearInterval(_playInterval);
-    _playInterval = setInterval(_tick, MS_PER_STEP());
+    // Refrescar el interval visual con el nuevo tempo sin perder posición
+    refreshPlaybackTempo();
 });
 
 // ---- Botones de persistencia ----
@@ -325,6 +565,81 @@ document.getElementById('loadProjectBtn')?.addEventListener('click', () => {
 document.getElementById('loadProjectInput')?.addEventListener('change', (e) => {
     if (e.target.files[0]) loadProject(e.target.files[0]);
 });
+
+// ---- Habilitación de toda la UI tras cargar un proyecto ----
+// Reúne la habilitación de botones/selectores que antes vivía dentro de
+// _applyProjectData (persistence.js). Lee el estado ya poblado.
+function _enableAllButtons() {
+    // BPM
+    const bpmEl = document.getElementById('bpmInput');
+    if (bpmEl && state.tempoPoints[0]) bpmEl.value = Math.round(state.tempoPoints[0].bpm);
+
+    // Selector de canal
+    if (state.selectedChannel !== null) {
+        let opt = instrumentSelect.querySelector(`option[value="${state.selectedChannel}"]`);
+        if (!opt) {
+            opt = document.createElement('option');
+            opt.value       = state.selectedChannel;
+            opt.textContent = `Canal ${state.selectedChannel + 1}`;
+            instrumentSelect.appendChild(opt);
+        }
+        instrumentSelect.value    = state.selectedChannel;
+        instrumentSelect.disabled = false;
+        loadInstrumentBtn.disabled = false;
+    }
+
+    // Transporte y herramientas
+    playBtn.disabled = false;
+    _enableMeasureButtons();
+    const abBtn = document.getElementById('abLoopBtn');
+    if (abBtn) abBtn.disabled = false;
+    document.getElementById('activeNotesBtn').disabled = false;
+    const heatBtn = document.getElementById('heatMapBtn');
+    if (heatBtn) heatBtn.disabled = false;
+    const chordPanelBtn = document.getElementById('chordPanelBtn');
+    if (chordPanelBtn) chordPanelBtn.disabled = false;
+
+    // Selector de nivel armónico
+    const viewSel = document.getElementById('viewLevelSelect');
+    if (viewSel) {
+        viewSel.disabled = false;
+        viewSel.querySelector('option[value="acordes"]').disabled     = (state.currentFusedSegments.length  === 0);
+        viewSel.querySelector('option[value="frases"]').disabled      = (state.currentPhraseSegments.length === 0);
+        viewSel.querySelector('option[value="respiración"]').disabled = (state.breathingSegments.length     === 0);
+        viewSel.value = (state.currentFusedSegments.length > 0) ? 'acordes' : 'pasos';
+    }
+}
+
+// persistence.js dispara estos callbacks; aquí gestionamos la UI.
+projectCallbacks.onApplied      = _enableAllButtons;
+projectCallbacks.onStatusChange = (msg) => { statusSpan.innerText = msg; };
+
+// ---- Callbacks de UI de mml-parser.js (desacople DOM) ----
+// mml-parser puebla el estado y dispara onLoaded(result); aquí actualizamos la
+// barra (BPM, ruler), el panel de debug, el selector y construimos el grid.
+mmlCallbacks.onError = (msg) => { statusSpan.innerText = msg; };
+mmlCallbacks.onLoaded = (result) => {
+    // BPM input
+    const bpmInput = document.getElementById('bpmInput');
+    if (bpmInput) bpmInput.value = result.bpm;
+
+    // Etiqueta del ruler (MML siempre 4/4)
+    const rulerLabel = document.getElementById('rulerTimeSigLabel');
+    if (rulerLabel) rulerLabel.textContent = '4 / 4';
+
+    // Panel de debug
+    debugDiv.innerHTML =
+        `<strong>MML cargado</strong><br>` +
+        `Pistas: ${result.trackCount} | BPM: ${result.bpm} | PPQN: ${result.ppqn} | ` +
+        `Ticks totales: ${result.totalTicks}<br>` +
+        result.noteCounts.map((n, i) => `Pista ${i + 1}: ${n} notas`).join(' &nbsp;|&nbsp; ');
+
+    // Selector de canales + construir el grid de la primera pista
+    enableInstrumentSelection();
+    instrumentSelect.value = '0';
+    loadInstrumentBtn.disabled = false;
+    loadInstrumentBtn.click();
+};
 
 // ---- Inicializar eventos del canvas (editor.js) ----
 initCanvasEvents();
@@ -345,7 +660,7 @@ initMinimap();
 function openEsp32LogWindow() {
     const mode = document.getElementById('connModeSelect')?.value || 'wifi';
 
-    const _isLight = (typeof _currentTheme !== 'undefined') && _currentTheme === 'light';
+    const _isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const _CSS = _isLight
         ? `*{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:monospace;background:#f4f4f8;color:#1a1a2e;display:flex;flex-direction:column;height:100vh;padding:8px;gap:6px;}
@@ -451,12 +766,12 @@ setInterval(u,600);u();
 function initMIDI() {
     MIDI.loadPlugin({
         soundfontUrl: "./MIDI.js/examples/soundfont/",
-        instrument:   currentInstrument,
+        instrument:   state.currentInstrument,
         onsuccess: () => {
-            soundfontLoaded = true;
+            state.soundfontLoaded = true;
             statusSpan.innerText = "SoundFont listo. Carga un archivo MIDI.";
             console.log("MIDI.js: SoundFont cargado.");
-            if (midiData) enableInstrumentSelection();
+            if (state.midiData) enableInstrumentSelection();
 
             // H1: conectar con el ESP32 una vez el audio está listo
             initWebSocket();
@@ -473,7 +788,7 @@ function initMIDI() {
 initMIDI();
 
 // ---- Auto-STOP cuando ESP32 termina reproducción ----
-onStoppedCallback = () => {
+state.onStoppedCallback = () => {
     console.log('[onStoppedCallback] ESP32 terminó reproducción → ejecutar stop()');
     stop();
 };
@@ -494,7 +809,7 @@ function closeHelpModal() {
 document.addEventListener('keydown', (e) => {
     // Escape: primero limpia selección si la hay, luego cierra modal
     if (e.key === 'Escape') {
-        if (typeof _selActive !== 'undefined' && _selActive) { selectionClear(); return; }
+        if (state._selActive) { selectionClear(); return; }
         closeHelpModal();
         return;
     }
@@ -504,7 +819,7 @@ document.addEventListener('keydown', (e) => {
     if (inInput) return;
 
     // Borrar selección rectangular
-    if ((e.key === 'Delete' || e.key === 'Backspace') && typeof _selCells !== 'undefined' && _selCells.size > 0) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && state._selCells && state._selCells.size > 0) {
         e.preventDefault();
         selectionDelete();
         return;
@@ -512,30 +827,30 @@ document.addEventListener('keydown', (e) => {
 
     // Copiar selección al portapapeles de fragmentos
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c' &&
-        typeof _selCells !== 'undefined' && _selCells.size > 0) {
+        state._selCells && state._selCells.size > 0) {
         selectionCopy();
         return;
     }
 
     // Pegar fragmento: Ctrl+V (offset actual) · Ctrl+Shift+V (+1 oct) · Ctrl+Alt+V (−1 oct)
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
-        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+        if (state._clipboardFragment) {
             e.preventDefault();
             pasteFragment();
             return;
         }
     }
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
-        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+        if (state._clipboardFragment) {
             e.preventDefault();
-            pasteFragment((typeof _pasteOctaveOffset !== 'undefined' ? _pasteOctaveOffset : 0) + 12);
+            pasteFragment(12);
             return;
         }
     }
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.altKey && e.key.toLowerCase() === 'v') {
-        if (typeof pasteFragment === 'function' && typeof _clipboardFragment !== 'undefined' && _clipboardFragment) {
+        if (state._clipboardFragment) {
             e.preventDefault();
-            pasteFragment((typeof _pasteOctaveOffset !== 'undefined' ? _pasteOctaveOffset : 0) - 12);
+            pasteFragment(-12);
             return;
         }
     }
@@ -567,96 +882,113 @@ function openAllInstruments() {
     }
 
     // Captura el estado MIDI antes de mover tabs
-    const snap = {
-        rawEvents:           rawEvents.map(e => ({ ...e })),
-        tempoMap:            tempoMap.map(e => ({ ...e })),
-        ppqn,
-        totalTicks,
-        midiData:            midiData ? JSON.parse(JSON.stringify(midiData)) : null,
-        instrumentNames:     [...instrumentNames],
-        currentMidiFileName,
-        currentTimeSig:      { ...currentTimeSig },
-    };
+    const snap = _captureSnapshot();
 
-    _tabSaveCurrent();
-    const startIdx = _tabs.length;   // índice del primer tab nuevo
+    tabSaveCurrent();
+    const startIdx = tabNextIndex();   // índice del primer tab nuevo
 
     opts.forEach((opt) => {
-        const ch     = parseInt(opt.value);
         const chName = opt.textContent.trim();
-
-        // Tab nuevo pre-cargado con los datos MIDI compartidos
-        const t = _tabDefaults();
-        t.rawEvents           = snap.rawEvents.map(e => ({ ...e }));
-        t.tempoMap            = snap.tempoMap.map(e => ({ ...e }));
-        t.ppqn                = snap.ppqn;
-        t.totalTicks          = snap.totalTicks;
-        t.midiData            = snap.midiData ? JSON.parse(JSON.stringify(snap.midiData)) : null;
-        t.instrumentNames     = [...snap.instrumentNames];
-        t.currentMidiFileName = snap.currentMidiFileName;
-        t.currentTimeSig      = { ...snap.currentTimeSig };
-        t.selectedChannel     = ch;
-        t.name                = chName;
-
-        _tabs.push(t);
-        _activeTabIdx = _tabs.length - 1;
-        _tabRestoreFrom(t);  // restaura globals: selectedChannel=ch, rawEvents=snap...
-        if (typeof enableInstrumentSelection === 'function') enableInstrumentSelection();
-
-        buildGridFromChannel(ch);
-        if (typeof historyClear === 'function') historyClear();
-        pasoActual = 0;
-        drawTimelineRuler();
-
-        const analysis = performHarmonicAnalysis(ch);
-        if (analysis) {
-            currentHarmonicSegments = analysis.segments;
-            currentFusedSegments    = analysis.fusedSegments;
-            currentPhraseSegments   = analysis.phraseSegments;
-            currentKey = analysis.key.tonic + (analysis.key.mode === 'minor' ? 'm' : '');
-
-            const viewSel = document.getElementById('viewLevelSelect');
-            if (viewSel) {
-                viewSel.disabled = false;
-                viewSel.value    = 'acordes';
-                viewSel.querySelector('option[value="frases"]').disabled =
-                    (currentPhraseSegments.length === 0);
-            }
-            const keyObj = {
-                tonic:    currentKey.replace('m', ''),
-                mode:     currentKey.endsWith('m') ? 'minor' : 'major',
-                rootClass: 0
-            };
-            drawChordRow(currentFusedSegments, keyObj);
-        }
-
-        if (typeof calcularBreathingPoints === 'function') calcularBreathingPoints();
-        _refreshHeatMap();
-        _enableMeasureButtons();
-
-        playBtn.disabled = false;
-    const _exportBtn = document.getElementById('exportMidiMenuBtn');
-    if (_exportBtn) _exportBtn.disabled = false;
-        loadInstrumentBtn.disabled = false;
-        document.getElementById('activeNotesBtn').disabled = false;
-        const abBtn = document.getElementById('abLoopBtn');
-        if (abBtn) abBtn.disabled = false;
-        const heatBtn = document.getElementById('heatMapBtn');
-        if (heatBtn) heatBtn.disabled = false;
-        const chordPanelBtn = document.getElementById('chordPanelBtn');
-        if (chordPanelBtn) chordPanelBtn.disabled = false;
-
-        const viewSel2 = document.getElementById('viewLevelSelect');
-        if (viewSel2 && analysis) {
-            viewSel2.querySelector('option[value="respiración"]').disabled =
-                (breathingSegments.length === 0);
-        }
-
-        _tabs[_activeTabIdx].name    = chName;
-        _tabs[_activeTabIdx].isDirty = false;
-        _tabSaveCurrent();   // graba el grid construido en este slot
+        _setupChannelTab(parseInt(opt.value), snap, { name: chName });
+        tabUpdateActive({ name: chName, isDirty: false }, true);  // graba el grid construido en este slot
     });
 
     tabSwitch(startIdx);   // activa el primer tab nuevo
     statusSpan.innerText = `${opts.length} canal${opts.length > 1 ? 'es' : ''} abierto${opts.length > 1 ? 's' : ''} en tabs separados.`;
 }
+
+// ---- Conexión ESP32 (handlers de la barra) ──────────────────
+function _connectEsp32() {
+    const mode = document.getElementById('connModeSelect').value;
+    if (mode === 'serial') {
+        initSerial();
+    } else {
+        initWebSocket();
+    }
+}
+
+function _onConnModeChange() {
+    const mode    = document.getElementById('connModeSelect').value;
+    const ipInput = document.getElementById('esp32IpInput');
+    const logBtn  = document.getElementById('esp32LogBtn');
+    ipInput.style.display = mode === 'wifi' ? '' : 'none';
+    logBtn.style.display  = '';
+    // Desconectar el canal anterior al cambiar de modo
+    if (mode === 'serial') closeWebSocket();
+    if (mode === 'wifi')   closeSerial();
+    // Resetear offset del panel Escala al cambiar de modo
+    _tpSlider(0);
+}
+
+// ============================================================
+// Exposición en window — atributos onclick del HTML y llamadas
+// cruzadas `typeof X === 'function'` desde otros módulos.
+// ============================================================
+Object.assign(window, {
+    // estado compartido (handlers inline lo mutan)
+    state,
+
+    // datos / análisis
+    loadMIDIFile, enableInstrumentSelection,
+    loadMMLText, openMMLImportModal, closeMMLImportModal,
+    performHarmonicAnalysis, performHarmonicAnalysisFromGrid,
+    getHarmonicSegments, detectKey, findChord, analyzeChordsOnSegments,
+    fuseSegments, detectPhrases, getChordFunction, detectInversion,
+    exportMIDI,
+
+    // piano roll
+    buildGridFromChannel, drawPianoRoll, drawPianoRollWithPlayhead,
+    drawPianoRollWithHighlightAndPlayhead, drawPianoRollWithHighlight,
+    drawNoteLabels, initNoteLabelsEvents, toggleNewGridPanel,
+    _doLoadBlankGrid, loadBlankGrid, applyZoom, zoom, addMeasures, removeMeasures,
+    _enableMeasureButtons,
+
+    // regla
+    drawTimelineRuler, toggleTempoEditMode, toggleLoopAB,
+    updateRulerPlayhead, _updateAbBtn,
+
+    // minimap / velocidades / calor
+    drawMinimap, toggleVelocityLane, drawVelocityLane,
+    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints, toggleHeatMap,
+
+    // acordes
+    drawChordRow, toggleChordPanel, onChordBlockClick, _selectChordAtStep,
+    _updateChordPanelFromPlayback, _activeSegments, _playSegmentLoop,
+    _startNextBatch, _toggleAutoAdvance, _cpanelPlayLoop, _cpanelPrevChord,
+    _cpanelNextChord,
+
+    // notas activas
+    activeNotesPanelToggle, activeNotesPanelRefresh,
+
+    // reproducción
+    play, pause, stop, seekToStep, MS_PER_STEP, _bpmAtStep,
+
+    // historial / edición
+    historyPush, historyUndo, historyRedo, historyClear,
+    copyFragment, pasteFragment, setPasteOctave, deleteFragment,
+    selectionDelete, selectionCopy, selectionClear, _updateFragmentButtons,
+
+    // persistencia / recientes
+    saveProject, loadProject, _applyProjectData,
+    recentFilesAdd, toggleRecentInMenu, recentFilesLoad, recentFilesClear,
+
+    // tabs
+    tabSwitch, tabNew, tabNewWithDialog, tabClose, tabMarkFileLoaded, tabMarkDirty,
+
+    // tema / transposición
+    setTheme, toggleTheme, toggleTransposePanel, _sliderRange,
+
+    // hardware
+    initWebSocket, sendCommand, sendStop, closeWebSocket, retryWebSocket,
+    initSerial, closeSerial,
+    buildFullSequence, buildRemainingSequence, buildRangeSequence,
+    buildLedMappingCmd, validateSequenceSize,
+    MOTOR_MAP, motorForNote, motorMapUI, motorMapExport, motorMapImport,
+    toggleMotorMapPanel, ledForNote, _mmReleaseAllNotes, _mmPanelTest,
+    _renderMotorMapPanelRows, _renderMotorMapRows, _mmListenForKey, _mmEdit,
+
+    // entry-point local
+    openAllInstruments, openEsp32LogWindow, showHelpModal, closeHelpModal,
+    toggleMotorEscalaPanel, _connectEsp32, _onConnModeChange,
+    toggleAppMenu, closeAppMenu,
+});

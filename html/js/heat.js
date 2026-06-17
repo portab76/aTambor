@@ -4,6 +4,10 @@
 // Depende de: state.js (gridData, noteRows, heatMapActive, heatMapData)
 // ============================================================
 
+import { state } from './state.js';
+import { BATCH_SIZE } from './chord-row.js';
+import { drawPianoRollWithPlayhead } from './piano-roll.js';
+
 const MAX_NOTES_HEAT = 10000;  // Máximo de notas para la matriz (>2000 usa muestreo uniforme)
 
 /**
@@ -14,7 +18,7 @@ const MAX_NOTES_HEAT = 10000;  // Máximo de notas para la matriz (>2000 usa mue
  * @param {Array} noteRowsArray - Array de MIDI numbers [lowest...highest]
  * @returns {Map} "note,step" → heatScore [0,1] | null si cellsMap vacío
  */
-function calcularHeatScores(cellsMap, noteRowsArray) {
+export function calcularHeatScores(cellsMap, noteRowsArray) {
     // 1. Convertir gridData.cells a array de objetos normalizados
     const notes = [];
     for (const [key, cell] of Object.entries(cellsMap)) {
@@ -142,22 +146,22 @@ function calcularHeatScores(cellsMap, noteRowsArray) {
 /**
  * Recalcula heatMapData a partir del grid actual (gridData.cells, noteRows)
  */
-function _refreshHeatMap() {
-    if (!gridData || Object.keys(gridData.cells).length === 0) {
-        heatMapData = null;
+export function _refreshHeatMap() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        state.heatMapData = null;
         return;
     }
-    heatMapData = calcularHeatScores(gridData.cells, noteRows);
+    state.heatMapData = calcularHeatScores(state.gridData.cells, state.noteRows);
 
     // Debug: mostrar distribución de scores en consola
-    if (heatMapData) {
-        const vals = [...heatMapData.values()];
+    if (state.heatMapData) {
+        const vals = [...state.heatMapData.values()];
         const min  = Math.min(...vals).toFixed(3);
         const max  = Math.max(...vals).toFixed(3);
         const avg  = (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(3);
         console.log(`[heat] n=${vals.length}  min=${min}  max=${max}  avg=${avg}`);
-        console.log('[heat] primeras claves:', [...heatMapData.entries()].slice(0,5));
-        console.log('[heat] primera clave gridData:', Object.keys(gridData.cells)[0]);
+        console.log('[heat] primeras claves:', [...state.heatMapData.entries()].slice(0,5));
+        console.log('[heat] primera clave gridData:', Object.keys(state.gridData.cells)[0]);
     }
 }
 
@@ -170,30 +174,30 @@ function _refreshHeatMap() {
  * separados por silencios reales. El corte se hace al inicio de cada silencio.
  * Fallback: si la canción es densa (< 2 silencios), parte en lotes de compases.
  */
-function calcularBreathingPoints() {
-    if (!gridData || Object.keys(gridData.cells).length === 0) {
-        breathingSegments = [];
+export function calcularBreathingPoints() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        state.breathingSegments = [];
         return;
     }
 
     const MIN_SILENCE_STEPS = 2; // mínimo de pasos consecutivos sin nota para cortar
 
     // 1. Marcar qué pasos tienen nota sonando (inicio + duración completa)
-    const active = new Uint8Array(totalSteps);
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    const active = new Uint8Array(state.totalSteps);
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [, stepStr] = key.split(',');
         const start = parseInt(stepStr);
-        const end   = Math.min(start + Math.ceil(cell.duration), totalSteps);
+        const end   = Math.min(start + Math.ceil(cell.duration), state.totalSteps);
         for (let s = start; s < end; s++) active[s] = 1;
     }
 
     // 2. Encontrar rangos de silencio real y usarlos como puntos de corte
     const breaks = [0];
     let s = 0;
-    while (s < totalSteps) {
+    while (s < state.totalSteps) {
         if (!active[s]) {
             const silenceStart = s;
-            while (s < totalSteps && !active[s]) s++;
+            while (s < state.totalSteps && !active[s]) s++;
             if (s - silenceStart >= MIN_SILENCE_STEPS) {
                 breaks.push(silenceStart);
             }
@@ -201,42 +205,42 @@ function calcularBreathingPoints() {
             s++;
         }
     }
-    breaks.push(totalSteps);
+    breaks.push(state.totalSteps);
 
     // Eliminar posibles duplicados y asegurar orden
     const uniqueBreaks = [...new Set(breaks)].sort((a, b) => a - b);
 
     // 3. Fallback: si la canción es densa (menos de 2 cortes reales)
     if (uniqueBreaks.length < 3) {
-        const spm = (typeof currentTimeSig !== 'undefined') ? currentTimeSig.stepsPerMeasure : 16;
-        const bm  = (typeof BATCH_SIZE !== 'undefined') ? BATCH_SIZE : 8;
+        const spm = state.currentTimeSig ? state.currentTimeSig.stepsPerMeasure : 16;
+        const bm  = BATCH_SIZE;
         uniqueBreaks.length = 0;
         uniqueBreaks.push(0);
-        for (let i = bm * spm; i < totalSteps; i += bm * spm) uniqueBreaks.push(i);
-        uniqueBreaks.push(totalSteps);
+        for (let i = bm * spm; i < state.totalSteps; i += bm * spm) uniqueBreaks.push(i);
+        uniqueBreaks.push(state.totalSteps);
         console.log(`[breath] Canción densa — fallback ${uniqueBreaks.length - 1} lotes de ${bm} compases`);
     }
 
     // 4. Construir segmentos con energía para el color del bloque
-    breathingSegments = [];
+    state.breathingSegments = [];
     for (let i = 0; i < uniqueBreaks.length - 1; i++) {
         const startStep = uniqueBreaks[i];
         const endStep   = uniqueBreaks[i + 1];
 
         let totalE = 0, noteCount = 0;
         const noteSet = new Set();
-        for (const [key, cell] of Object.entries(gridData.cells)) {
+        for (const [key, cell] of Object.entries(state.gridData.cells)) {
             const [noteStr, stepStr] = key.split(',');
             const step = parseInt(stepStr);
             if (step < startStep || step >= endStep) continue;
-            const heat = (heatMapData && heatMapData.has(key)) ? heatMapData.get(key) : 0.5;
+            const heat = (state.heatMapData && state.heatMapData.has(key)) ? state.heatMapData.get(key) : 0.5;
             totalE += heat * (cell.velocity / 127);
             noteCount++;
             noteSet.add(parseInt(noteStr));
         }
         const avgE = noteCount > 0 ? Math.min(totalE / noteCount, 1) : 0;
 
-        breathingSegments.push({
+        state.breathingSegments.push({
             startStep,
             endStep,
             energy:        avgE,
@@ -247,28 +251,26 @@ function calcularBreathingPoints() {
     }
 
     const silences = uniqueBreaks.length - 2; // sin contar 0 y totalSteps
-    console.log(`[breath] ${breathingSegments.length} bloques, ${silences} silencios reales detectados`);
+    console.log(`[breath] ${state.breathingSegments.length} bloques, ${silences} silencios reales detectados`);
 }
 
 /**
  * Toggle del modo heat map desde la toolbar
  * Activa/desactiva visualización, calcula si es necesario
  */
-function toggleHeatMap() {
-    heatMapActive = !heatMapActive;
+export function toggleHeatMap() {
+    state.heatMapActive = !state.heatMapActive;
 
     const btn = document.getElementById('heatMapBtn');
     if (btn) {
-        btn.classList.toggle('btn-active', heatMapActive);
+        btn.classList.toggle('btn-active', state.heatMapActive);
     }
 
     // Si activando y no hay datos aún, calcular
-    if (heatMapActive && heatMapData === null && gridData && Object.keys(gridData.cells).length > 0) {
+    if (state.heatMapActive && state.heatMapData === null && state.gridData && Object.keys(state.gridData.cells).length > 0) {
         _refreshHeatMap();
     }
 
     // Redibujar con los nuevos datos
-    if (typeof drawPianoRollWithPlayhead === 'function') {
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-    }
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
 }

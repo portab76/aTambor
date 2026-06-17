@@ -3,6 +3,11 @@
 // Depende de: state.js, piano-roll.js (_OCT_RGB), history.js
 // ============================================================
 
+import { state } from './state.js';
+import { historyPush } from './history.js';
+import { _OCT_RGB, drawPianoRollWithPlayhead } from './piano-roll.js';
+import { tabMarkDirty } from './tabs.js';
+
 let velLaneActive = true;  // visible por defecto
 const _VEL_LANE_H = 64;
 
@@ -12,7 +17,7 @@ let _velAllMode  = false;   // true = Shift+drag → todas las notas a la vez
 
 // ── Toggle ──────────────────────────────────────────────────
 
-function toggleVelocityLane() {
+export function toggleVelocityLane() {
     velLaneActive = !velLaneActive;
     const wrapper = document.getElementById('velocityLaneWrapper');
     if (wrapper) wrapper.style.display = velLaneActive ? 'flex' : 'none';
@@ -23,13 +28,13 @@ function toggleVelocityLane() {
 
 // ── Dibujo ───────────────────────────────────────────────────
 
-function drawVelocityLane() {
+export function drawVelocityLane() {
     if (!velLaneActive) return;
     const velCanvas = document.getElementById('velocityLaneCanvas');
-    if (!velCanvas || !totalSteps || !noteRows.length) return;
+    if (!velCanvas || !state.totalSteps || !state.noteRows.length) return;
 
     const ctx2 = velCanvas.getContext('2d');
-    velCanvas.width        = totalSteps * stepWidth;
+    velCanvas.width        = state.totalSteps * state.stepWidth;
     velCanvas.height       = _VEL_LANE_H;
     velCanvas.style.width  = `${velCanvas.width}px`;
     velCanvas.style.height = `${_VEL_LANE_H}px`;
@@ -41,10 +46,10 @@ function drawVelocityLane() {
     ctx2.fillRect(0, 0, velCanvas.width, _VEL_LANE_H);
 
     // Líneas de cuadrícula verticales (alineadas con el piano roll)
-    for (let step = 0; step <= totalSteps; step++) {
+    for (let step = 0; step <= state.totalSteps; step++) {
         ctx2.strokeStyle = (step % 16 === 0) ? (CT.gridBar || '#555555') : (CT.grid || '#3a3a50');
         ctx2.lineWidth   = (step % 16 === 0) ? 1 : 0.5;
-        const x = step * stepWidth;
+        const x = step * state.stepWidth;
         ctx2.beginPath(); ctx2.moveTo(x, 0); ctx2.lineTo(x, _VEL_LANE_H); ctx2.stroke();
     }
 
@@ -57,7 +62,7 @@ function drawVelocityLane() {
     ctx2.setLineDash([]);
 
     // Barras por nota
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
         const note = parseInt(noteStr);
@@ -68,8 +73,8 @@ function drawVelocityLane() {
         const bright       = 0.35 + (vel / 127) * 0.65;
 
         const barH = Math.max(2, Math.round((vel / 127) * (_VEL_LANE_H - 6)));
-        const x    = step * stepWidth + 1;
-        const w    = Math.max(1, stepWidth - 2);
+        const x    = step * state.stepWidth + 1;
+        const w    = Math.max(1, state.stepWidth - 2);
         const y    = _VEL_LANE_H - barH - 3;
 
         ctx2.fillStyle = `rgb(${Math.round(or*bright)},${Math.round(og*bright)},${Math.round(ob*bright)})`;
@@ -82,7 +87,7 @@ function drawVelocityLane() {
 
     // En modo Shift+drag: línea horizontal que indica el nivel aplicado a todas
     if (_velAllMode && _velDragging) {
-        const anyCell = Object.values(gridData.cells)[0];
+        const anyCell = Object.values(state.gridData.cells)[0];
         if (anyCell) {
             const refVel = anyCell.velocity;
             const refY   = _VEL_LANE_H - 3 - Math.round((refVel / 127) * (_VEL_LANE_H - 6));
@@ -116,12 +121,12 @@ function _velFromY(canvasY) {
 }
 
 function _stepsAtX(canvasX) {
-    return Math.max(0, Math.min(totalSteps - 1, Math.floor(canvasX / stepWidth)));
+    return Math.max(0, Math.min(state.totalSteps - 1, Math.floor(canvasX / state.stepWidth)));
 }
 
 function _setAllVelocities(vel) {
     let changed = false;
-    for (const cell of Object.values(gridData.cells)) {
+    for (const cell of Object.values(state.gridData.cells)) {
         cell.velocity = vel;
         changed = true;
     }
@@ -130,7 +135,7 @@ function _setAllVelocities(vel) {
 
 function _editVelAtStep(step, vel) {
     let changed = false;
-    for (const [key, cell] of Object.entries(gridData.cells)) {
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
         if (parseInt(key.split(',')[1]) === step) {
             cell.velocity = vel;
             changed = true;
@@ -160,8 +165,8 @@ function _onVelMouseDown(e) {
         _editVelAtStep(step, vel);
     }
     drawVelocityLane();
-    drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
-    if (typeof tabMarkDirty === 'function') tabMarkDirty();
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    tabMarkDirty();
 }
 
 function _onVelDocMouseMove(e) {
@@ -176,7 +181,7 @@ function _onVelDocMouseMove(e) {
     if (_velAllMode) {
         if (_setAllVelocities(vel)) {
             drawVelocityLane();
-            drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+            drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
         }
         return;
     }
@@ -186,7 +191,7 @@ function _onVelDocMouseMove(e) {
     _velLastStep = step;
     if (_editVelAtStep(step, vel)) {
         drawVelocityLane();
-        drawPianoRollWithPlayhead(reproduciendo ? pasoActual : -1);
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     }
 }
 
@@ -196,12 +201,12 @@ function _onVelMouseUp() {
     _velAllMode  = false;
     _velLastStep = -1;
     drawVelocityLane();   // elimina la línea guía amarilla
-    if (typeof tabMarkDirty === 'function') tabMarkDirty();
+    tabMarkDirty();
 }
 
 // ── Inicialización ────────────────────────────────────────────
 
-function initVelocityLane() {
+export function initVelocityLane() {
     const velCanvas = document.getElementById('velocityLaneCanvas');
     if (!velCanvas) return;
     velCanvas.addEventListener('mousedown', _onVelMouseDown);

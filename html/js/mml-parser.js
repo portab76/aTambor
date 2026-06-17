@@ -27,7 +27,18 @@
 // El usuario elige qué pista visualizar en el piano roll.
 // ============================================================
 
+import { state } from './state.js';
+
 const MML_PPQN = 96;
+
+// ── Callbacks de UI ───────────────────────────────────────────────────────────
+// mml-parser no toca el DOM ni construye el grid: puebla el estado y dispara
+// onLoaded(result) / onError(msg). El entry point (midiGrid.js) gestiona la UI
+// (debug, status, bpm, selector, construir el grid del primer canal).
+export const mmlCallbacks = {
+    onLoaded: null,   // (result) => void
+    onError:  null,   // (msg: string) => void
+};
 
 const MML_SEMI = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
 
@@ -39,7 +50,8 @@ function mmlDurToTicks(dur, dotted) {
 
 // ---- Parser de una pista MML → eventos noteOn/noteOff ----
 // Devuelve { events[], tempo, tempoChanges[], totalTicks }
-function parseMMLTrackToEvents(src, channel) {
+// Función pura (sin DOM ni estado global): exportada para testing.
+export function parseMMLTrackToEvents(src, channel) {
     const events = [];
     let i = 0;
     let tick = 0;
@@ -164,84 +176,86 @@ function parseMMLTrackToEvents(src, channel) {
     return { events, tempo, tempoChanges, totalTicks: tick };
 }
 
-// ---- Carga MML en el estado global de midiGrid -----------
-// Rellena rawEvents, ppqn, tempoMap, totalTicks, instrumentNames,
-// currentTimeSig, midiData y llama a enableInstrumentSelection().
-function loadMMLText(text) {
-    let raw = text.trim();
+/**
+ * Parsea texto MML y puebla el estado (rawEvents, ppqn, tempoMap, totalTicks,
+ * instrumentNames, currentTimeSig, midiData). NO toca el DOM ni construye el
+ * grid: dispara mmlCallbacks.onLoaded(result) para que midiGrid.js gestione la
+ * UI. Si el MML no tiene pistas válidas, dispara onError y devuelve null.
+ *
+ * @returns {Object|null} resultado del parseo:
+ *   { trackCount, bpm, ppqn, totalTicks, noteCounts, instrumentNames }  ó  null
+ */
+export function loadMMLText(text) {
+    let raw = (text || '').trim();
     if (raw.toUpperCase().startsWith('MML@')) raw = raw.slice(4);
 
     const trackTexts = raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
     if (trackTexts.length === 0) {
-        statusSpan.innerText = 'MML vacío o sin pistas válidas.';
-        return;
+        mmlCallbacks.onError?.('MML vacío o sin pistas válidas.');
+        return null;
     }
 
     // Parsear cada pista en su propio canal (0, 1, 2…)
     const parsed = trackTexts.map((t, idx) => parseMMLTrackToEvents(t, idx));
 
     // Rellenar rawEvents global con todos los eventos mezclados
-    rawEvents = parsed.flatMap(p => p.events);
-    rawEvents.sort((a, b) => a.tick - b.tick || a.type.localeCompare(b.type));
+    state.rawEvents = parsed.flatMap(p => p.events);
+    state.rawEvents.sort((a, b) => a.tick - b.tick || a.type.localeCompare(b.type));
 
     // PPQN y ticks por paso
-    ppqn         = MML_PPQN;
-    ticksPerStep = ppqn / 4; // semicorchea = 24 ticks
+    state.ppqn         = MML_PPQN;
+    state.ticksPerStep = state.ppqn / 4; // semicorchea = 24 ticks
 
     // tempoMap: arrancar en BPM de la primera pista, luego cambios ordenados
     const allChanges = parsed.flatMap(p => p.tempoChanges).sort((a, b) => a.tick - b.tick);
-    tempoMap = [{ tick: 0, bpm: parsed[0]?.tempo || 120 }];
+    state.tempoMap = [{ tick: 0, bpm: parsed[0]?.tempo || 120 }];
     for (const tc of allChanges) {
-        if (tc.tick === 0) { tempoMap[0].bpm = tc.bpm; continue; }
-        if (tempoMap.at(-1).tick !== tc.tick) tempoMap.push({ tick: tc.tick, bpm: tc.bpm });
+        if (tc.tick === 0) { state.tempoMap[0].bpm = tc.bpm; continue; }
+        if (state.tempoMap.at(-1).tick !== tc.tick) state.tempoMap.push({ tick: tc.tick, bpm: tc.bpm });
     }
 
     // totalTicks = duración de la pista más larga
-    totalTicks = Math.max(...parsed.map(p => p.totalTicks), 0);
-    midiData   = { ppqn, totalTicks, rawEvents, tempoMap };
-
-    // BPM en el input de la barra de herramientas
-    const bpm0     = tempoMap[0]?.bpm || 120;
-    const bpmInput = document.getElementById('bpmInput');
-    if (bpmInput) bpmInput.value = bpm0;
+    state.totalTicks = Math.max(...parsed.map(p => p.totalTicks), 0);
+    state.midiData   = { ppqn: state.ppqn, totalTicks: state.totalTicks, rawEvents: state.rawEvents, tempoMap: state.tempoMap };
 
     // Compás 4/4 por defecto (MML no lleva info de compás)
-    currentTimeSig = { numerator: 4, denominator: 4, stepsPerMeasure: 16, stepsPerBeat: 4 };
-    const rulerLabel = document.getElementById('rulerTimeSigLabel');
-    if (rulerLabel) rulerLabel.textContent = '4 / 4';
+    state.currentTimeSig = { numerator: 4, denominator: 4, stepsPerMeasure: 16, stepsPerBeat: 4 };
 
     // Nombres de pista para el selector de instrumento
-    instrumentNames = parsed.map((_, i) => `MML Pista ${i + 1}`);
-    for (let i = parsed.length; i < 16; i++) instrumentNames[i] = `Canal ${i + 1}`;
+    state.instrumentNames = parsed.map((_, i) => `MML Pista ${i + 1}`);
+    for (let i = parsed.length; i < 16; i++) state.instrumentNames[i] = `Canal ${i + 1}`;
 
-    // Resumen en el panel de debug
+    // Primera pista seleccionada por defecto
+    state.selectedChannel = 0;
+
+    const bpm0       = state.tempoMap[0]?.bpm || 120;
     const noteCounts = parsed.map(p => p.events.filter(e => e.type === 'noteOn').length);
-    debugDiv.innerHTML =
-        `<strong>MML cargado</strong><br>` +
-        `Pistas: ${parsed.length} | BPM: ${bpm0} | PPQN: ${ppqn} | ` +
-        `Ticks totales: ${totalTicks}<br>` +
-        parsed.map((_, i) => `Pista ${i + 1}: ${noteCounts[i]} notas`).join(' &nbsp;|&nbsp; ');
 
-    enableInstrumentSelection();
+    const result = {
+        trackCount:      parsed.length,
+        bpm:             bpm0,
+        ppqn:            state.ppqn,
+        totalTicks:      state.totalTicks,
+        noteCounts,
+        instrumentNames: state.instrumentNames,
+    };
 
-    // Auto-seleccionar la primera pista y cargar el grid directamente
-    // sin obligar al usuario a hacer click en "Mostrar Grid"
-    selectedChannel = 0;
-    instrumentSelect.value = '0';
-    loadInstrumentBtn.disabled = false;
-    loadInstrumentBtn.click();
+    // El entry point gestiona la UI (debug, status, bpm, ruler, select) y
+    // construye el grid del primer canal.
+    mmlCallbacks.onLoaded?.(result);
+    return result;
 }
 
 // ============================================================
 // Modal de importación MML para midiGrid
 // ============================================================
 
-function closeMMLImportModal() {
+export function closeMMLImportModal() {
     const m = document.getElementById('mmlImportModalGrid');
     if (m) m.remove();
 }
 
-function openMMLImportModal() {
+export function openMMLImportModal() {
     closeMMLImportModal();
 
     // --- Overlay ---
@@ -368,7 +382,8 @@ function openMMLImportModal() {
     footer.appendChild(mkBtn('➕ Cargar en grid', '#4a9aff', () => {
         const text = (document.getElementById('mmlGridInputText') || {}).value || '';
         if (!text.trim()) {
-            statusSpan.innerText = 'Pega una partitura MML primero.';
+            const st = document.getElementById('statusMsg');
+            if (st) st.innerText = 'Pega una partitura MML primero.';
             return;
         }
         loadMMLText(text);
