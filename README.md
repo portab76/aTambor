@@ -1,345 +1,193 @@
-# aTambor — Sistema de Composición Musical para Instrumentos Robóticos
+# PianoRoll
 
-**aTambor** es un entorno web de composición y reproducción musical para instrumentos físicos controlados por servomotores y solenoides a través de un ESP32. Combina un secuenciador MIDI profesional con análisis armónico en tiempo real y control directo de hardware, permitiendo que una máquina toque música con expresividad.
+Secuenciador MIDI web que controla un **robot pianista físico** desde el navegador, sin instalación. La aplicación corre íntegramente en el cliente (HTML + JavaScript vanilla, módulos ES6) y envía comandos de movimiento a un ESP32 que acciona servomotores ES08MA sobre las teclas de un piano, montados con piezas impresas en 3D. No hay backend: el navegador hace de DAW, analizador armónico y controlador de hardware al mismo tiempo.
 
-El sistema cuenta con dos entornos de trabajo complementarios accesibles desde el navegador, sin instalación.
-
----
-
-## Entornos
-
-### 🎹 midiGrid — Secuenciador MIDI con Piano Roll
-
-**Archivo:** `midiGrid.html`
-
-Entorno principal orientado a la **composición y reproducción de música melódica** sobre instrumentos físicos. Piano roll interactivo, análisis armónico, exportación MIDI y control total del hardware ESP32.
+El punto de entrada es `midiGrid.html`.
 
 ---
 
-### 🥁 aTambor — Drum Machine
+## 1. Qué es
 
-**Archivo:** `aTambor.html`
+PianoRoll edita y reproduce música en un piano roll de canvas, la analiza armónicamente en tiempo real y traduce las notas en órdenes de servo que un ESP32 ejecuta sobre un piano real. El flujo es:
 
-Entorno orientado a la **composición rítmica por canales**, al estilo de las clásicas cajas de ritmos. Secuenciador paso a paso con patrones editables y sincronización con motores físicos.
+```
+MIDI/MML  →  grid de notas  →  análisis armónico  →  audio (Web Audio)
+                                                  └→  secuencia de comandos  →  ESP32  →  servos ES08MA  →  teclas
+```
 
----
-
-## Características de midiGrid
-
-### Importación y archivo
-
-| Función | Descripción |
-|---------|-------------|
-| Abrir MIDI | Botón 🎵, menú o arrastrar `.mid` / `.midi` a la ventana |
-| Importar MML | Music Macro Language — formato de texto compacto para melodías |
-| **Exportar MIDI** | Genera archivo `.mid` Tipo 1 estándar compatible con Ableton, Logic, MuseScore, Cubase — incluye mapa de tempo y transposición activa |
-| Guardar proyecto | JSON con grid, análisis armónico, mapa de tempo y marcadores de sección |
-| Cargar proyecto | Importar JSON guardado previamente |
-| Archivos recientes | Historial de los últimos 10 proyectos con tiempo transcurrido |
-
-### Piano roll
-
-- **Canvas interactivo** con zoom horizontal ajustable (1–32 px/paso), scroll sincronizado y minimap panorámico
-- **Click** — añadir / quitar nota
-- **Click + arrastrar →** — ajustar duración de la nota
-- **Ctrl + Click** — editar velocity con tooltip inline sobre la nota (sin prompt nativo)
-- **Alt + Click** — mutear / desmutear el motor físico de esa nota
-- **Shift + arrastrar** — selección rectangular con borde azul
-- **Carril de velocidades** visible por defecto — arrastrar edita la velocity del paso; Shift+arrastrar aplica a todas las notas a la vez
-- **Historial Undo / Redo** (Ctrl+Z / Ctrl+Y) — 50 pasos por tab, independiente entre tabs
-
-### Reproducción y transporte
-
-- **Motor de audio AudioContext** con scheduler de lookahead 100 ms — timing sample-accurate sin jitter, incluso a 200 BPM
-- **Play / Pause / Stop** con sincronización automática al ESP32
-- **Seek** haciendo clic en la regla de compases
-- **Loop A→B** — marcar inicio y fin en la regla para repetir un fragmento en audio y hardware
-- **Mapa de tempo editable** — puntos de BPM editables en la regla para crear aceleraciones y ralentizaciones; interpolación automática
-- **Streaming predictivo** — envía la secuencia al ESP32 en bloques APPEND mientras suena, sin límite de longitud
-
-### Análisis armónico
-
-- **Detección de tonalidad automática** por correlación Krumhansl-Kessler (24 claves mayor/menor)
-- **Chord row** sincronizada con el piano roll en cuatro niveles de detalle:
-  - **pasos** — micro-segmentos, uno por cada cambio de notas activas
-  - **acordes** — fusionado por negra, acorde dominante cada 4 pasos
-  - **frases** — detectadas por cadencias (V→I, IV→I, ii→V→I, vi→IV)
-  - **respiración** — zonas de baja energía óptimas para resetear el buffer ESP32
-- Click en cualquier bloque abre un popup con nombre del acorde, función tonal (I, ii, V…) y notas
-- **Loop de segmento** y **Auto-avance** segmento a segmento con confirmación de beat del ESP32
-
-### Motor de Atención — Mapa de Calor
-
-- Colorea el piano roll por importancia estructural mediante un algoritmo de atención basado en softmax 4D (paso, nota, duración, velocity)
-- Rojo = nota dominante · Azul = nota subordinada
-- Exclusivo: no existe esta visualización en ningún DAW web conocido
-
-### Sistema de tabs
-
-- Cada tab es un proyecto independiente con su propio grid, historial de undo y análisis armónico
-- Portapapeles compartido entre tabs — permite trasladar secciones entre composiciones
-- Al cambiar de tab la reproducción se detiene y el estado se guarda automáticamente
-
-### Motor Map + Escala
-
-- **Tabla nota MIDI → motor físico** con HomePWM, canal PCA, mute y atajo de teclado por fila
-- Mute por fila silencia audio interno y ESP32 simultáneamente
-- Test de motor individual, Export / Import JSON
-- **Transposición global** ±24 semitonos — offset compartido entre todos los tabs, aplicado al ESP32 vía APPEND en caliente
-- **LEDs WS2812B** — modos: octava, arcoíris, calor, blanco
-- **Avance LED** (slider) — el LED de anticipación se enciende N ms antes del golpe (efecto Synthesia)
-
-### Conexión ESP32
-
-- **WiFi** — WebSocket `ws://IP:81`, auto-reconexión cada 5 s
-- **Serie** — Web Serial API USB-CDC a 115 200 baud (Chrome / Edge 89+)
-- Indicador de estado ● en tiempo real
-- **Ventana Log** con log en tiempo real y consola de comandos directos al ESP32
+El audio interno (MIDI.js + SoundFont) sirve de monitorización; el hardware reproduce la misma secuencia en paralelo, sincronizado por mensajes de *beat* que devuelve el ESP32.
 
 ---
 
-## Características de aTambor (Drum Machine)
+## 2. Funcionalidades
 
-- Secuenciador paso a paso con cuadrícula de pasos activables por canal
-- Múltiples canales de percusión independientes, cada uno asignado a un motor físico
-- Control de tempo (BPM) ajustable en tiempo real
-- Patrones de compás editables: añadir, eliminar y reordenar
-- **Modo Song** — encadena patrones en una secuencia de canción completa
-- Notas sostenidas con duración variable por paso (golpe, medio, largo)
-- Mute por canal durante la reproducción
-- Calibración de HomePWM y velocidad por canal
-- Test de golpe individual por canal
-- Sincronización con ESP32 vía WebSocket
+- **Grid MIDI (piano roll).** Canvas 2D con zoom horizontal, scroll sincronizado, minimap, carril de velocidades, selección rectangular, copiar/pegar fragmentos, loop A→B, mapa de tempo editable y sistema de pestañas multi-documento con undo/redo por pestaña.
+- **Entrada.** Importación de archivos `.mid`/`.midi` (parser jasmid) y de texto **MML** (Music Macro Language). Carga/guardado de proyectos en JSON e historial de recientes en `localStorage`.
+- **Análisis armónico en tiempo real.** Detección de tonalidad por correlación **Krumhansl-Kessler**, reconocimiento de acordes con **Tonal.js**, fusión por tiempo y **detección de cadencias** (auténtica V→I, plagal IV→I, rota V→vi, semicadencia I→V) para segmentar en frases. Se ejecuta en un **Web Worker** para no bloquear la interfaz con archivos grandes.
+- **Mapa de Atención (heat map).** Coloreado del grid por importancia estructural de cada nota.
+- **Control de hardware ESP32.** Dos transportes: **WebSocket** sobre WiFi (`ws://IP:81`) y **USB Serial** (Web Serial API). Streaming de secuencias en bloques `APPEND`, sincronización por beats, reconexión con backoff exponencial.
+- **Exportación `.mid` real.** Genera un archivo MIDI Tipo 1 binario estándar (no JSON) con mapa de tempo, compás y la transposición activa, compatible con cualquier DAW.
+- **PWA instalable.** `manifest.json` + service worker con caché *cache-first*; tras la primera carga funciona sin conexión.
 
 ---
 
-## Atajos de teclado principales (midiGrid)
+## 3. Arquitectura del código
 
-| Atajo | Acción |
-|-------|--------|
-| Ctrl + Z | Deshacer |
-| Ctrl + Y / Ctrl+Shift+Z | Rehacer |
-| Ctrl + C | Copiar selección rectangular |
-| Ctrl + V | Pegar en posición del playhead |
-| Ctrl + Shift + V | Pegar una octava más arriba |
-| Ctrl + Alt + V | Pegar una octava más abajo |
-| Ctrl + Shift + A | Abrir todos los canales en tabs separados |
-| Delete / Backspace | Borrar notas seleccionadas |
-| Escape | Deseleccionar / cerrar modal |
-| Click en regla | Seek · marcar A o B si loop activo |
+Todo es JavaScript vanilla con **módulos ES6**. No hay framework, bundler ni paso de build. `midiGrid.html` carga un único módulo de entrada (`js/midiGrid.js`) más unas pocas librerías clásicas (MIDI.js, jasmid, Tonal.js, `harmonic-core.js`) vía `<script>`.
+
+### Estado centralizado (`state.js`)
+
+Un único objeto `state` exportado concentra **todo** el estado mutable de la app: eventos MIDI crudos (`rawEvents`), `ppqn`, el grid (`gridData.cells`, mapa `"nota,step" → {duration, velocity}`), `noteRows`, posición de reproducción, compás, loop A→B, segmentos armónicos, mapa de tempo (`tempoPoints`), flags de conexión hardware, etc. Ningún otro módulo declara estado global propio: todos importan `state` y lo leen/escriben. Esto hace que las pestañas funcionen guardando/restaurando una copia de los campos relevantes de `state`.
+
+### Módulo de entrada (`midiGrid.js`)
+
+Importa todos los demás módulos, cablea los *event listeners* de la toolbar y expone en `window` las funciones a las que apuntan los atributos `onclick` del HTML. Es el único responsable de tocar el DOM de la barra de herramientas; los módulos de lógica se comunican con él mediante objetos de callbacks (`playbackCallbacks`, `mmlCallbacks`, `projectCallbacks`) en lugar de manipular botones directamente. Las referencias DOM compartidas se centralizan en `dom-refs.js`.
+
+### Renderizado del piano roll (`piano-roll.js`, `editor.js`, `velocity-lane.js`, `timeline-ruler.js`, `minimap.js`)
+
+`piano-roll.js` construye el grid desde un canal MIDI y dibuja en canvas (notas, playhead, highlight de acordes, heat map), con virtualización de filas para no pintar fuera del viewport. `editor.js` gestiona la edición interactiva (click para añadir/quitar, arrastre para duración, Ctrl+Click para velocity, selección rectangular) y dispara un análisis armónico *debounced*. `velocity-lane.js` es el carril de velocidades editable; `timeline-ruler.js` la regla de compases tipo DAW con seek, loop A→B y mapa de tempo; `minimap.js` la vista panorámica con viewport arrastrable.
+
+### Análisis armónico (`harmonic-core.js`, `harmonic.js`, `harmonic-worker.js`)
+
+La **lógica pura** del algoritmo (segmentación temporal, Krumhansl-Kessler, reconocimiento de acordes vía Tonal.js, fusión y detección de cadencias) vive en `harmonic-core.js`, escrito para ejecutarse en dos contextos sin duplicarse: como `<script>` clásico en el hilo principal (expone `window.HarmonicCore`) y dentro de un Web Worker vía `importScripts`. `harmonic.js` es una capa fina que enlaza ese núcleo con `state` y ofrece tanto la versión síncrona como la **asíncrona** `performHarmonicAnalysisAsync()`. `harmonic-worker.js` es el worker clásico que recibe `{type:'analyze', channelEvents, ppqn, totalTicks, fusionStepsPerUnit}` y devuelve el análisis por `postMessage`, evitando que el hilo principal se congele con piezas de >500 eventos.
+
+### Chord row y heat map (`chord-row.js`, `heat.js`, `active-notes-panel.js`)
+
+`chord-row.js` dibuja la fila de acordes sincronizada con el grid en cuatro niveles (pasos / acordes / frases / respiración), el popup de información de acorde y el auto-avance segmento a segmento. `heat.js` calcula el "Motor de Atención" (puntuación de dominancia por nota) y los segmentos de respiración. `active-notes-panel.js` es el panel flotante de notas únicas presentes.
+
+### Reproducción (`playback.js`)
+
+Motor de reproducción con dos relojes desacoplados. El **scheduler de audio** agenda notas reales (`MIDI.noteOn/noteOff`) usando `AudioContext.currentTime` con un **lookahead de 100 ms** (revisado cada 25 ms con un `setInterval`), lo que elimina el jitter del temporizador del navegador y da timing *sample-accurate* incluso a BPM altos. Un segundo `setInterval` mueve solo el playhead visual (tolerancia ±30 ms, imperceptible). En paralelo envía la secuencia al ESP32 y corrige la deriva entre el navegador y el reloj físico con los mensajes `beat` del firmware. No toca el DOM: emite eventos vía `playbackCallbacks`.
+
+### Hardware (`ws-connector.js`, `serial-connector.js`, `esp32-sequencer.js`, `motor-map.js`)
+
+`esp32-sequencer.js` traduce `gridData` en el string de comandos del firmware (selección de motor, HomePWM, esperas, velocidad, mapeo de LEDs) y lo trocea en bloques (`validateSequenceSize`) para el streaming. `motor-map.js` mantiene la tabla **nota MIDI → motor físico** (`MOTOR_MAP`: `{note, name, motor, homePwm, muted, key}`), con routing `chip = motor/16`, `canal = motor%16`. `ws-connector.js` gestiona el WebSocket con reconexión por backoff exponencial (1·2·4·8·16 … máx 30 s, 10 intentos y luego botón "Reintentar"); `serial-connector.js` el transporte USB vía Web Serial API. Ambos comparten los flags de conexión en `state`.
+
+### Transposición y paneles (`transpose.js`, `motor-escala-panel.js`, `app-menu.js`)
+
+`transpose.js` aplica una transposición global de escala (±24 semitonos) con previsualización en un mini-teclado. `motor-escala-panel.js` y `app-menu.js` son paneles/menú extraídos del entry point para evitar dependencias circulares.
+
+### Persistencia e historial (`persistence.js`, `tabs.js`, `history.js`, `recent-files.js`, `midi-parser.js`, `mml-parser.js`, `midi-export.js`, `theme.js`)
+
+`persistence.js` guarda/carga proyectos JSON con validación de integridad; `tabs.js` el sistema multi-documento; `history.js` el undo/redo (incluye snapshot del Motor Map); `recent-files.js` el historial en `localStorage`; `midi-parser.js`/`mml-parser.js` la importación; `midi-export.js` la exportación `.mid` binaria; `theme.js` el tema claro/oscuro.
 
 ---
 
-## Puesta en marcha
+## 4. Cómo arrancarlo
 
 ### Requisitos
 
-- Servidor local (XAMPP, VS Code Live Server, Python `http.server`…)
-- Chrome o Edge 89+ para Web Serial; cualquier navegador moderno para WiFi
+- **Navegador:** Chrome, Edge u Opera 89+ (necesario para Web Serial; para WiFi sirve cualquier navegador moderno con WebSocket).
+- **ESP32** con el firmware correspondiente (escucha WebSocket en el puerto 81 y/o serie a 115 200 baud).
 
-### Pasos
+### Servir la app
+
+La app usa módulos ES6 y un Web Worker, que requieren servirse por **HTTP** (no `file://`). Cualquier servidor estático vale:
 
 ```
-1. Copiar la carpeta PianoRoll/ en el directorio web del servidor
-2. Abrir http://localhost/PianoRoll/midiGrid.html en el navegador
-3. Conectar el ESP32 a la misma red WiFi o por USB-CDC
-4. Introducir la IP del ESP32 → pulsar Conectar  (o seleccionar modo Serie)
-5. Abrir un archivo MIDI con el botón 🎵 o arrastrarlo a la ventana
-6. Seleccionar canal → Mostrar  (o Todos para abrir todos los instrumentos)
-7. Pulsar ▶ Play
+# XAMPP: copiar el proyecto en htdocs y abrir
+http://localhost/PianoRoll/midiGrid.html
+
+# o con Python
+python -m http.server 8000      # → http://localhost:8000/midiGrid.html
+
+# o VS Code Live Server, etc.
 ```
+
+> Abrir `midiGrid.html` directamente como `file://` no funcionará (los `import` ES6 y el worker fallan por CORS). El service worker (PWA/offline) también exige HTTP.
+
+### Conectar el ESP32
+
+1. **WiFi:** ESP32 y navegador en la misma red. Seleccionar modo `WiFi`, escribir la IP del ESP32 y pulsar **Conectar**.
+2. **Serie:** conectar el ESP32 por USB, seleccionar modo `Serie` y pulsar **Conectar** (el navegador pedirá elegir el puerto).
+
+El indicador ● muestra el estado de conexión. Después: abrir un MIDI (🎵), elegir canal → **Mostrar**, y **▶ Play**.
 
 ---
 
-## Estructura del proyecto
+## 5. Tests
+
+Los tests son una suite propia (mini-framework inline, sin dependencias) que se ejecuta en el navegador:
+
+```
+http://localhost/PianoRoll/test/runner.html
+```
+
+`runner.html` carga las librerías necesarias y ejecuta todas las suites de `test/*.test.js` (harmonic, harmonic-core, midi-parser, midi-export, mml-parser, ws-connector, persistence, editor, piano-roll, motor-map). Muestra el resultado por suite en la página y vuelca un resumen en la consola.
+
+---
+
+## 6. Hardware
+
+- **ESP32** — controlador; recibe comandos por WebSocket (puerto 81) o serie (115 200 baud).
+- **Servomotores ES08MA** — uno por tecla a accionar; PWM de 50 Hz, posición de reposo HomePWM ≈ 375.
+- **PCA9685** — controladores PWM I²C de 16 canales; routing `chip = motor/16`, `canal = motor%16` (varios chips para >16 servos).
+- **Tira LED WS2812B** (opcional) — feedback visual tipo Synthesia.
+- **Piezas impresas en 3D** — soportes de servo y mecanismo de pulsación; STL publicados en Printables.
+
+---
+
+## 7. Estructura de archivos
 
 ```
 PianoRoll/
-├── midiGrid.html              # Secuenciador MIDI / piano roll principal
-├── aTambor.html               # Drum machine
-├── js/
-│   ├── state.js               # Variables globales compartidas entre módulos
-│   ├── midi-parser.js         # Lectura y parseo de archivos MIDI (jasmid)
+├── midiGrid.html              # App principal: piano roll, toolbar y modales (único entry point)
+├── manifest.json              # Manifiesto PWA (nombre, iconos, standalone, theme #0d0d1c)
+├── sw.js                      # Service worker: caché cache-first, funciona offline tras 1ª carga
+├── icons/
+│   ├── icon-192.png           # Icono PWA 192×192
+│   └── icon-512.png           # Icono PWA 512×512
+│
+├── js/                        # Módulos ES6 de la aplicación
+│   ├── midiGrid.js            # Módulo raíz: importa todo, cablea eventos, expone API en window
+│   ├── state.js               # Objeto de estado centralizado compartido por todos los módulos
+│   ├── dom-refs.js            # Referencias DOM compartidas (canvas, botones, inputs)
+│   │
+│   ├── midi-parser.js         # Parseo de archivos .mid (jasmid) → rawEvents
 │   ├── mml-parser.js          # Parser de Music Macro Language → eventos MIDI
-│   ├── midi-export.js         # Exportación de gridData a archivo .mid estándar
-│   ├── piano-roll.js          # Renderizado Canvas 2D y teclado lateral
-│   ├── editor.js              # Edición interactiva del grid (click, drag, selección)
-│   ├── velocity-lane.js       # Carril de velocidades con edición por arrastre
-│   ├── timeline-ruler.js      # Regla de compases tipo DAW con mapa de tempo
+│   ├── midi-export.js         # Exportación de gridData a .mid binario Tipo 1
+│   │
+│   ├── piano-roll.js          # Construcción del grid y render Canvas 2D (notas, playhead, heat)
+│   ├── editor.js              # Edición interactiva del grid (click, drag, selección, velocity)
+│   ├── velocity-lane.js       # Carril de velocidades editable
+│   ├── timeline-ruler.js      # Regla de compases tipo DAW: seek, loop A→B, mapa de tempo
 │   ├── minimap.js             # Vista panorámica con viewport arrastrable
-│   ├── playback.js            # Motor de reproducción — AudioContext scheduler lookahead
-│   ├── harmonic.js            # Análisis armónico: Krumhansl-Kessler + Tonal.js
-│   ├── chord-row.js           # Chord row, popup de acorde y auto-avance
-│   ├── heat.js                # Motor de Atención — mapa de calor por softmax
-│   ├── esp32-sequencer.js     # Generador de secuencias de comandos para ESP32
-│   ├── ws-connector.js        # Conexión WebSocket al ESP32
-│   ├── serial-connector.js    # Conexión Serie vía Web Serial API
-│   ├── motor-map.js           # Tabla nota MIDI → motor físico + LEDs WS2812B
-│   ├── transpose.js           # Panel de transposición global con visualización piano
-│   ├── tabs.js                # Sistema de pestañas multi-documento
-│   ├── history.js             # Historial undo/redo por tab (50 pasos)
-│   ├── persistence.js         # Guardar / cargar proyectos JSON
-│   ├── theme.js               # Sistema de temas claro / oscuro
+│   │
+│   ├── harmonic-core.js       # Lógica PURA del análisis armónico (hilo principal + worker)
+│   ├── harmonic.js            # Capa que enlaza el core con state; análisis sync y async
+│   ├── harmonic-worker.js     # Web Worker que ejecuta el análisis fuera del hilo principal
+│   ├── chord-row.js           # Fila de acordes, popup armónico y auto-avance
+│   ├── heat.js                # Motor de Atención (heat map) y segmentos de respiración
 │   ├── active-notes-panel.js  # Panel flotante de notas activas
+│   │
+│   ├── playback.js            # Motor de reproducción: AudioContext scheduler (lookahead 100 ms)
+│   │
+│   ├── ws-connector.js        # Conexión WebSocket al ESP32 (backoff exponencial, reintentos)
+│   ├── serial-connector.js    # Conexión USB Serial (Web Serial API)
+│   ├── esp32-sequencer.js     # Genera el string de comandos para el firmware desde gridData
+│   ├── motor-map.js           # Tabla nota MIDI → motor físico + LEDs WS2812B
+│   │
+│   ├── transpose.js           # Transposición global de escala (±24 semitonos)
+│   ├── motor-escala-panel.js  # Panel desplegable Motor Map + Escala
+│   ├── app-menu.js            # Menú principal desplegable
+│   │
+│   ├── persistence.js         # Guardar/cargar proyectos JSON (con validación)
+│   ├── tabs.js                # Sistema de pestañas multi-documento
+│   ├── history.js             # Undo/redo (grid + Motor Map), 50 pasos por pestaña
 │   ├── recent-files.js        # Historial de archivos recientes (localStorage)
-│   └── midiGrid.js            # Punto de entrada: DOM, inicialización, eventos
-├── MIDI.js/                   # Librería MIDI.js + jasmid + soundfonts GM
-│   ├── build/MIDI.min.js
-│   ├── inc/jasmid/            # Parser binario MIDI
-│   └── examples/soundfont/    # Soundfonts GM en MP3
-└── tonal.min.js               # Tonal.js — teoría musical (acordes, escalas)
+│   └── theme.js               # Tema claro/oscuro
+│
+├── test/
+│   ├── runner.html            # Ejecutor de toda la suite en el navegador
+│   └── *.test.js              # Suites por módulo (harmonic, midi-parser, ws-connector, …)
+│
+└── MIDI.js/                   # Librería MIDI.js + jasmid + Tonal.js + soundfonts GM
+    ├── build/MIDI.min.js      # Reproducción de audio General MIDI
+    ├── inc/jasmid/            # Parser binario de archivos MIDI (stream.js, midifile.js)
+    ├── tonal.min.js           # Tonal.js — teoría musical (acordes, escalas)
+    └── examples/soundfont/    # SoundFonts (acoustic_grand_piano, synth_drum; mp3 y ogg)
 ```
 
 ---
 
-## Hardware
-
-### Componentes
-
-| Componente | Cantidad | Notas |
-|------------|----------|-------|
-| ESP32 (cualquier variante) | 1 | Firmware aTambor, WebSocket puerto 81 |
-| PCA9685 (controlador PWM I2C) | 2 | Direcciones 0x40 y 0x41, hasta 32 motores |
-| Servomotores o solenoides | hasta 32 | 50 Hz PWM |
-| Strip LED WS2812B | 1 × 61 LEDs | Do1–Si5 cromático |
-| **Módulo XL4015 Buck 75W** | 1 | Regulación + protección sobretemperatura + voltímetro |
-| Fuente de alimentación | 1 | Ver rango de entrada XL4015: 8–36V |
-
-### Diagrama de bloques
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    NAVEGADOR (Chrome/Edge)               │
-│              midiGrid.html  ·  aTambor.html             │
-└──────────────────┬──────────────────────────────────────┘
-                   │ WiFi WebSocket ws://IP:81
-                   │   ó  USB-CDC Web Serial API
-                   ▼
-         ┌─────────────────┐
-         │     ESP32        │
-         │  Firmware aTambor│
-         └──┬──────┬───┬───┘
-            │I2C   │   │GPIO
-            ▼      ▼   ▼
-      ┌──────┐ ┌──────┐ ┌────────────────┐
-      │PCA   │ │PCA   │ │ WS2812B        │
-      │9685  │ │9685  │ │ 61 LEDs        │
-      │#0    │ │#1    │ │ Do1 – Si5      │
-      │0x40  │ │0x41  │ └────────────────┘
-      │M0–15 │ │M16–31│
-      └──┬───┘ └──┬───┘
-         │PWM     │PWM
-         ▼        ▼
-    ┌──────────────────────────────┐
-    │  Módulo XL4015 Buck 75W      │ ◄── Fuente 8–36V entrada
-    │  Regulación + OTP + OCP      │
-    │  Voltímetro display          │
-    └─────────────┬────────────────┘
-                  │ Vout ajustado
-    ┌─────────────▼────────────────┐
-    │    Servos / Solenoides × 16+ │
-    └──────────────────────────────┘
-```
-
-### Configuración PCA9685
-
-| Chip | Dirección I2C | Motores | Jumpers A0–A5 |
-|------|--------------|---------|---------------|
-| PCA9685 #0 | `0x40` | 0 – 15 | todos a GND |
-| PCA9685 #1 | `0x41` | 16 – 31 | A0 a VCC, resto GND |
-
-- Frecuencia PWM: **50 Hz**
-- HomePWM de reposo: **375** (≈ 1,46 ms)
-- Routing: `PCA = motor ÷ 16` · `canal = motor mod 16`
-
-### Strip LED WS2812B
-
-| Parámetro | Valor |
-|-----------|-------|
-| LEDs totales | 61 |
-| Rango | LED 0 (reservado) → LED 60 (Si5) |
-| Nota base | C1 (MIDI 24) = LED 1 |
-| Fórmula índice | `ledIdx = MIDI_note − 23` |
-| Protocolo | WS2812B 800 kHz |
-| Alimentación | 5V independiente |
-| Resistencia | 330 Ω en serie en el pin Data |
-| Condensador | 100–1000 µF entre VCC y GND del strip |
-
-Modos de color: **octava · arcoíris · calor · blanco**  
-LED de anticipación: rojo (hue FastLED = 0), N ms antes del golpe.
-
-### Motor Map por defecto
-```
-| Nota | MIDI | Motor | PCA | Ch |
-|------|------|-------|-----|----|
-| A1 | 33 | 12 | 0 | 12 |
-| B1 | 35 | 13 | 0 | 13 |
-| C2 | 36 | 0  | 0 | 0  |
-| C#2 | 37 | 10 | 0 | 10 |
-| D2 | 38 | 1  | 0 | 1  |
-| D#2 | 39 | 11 | 0 | 11 |
-| E2 | 40 | 2  | 0 | 2  |
-| F2 | 41 | 3  | 0 | 3  |
-| F#2 | 42 | 7  | 0 | 7  |
-| G2 | 43 | 4  | 0 | 4  |
-| G#2 | 44 | 8  | 0 | 8  |
-| A2 | 45 | 5  | 0 | 5  |
-| A#2 | 46 | 9  | 0 | 9  |
-| B2 | 47 | 6  | 0 | 6  |
-| C3 | 48 | 14 | 0 | 14 |
-| D3 | 50 | 15 | 0 | 15 |
-
-```
-## Protocolo ESP32 ↔ Navegador
-
-Transporte: **WebSocket** puerto 81 (`ws://IP:81`) o **Web Serial** 115 200 baud.
-```
-### Comandos navegador → ESP32
-
-| Comando | Formato | Descripción |
-|---------|---------|-------------|
-| `PLAY` | `PLAY\|midiGrid\|<stepMs>\|<advMs>\|<advHue>\n<seq>` | Cargar y ejecutar secuencia |
-| `APPEND` | `APPEND\n<seq>` | Encolar bloque siguiente (streaming) |
-| `STOP` | `STOP` | Detener reproducción |
-| `p;` | `p;` | Arrancar secuencia ya cargada (WebSocket) |
-
-### Instrucciones de secuencia
-
-| Instrucción | Ejemplo | Descripción |
-|-------------|---------|-------------|
-| `e;` | `e;` | Reset motores al inicio del bloque |
-| `m N;` | `m 0;` | Seleccionar motor N |
-| `o PWM;` | `o 375;` | Posición de reposo (HomePWM) |
-| `t Ms;` | `t 80;` | Esperar Ms milisegundos |
-| `v Vel;` | `v 80;` | Aplicar velocidad (0 = reposo, 1–100) |
-| `L m i h s;` | `L 0 13 20 230;` | Motor m → LED índice i, hue h, saturación s |
-| `c Ms;` | `c 500;` | Marcador de compás (corrección drift I2C) |
-
-Tiempos de golpe por defecto: **HIT = 80 ms · RETRACT = 150 ms**
-
-### Mensajes ESP32 → navegador (JSON)
-
-| Mensaje | Descripción |
-|---------|-------------|
-| `{"state":"playing"}` | Reproducción iniciada |
-| `{"state":"stopped"}` | Reproducción terminada |
-| `{"state":"beat","step":N}` | Beat N — corrección de deriva visual entre browser y ESP32 |
-
----
-
-## Dependencias y compatibilidad
-
-| Componente | Versión | Uso |
-|------------|---------|-----|
-| MIDI.js + jasmid | incluido en `MIDI.js/` | Reproducción audio GM + parseo binario MIDI |
-| Tonal.js | incluido en `tonal.min.js` | Detección de acordes y escalas |
-| Web Audio API | nativo | AudioContext scheduler sample-accurate |
-| Web Serial API | Chrome / Edge 89+ | Conexión USB-CDC al ESP32 |
-| WebSocket API | todos los navegadores modernos | Conexión WiFi al ESP32 |
-| Canvas 2D | todos los navegadores modernos | Renderizado del piano roll |
-
-No requiere Node.js, npm ni ningún proceso de build. Todo el código es vanilla JavaScript.
-
----
-
-*aTambor — donde el software toca el mundo físico.*
+Sin Node.js, sin npm, sin build. Todo es JavaScript vanilla servido estáticamente.
