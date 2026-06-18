@@ -44,6 +44,9 @@
         <span id="esp32StatusLabel"></span>
         <button id="esp32RetryBtn"></button>
         <input id="esp32IpInput" value="127.0.0.1">
+        <!-- Compresor de octavas (comprimirAMotores lee el checkbox con ?.) -->
+        <input type="checkbox" id="comprimirCheckbox">
+        <label id="comprimirLabel"></label>
     </div>
 
     <!-- Librerías globales requeridas por los módulos bajo test -->
@@ -66,6 +69,7 @@
         import { runTests as runEditor }      from './editor.test.js';
         import { runTests as runPianoRoll }   from './piano-roll.test.js';
         import { runTests as runMotorHistory } from './motor-map-history.test.js';
+        import { runTests as runOctaveCompressor } from './octave-compressor.test.js';
 
         const suites = [
             { title: 'harmonic.js',      run: runHarmonic },
@@ -78,6 +82,7 @@
             { title: 'editor.js',       run: runEditor },
             { title: 'piano-roll.js',   run: runPianoRoll },
             { title: 'motor-map history', run: runMotorHistory },
+            { title: 'octave-compressor.js', run: runOctaveCompressor },
         ];
 
         const container = document.getElementById('suites');

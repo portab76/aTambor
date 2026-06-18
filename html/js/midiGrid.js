@@ -101,6 +101,7 @@ import {
     buildFullSequence, buildRemainingSequence, buildRangeSequence,
     buildLedMappingCmd, validateSequenceSize,
 } from './esp32-sequencer.js';
+import { comprimirAMotores } from './octave-compressor.js';
 import {
     MOTOR_MAP, motorForNote, motorMapUI, motorMapExport, motorMapImport,
     toggleMotorMapPanel, NUM_LEDS, ledForNote, _mmReleaseAllNotes,
@@ -217,6 +218,12 @@ document.body.addEventListener('drop', (e) => {
 // ---- Gestión de UI tras parsear un MIDI (resultado de loadMIDIFile) ----
 // loadMIDIFile solo puebla el estado y devuelve datos; aquí actualizamos el DOM.
 function _applyMidiLoadResult(result) {
+    // Reset del checkbox compresor al cargar un nuevo MIDI
+    const _cCb = document.getElementById('comprimirCheckbox');
+    const _cLb = document.getElementById('comprimirLabel');
+    if (_cCb) { _cCb.checked = false; _cCb.disabled = true; }
+    if (_cLb) { _cLb.style.opacity = '0.4'; _cLb.style.cursor = 'default'; }
+
     if (!result || result.error) {
         debugDiv.innerHTML = `<strong>Error al parsear MIDI:</strong> ${result?.error ?? 'desconocido'}`;
         statusSpan.innerText = "Error: archivo MIDI inválido.";
@@ -331,7 +338,21 @@ function _showChordRowLoading() {
  * @returns {Promise<Object|null>} resuelve con el análisis aplicado
  */
 function _buildChannelGrid(ch, { async = true } = {}) {
+    // ── Compresión a motores ────────────────────────────────
+    const _comprimir = document.getElementById('comprimirCheckbox')?.checked;
+    let _rawEventsOrig = null;
+    if (_comprimir && MOTOR_MAP.length > 0) {
+        _rawEventsOrig = state.rawEvents;
+        state.rawEvents = comprimirAMotores(state.rawEvents, ch, MOTOR_MAP);
+    }
+
     buildGridFromChannel(ch);
+
+    if (_rawEventsOrig !== null) {
+        state.rawEvents = _rawEventsOrig;
+        _rawEventsOrig  = null;
+    }
+
     historyClear();
     state.pasoActual = 0;
     drawTimelineRuler();
@@ -983,6 +1004,7 @@ Object.assign(window, {
     initSerial, closeSerial,
     buildFullSequence, buildRemainingSequence, buildRangeSequence,
     buildLedMappingCmd, validateSequenceSize,
+    comprimirAMotores,
     MOTOR_MAP, motorForNote, motorMapUI, motorMapExport, motorMapImport,
     toggleMotorMapPanel, ledForNote, _mmReleaseAllNotes, _mmPanelTest,
     _renderMotorMapPanelRows, _renderMotorMapRows, _mmListenForKey, _mmEdit,

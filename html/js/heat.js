@@ -274,3 +274,24 @@ export function toggleHeatMap() {
     // Redibujar con los nuevos datos
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
 }
+
+/**
+ * Calcula la octava MIDI central ponderada por heat score.
+ * Usa el resultado de calcularHeatScores() para determinar
+ * en qué octava se concentra la "energía" de la pieza.
+ *
+ * @param {Map} heatMap  — resultado de calcularHeatScores()
+ * @returns {number}     — octava entera [0..9], por defecto 2 (octava del robot)
+ */
+export function calcularOctavaDesdeHeat(heatMap) {
+    if (!heatMap || heatMap.size === 0) return 2;
+
+    let sumScore = 0, sumOctava = 0;
+    for (const [key, score] of heatMap) {
+        const note = parseInt(key.split(',')[0]);
+        const oct  = Math.floor(note / 12);
+        sumOctava += score * oct;
+        sumScore  += score;
+    }
+    return sumScore > 0 ? Math.round(sumOctava / sumScore) : 2;
+}

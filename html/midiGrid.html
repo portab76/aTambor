@@ -672,8 +672,8 @@
                         <button id="removeMeasuresBtn" onclick="removeMeasures()"
                                 title="Quitar compases" class="menu-btn btn-narrow" disabled>−</button>
                         <select id="phraseUnitSelect" title="Nº de compases a añadir/quitar"
-                                style="flex:1;font-size:11px;height:26px;background:#1e1e32;
-                                       color:#aaa;border:1px solid #3a3a5a;border-radius:4px;
+                                style="flex:1;font-size:11px;height:26px;background:var(--c-control);
+                                       color:var(--c-text2);border:1px solid var(--c-border3);border-radius:4px;
                                        padding:0 2px;">
                             <option value="1">1</option>
                             <option value="2">2</option>
@@ -728,6 +728,15 @@
 
     <!-- ── mostrar grid ── -->
     <button id="loadInstrumentBtn" disabled title="Mostrar el grid del canal seleccionado">Mostrar</button>
+<label id="comprimirLabel"
+       title="Comprimir notas a las octavas de los motores configurados en el Motor Map"
+       style="font-size:11px;color:#666688;display:flex;align-items:center;gap:4px;
+              cursor:default;white-space:nowrap;border:1px solid #2a2a4a;border-radius:4px;
+              padding:2px 7px;background:#1a1a2e;opacity:0.4;flex-shrink:0;">
+    <input type="checkbox" id="comprimirCheckbox" disabled
+           style="cursor:pointer;accent-color:#ff8844;">
+    🤖 Comprimir
+</label>
     <button id="openAllInstrumentsBtn" disabled
             title="Abrir cada canal del MIDI en un tab separado (Ctrl+Shift+A)"
             onclick="openAllInstruments()">Todos</button>

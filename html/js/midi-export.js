@@ -172,16 +172,24 @@ export function exportMIDI() {
         return;
     }
 
+    // El grid (gridData.cells) ya está comprimido a las octavas de los motores
+    // si el checkbox del compresor estaba activo al construirlo (_buildChannelGrid).
+    // Aquí solo reflejamos ese estado en el nombre del archivo descargado.
+    const _comprimir = document.getElementById('comprimirCheckbox')?.checked;
+
     const midiBytes = buildMidiBytes();
     const blob      = new Blob([midiBytes], { type: 'audio/midi' });
     const url       = URL.createObjectURL(blob);
 
+    const baseName = (state.currentMidiFileName || 'composicion')
+        .replace(/\.midi?$/i, '');
+    const fileName = _comprimir
+        ? `${baseName}_motores.mid`
+        : `${baseName}_export.mid`;
+
     const a    = document.createElement('a');
     a.href     = url;
-    const base = (state.currentMidiFileName)
-        ? state.currentMidiFileName.replace(/\.mid[i]?$/i, '')
-        : 'composicion';
-    a.download = `${base}_export.mid`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
 
