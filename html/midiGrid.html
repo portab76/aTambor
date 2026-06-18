@@ -250,7 +250,7 @@
             flex-shrink: 0;
             height: 28px;
             border-bottom: 1px solid var(--c-border);
-            background: #07071a;
+            background: var(--c-ruler);
         }
         .minimap-spacer {
             width: 75px;
@@ -533,20 +533,20 @@
             border-collapse: collapse;
         }
         .motor-map-inner th {
-            color: #5555aa;
+            color: var(--c-label);
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: .5px;
             padding: 3px 6px;
-            border-bottom: 1px solid #2a2a4a;
+            border-bottom: 1px solid var(--c-border2);
             text-align: left;
             position: sticky;
             top: 0;
-            background: #13132a;
+            background: var(--c-deep);
         }
-        .motor-map-inner td { padding: 2px 6px; border-bottom: 1px solid #1e1e38; }
-        .motor-map-inner tr:hover td { background: #1e1e3a; }
-        .motor-map-inner tr.mm-selected td { background: #2a2a50; }
+        .motor-map-inner td { padding: 2px 6px; border-bottom: 1px solid var(--c-border2); }
+        .motor-map-inner tr:hover td { background: var(--c-control); }
+        .motor-map-inner tr.mm-selected td { background: var(--c-control-h); }
         .mm-input {
             width: 54px;
             background: #0e0e1e;
@@ -692,7 +692,7 @@
                     <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:6px;">LEDS</div>
                     <select id="ledColorSelect" title="Color de los LEDs WS2812B"
                             onchange="state.ledColorMode=this.value"
-                            style="width:100%;background:#1a1a2e;color:#aaa;border:1px solid #3a3a5a;
+                            style="width:100%;background:var(--c-control);color:var(--c-text2);border:1px solid var(--c-border3);
                                    border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;margin-bottom:8px;">
                         <option value="rainbow">Arcoíris</option>
                         <option value="octava" selected>Octava</option>
@@ -776,18 +776,16 @@
             <label for="bpmInput" style="font-size:10px;color:#555580;white-space:nowrap;">BPM</label>
             <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
             title="Tempo de reproducción"
-            style="width:50px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+            style="width:50px;background:var(--c-deep);color:var(--c-text);border:1px solid var(--c-border);
                   border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
             <button id="tempoEditBtn" onclick="toggleTempoEditMode()"
                     title="Activar edición del mapa de tempo: clic en la regla para añadir/editar puntos de BPM">♩ Tempo</button>
 
 
 <!-- ── Segmento A→B ── -->
-    <button id="copyFragBtn"   onclick="copyFragment()"    disabled title="Copiar fragmento A→B">⎘</button>
-    <button id="pasteOctDownBtn" onclick="setPasteOctave(-1)" disabled title="Bajar octava de pegado">−8va</button>
-    <button id="pasteFragBtn"  onclick="pasteFragment()"   disabled title="Pegar en posición del playhead (Ctrl+V)">⎗</button>
-    <button id="pasteOctUpBtn" onclick="setPasteOctave(+1)" disabled title="Subir octava de pegado">+8va</button>
-    <button id="deleteFragBtn" onclick="deleteFragment()"   disabled title="Eliminar fragmento y desplazar">✕</button>
+    <button id="copyFragBtn"   onclick="copyFragment()"    disabled title="Copiar la selección rectangular o el fragmento A→B">⎘</button>
+    <button id="pasteFragBtn"  onclick="pasteFragment()"   disabled title="Pegar en el playhead (Ctrl+V). Las notas pegadas quedan seleccionadas: arrástralas o usa las flechas (←→ pasos · ↑↓ semitonos · Shift+↑↓ octava) para recolocarlas.">⎗</button>
+    <button id="deleteFragBtn" onclick="deleteFragment()"   disabled title="Eliminar la selección rectangular, o el fragmento A→B (desplazando)">✕</button>
 
     <div class="toolbar-sep"></div>
 
@@ -795,14 +793,14 @@
     <span class="tb-group-label">ESP32</span>
     <select id="connModeSelect" title="Modo de conexión"
             onchange="_onConnModeChange()"
-            style="font-size:10px;background:#1e1e32;color:#aaa;border:1px solid #3a3a5a;
+            style="font-size:10px;background:var(--c-control);color:var(--c-text2);border:1px solid var(--c-border3);
                    border-radius:4px;padding:2px 4px;flex-shrink:0;">
         <option value="wifi">WiFi</option>
         <option value="serial">Serie</option>
     </select>
     <input id="esp32IpInput" value="192.168.1.128"
            title="IP del ESP32"
-           style="width:110px;background:#0e0e1e;color:#aaa;border:1px solid #3a3a5a;
+           style="width:110px;background:var(--c-deep);color:var(--c-text2);border:1px solid var(--c-border3);
                   border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
     <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32">Conectar</button>
     <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
@@ -907,7 +905,7 @@
                     <tr><td class="help-key">● (en tab)</td><td>Indicador de cambios sin guardar</td></tr>
                     <tr><td class="help-key">Canal → Mostrar</td><td>Seleccionar canal MIDI y pulsar Mostrar — si el tab activo tiene contenido, abre el canal en un tab nuevo</td></tr>
                     <tr><td class="help-key">Todos / Ctrl+Shift+A</td><td>Abre cada canal con notas en un tab independiente</td></tr>
-                    <tr><td class="help-key">Portapapeles</td><td>El fragmento copiado se comparte entre todos los tabs; permite trasladar secciones y pegar en otra octava</td></tr>
+                    <tr><td class="help-key">Portapapeles</td><td>El fragmento copiado se comparte entre todos los tabs; permite trasladar secciones — al pegar, las notas quedan seleccionadas para recolocarlas en cualquier octava arrastrándolas o con las flechas</td></tr>
                 </table>
             </div>
 
@@ -920,7 +918,9 @@
                     <tr><td class="help-key">Ctrl + Click</td><td>Editar velocity con tooltip inline — campo numérico sobre la nota, Enter aplica, Esc cancela, click fuera también aplica</td></tr>
                     <tr><td class="help-key">Alt + Click</td><td>Mutear / desmutear el motor físico asignado a esa nota</td></tr>
                     <tr><td class="help-key">Shift + arrastrar</td><td>Selección rectangular — las notas seleccionadas muestran borde azul</td></tr>
-                    <tr><td class="help-key">−8va / ⎗ / +8va</td><td>Ajustan el offset de pegado ±1 octava; ⎗ muestra el valor activo</td></tr>
+                    <tr><td class="help-key">Mover selección (arrastrar)</td><td>Click + arrastrar sobre una nota ya seleccionada desplaza <strong>toda</strong> la selección por el grid (pasos y semitonos) · previsualización en vivo · las notas que se salen por los bordes se ajustan y el grid se amplía a la derecha si hace falta · las colisiones se sobrescriben</td></tr>
+                    <tr><td class="help-key">Mover selección (flechas)</td><td>Con notas seleccionadas: ←/→ = ±1 paso · ↑/↓ = ±1 semitono (↑ sube en pantalla) · Shift+↑/↓ = ±1 octava</td></tr>
+                    <tr><td class="help-key">Ctrl+C / Ctrl+V</td><td>Copiar la selección · pegar en el playhead — las notas pegadas quedan <strong>seleccionadas</strong>, listas para recolocarlas con arrastre o flechas</td></tr>
                     <tr><td class="help-key">− Zoom +</td><td>Zoom horizontal del grid (1–32 px por paso)</td></tr>
                     <tr><td class="help-key">Teclado lateral</td><td>Click + mantener → escucha la nota y mueve el servo · Arrastrar ↑↓ para deslizarse entre notas</td></tr>
                     <tr><td class="help-key">Minimap</td><td>Vista panorámica del grid completo — arrastrar el rectángulo para desplazarse</td></tr>
@@ -960,6 +960,7 @@
                 <table class="help-table">
                     <tr><td class="help-key">Notas</td><td>Panel flotante con todas las notas únicas presentes en el grid</td></tr>
                     <tr><td class="help-key">Vel.</td><td>Muestra / oculta el carril de velocidades (visible por defecto)</td></tr>
+                    <tr><td class="help-key">🤖 Comprimir</td><td>Casilla junto a <strong>Mostrar</strong>: al construir el grid de un canal, remapea cada nota a la nota física más cercana del Motor Map — concentra la pieza en las teclas que el robot puede tocar. La octava destino se pondera con el heat map (o una octava por defecto si no hay análisis). Se habilita al cargar un MIDI con canales y se resetea con cada archivo nuevo. Al exportar con la casilla activa, el MIDI lleva el sufijo <code>_motores.mid</code></td></tr>
                     <tr><td class="help-key">Calor</td><td>Colorea el piano roll por importancia estructural mediante el Motor de Atención (softmax 4D): rojo = nota dominante · azul = subordinada</td></tr>
                     <tr><td class="help-key">Motor</td><td>Abre el panel unificado Motor Map + Escala de transposición</td></tr>
                     <tr><td class="help-key">Motor Map</td><td>Tabla nota MIDI → motor físico · mute por fila silencia audio y ESP32 · permite test, export e import JSON</td></tr>
@@ -1040,8 +1041,8 @@
 #tabBar {
     display: flex;
     align-items: stretch;
-    background: #0a0a18;
-    border-bottom: 1px solid #2a2a4a;
+    background: var(--c-tab-bar);
+    border-bottom: 1px solid var(--c-border2);
     flex-shrink: 0;
     min-height: 28px;
     overflow-x: auto;

@@ -12,7 +12,7 @@ const THEMES = {
         name: 'dark',
         label: '🌙 Oscuro',
 
-        // Colores del canvas (leídos por piano-roll.js y timeline-ruler.js)
+        // Colores del canvas (leídos por piano-roll.js, timeline-ruler.js, minimap.js)
         canvas: {
             bg:       '#252530',
             rowAlt:   '#1e1e28',
@@ -20,6 +20,8 @@ const THEMES = {
             gridBar:  '#555555',
             label:    '#666666',
             playhead: 'rgba(255,230,0,0.9)',
+            deepBg:   '#0d0d1c',   // fondo profundo (regla, minimap)
+            deepLine: '#1a1a3a',   // líneas tenues sobre el fondo profundo
         },
 
         // Patches de inline styles que CSS variables no pueden alcanzar
@@ -43,6 +45,8 @@ const THEMES = {
             gridBar:  '#9090bb',
             label:    '#7788aa',
             playhead: 'rgba(220,80,0,0.85)',
+            deepBg:   '#dde0ee',   // fondo profundo claro (regla, minimap)
+            deepLine: '#c0c4d8',   // líneas tenues sobre el fondo profundo claro
         },
 
         inline: {

@@ -59,9 +59,9 @@ import { play, pause, stop, seekToStep, MS_PER_STEP, _bpmAtStep, refreshPlayback
 // ── Historial / edición ──────────────────────────────────────
 import { historyPush, historyUndo, historyRedo, historyClear } from './history.js';
 import {
-    initCanvasEvents, copyFragment, pasteFragment, setPasteOctave,
+    initCanvasEvents, copyFragment, pasteFragment, moveSelection,
     deleteFragment, selectionDelete, selectionCopy, selectionClear,
-    _updateFragmentButtons,
+    _updateFragmentButtons, getSelectionState,
 } from './editor.js';
 
 // ── Persistencia / recientes ─────────────────────────────────
@@ -828,9 +828,12 @@ function closeHelpModal() {
 
 // Cerrar con Escape · Undo/Redo con Ctrl+Z / Ctrl+Y · Selección con Delete/Ctrl+C
 document.addEventListener('keydown', (e) => {
+    const sel = getSelectionState();   // { selCells:[...], selActive }
+    const hasSel = sel.selCells.length > 0;
+
     // Escape: primero limpia selección si la hay, luego cierra modal
     if (e.key === 'Escape') {
-        if (state._selActive) { selectionClear(); return; }
+        if (sel.selActive || hasSel) { selectionClear(); return; }
         closeHelpModal();
         return;
     }
@@ -839,39 +842,36 @@ document.addEventListener('keydown', (e) => {
     const inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
     if (inInput) return;
 
+    // Mover la selección por el grid con las flechas:
+    //   ←/→ = ±1 paso · ↑/↓ = ±1 semitono · Shift+↑/↓ = ±1 octava (12 semitonos)
+    if (hasSel && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        let dStep = 0, dRow = 0;
+        const oct = e.shiftKey ? 12 : 1;
+        if      (e.key === 'ArrowLeft')  dStep = -1;
+        else if (e.key === 'ArrowRight') dStep =  1;
+        else if (e.key === 'ArrowUp')    dRow  = -oct;   // ↑ = subir en pantalla (índice menor en noteRows)
+        else if (e.key === 'ArrowDown')  dRow  =  oct;
+        if (moveSelection(dStep, dRow)) { e.preventDefault(); return; }
+    }
+
     // Borrar selección rectangular
-    if ((e.key === 'Delete' || e.key === 'Backspace') && state._selCells && state._selCells.size > 0) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && hasSel) {
         e.preventDefault();
         selectionDelete();
         return;
     }
 
     // Copiar selección al portapapeles de fragmentos
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c' &&
-        state._selCells && state._selCells.size > 0) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'c' && hasSel) {
         selectionCopy();
         return;
     }
 
-    // Pegar fragmento: Ctrl+V (offset actual) · Ctrl+Shift+V (+1 oct) · Ctrl+Alt+V (−1 oct)
+    // Pegar fragmento en el playhead (las notas pegadas quedan seleccionadas).
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
         if (state._clipboardFragment) {
             e.preventDefault();
             pasteFragment();
-            return;
-        }
-    }
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
-        if (state._clipboardFragment) {
-            e.preventDefault();
-            pasteFragment(12);
-            return;
-        }
-    }
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.altKey && e.key.toLowerCase() === 'v') {
-        if (state._clipboardFragment) {
-            e.preventDefault();
-            pasteFragment(-12);
             return;
         }
     }
@@ -986,7 +986,7 @@ Object.assign(window, {
 
     // historial / edición
     historyPush, historyUndo, historyRedo, historyClear,
-    copyFragment, pasteFragment, setPasteOctave, deleteFragment,
+    copyFragment, pasteFragment, moveSelection, deleteFragment,
     selectionDelete, selectionCopy, selectionClear, _updateFragmentButtons,
 
     // persistencia / recientes
@@ -1014,3 +1014,18 @@ Object.assign(window, {
     toggleMotorEscalaPanel, _connectEsp32, _onConnModeChange,
     toggleAppMenu, closeAppMenu,
 });
+
+// ============================================================
+// Documento por defecto: al cargar la página (o F5) se crea un grid
+// vacío en 4/4 con 8 compases sobre el tab inicial, listo para editar.
+// ============================================================
+function _initDefaultDocument() {
+    _doLoadBlankGrid(8);   // 8 compases en 4/4 (16 pasos/compás)
+}
+
+if (document.readyState === 'loading') {
+    // Esperar a que tabs.js haya renderizado el tab inicial en DOMContentLoaded.
+    document.addEventListener('DOMContentLoaded', _initDefaultDocument);
+} else {
+    _initDefaultDocument();
+}

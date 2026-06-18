@@ -69,7 +69,6 @@ export function scheduleHarmonicAnalysis() {
 }
 
 let _dragging        = false;
-let _pasteOctaveOffset = 0;   // semitones de offset al pegar (múltiplos de 12)
 let _dragStartStep   = null;
 let _dragStartNote   = null;
 let _dragCurrentStep = null;
@@ -81,6 +80,14 @@ let _selCells     = new Set();   // "note,step" seleccionados
 let _selDragging  = false;
 let _selDragStart = null;        // { step, rowIndex }
 let _selDragEnd   = null;        // { step, rowIndex }
+
+// ---- Estado de movimiento de la selección (arrastre) ----
+let _movingSel     = false;
+let _moveStart     = null;       // { step, rowIndex } donde empezó el arrastre
+let _moveSnapshot  = null;       // [{ note, step, duration, velocity }] de las celdas seleccionadas al iniciar
+let _moveDelta     = null;       // { dStep, dRow } aplicado en la última previsualización
+let _moveGridBak   = null;       // clon de gridData.cells antes del arrastre (para history y restaurar colisiones)
+let _moveTotalBak  = 0;          // totalSteps antes del arrastre
 
 // Helper: invalidar heat map después de ediciones
 function _invalidateHeatMap() {
@@ -174,26 +181,38 @@ function editVelocity(step, note) {
     const input = document.getElementById('_velInput');
     input.select();
 
+    // Listener de "click fuera" (se registra con retardo para no auto-cerrarse
+    // con el mismo mousedown que abrió el tooltip).
+    let _outside = null;
+
+    // Cierre único: quita el listener global y elimina el tooltip. Idempotente.
+    const close = () => {
+        if (_outside) { document.removeEventListener('mousedown', _outside); _outside = null; }
+        tip.remove();
+    };
+
     const commit = () => {
         const val = parseInt(input.value);
         if (!isNaN(val)) {
             historyPush();
             state.gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
             drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
-            if (velLaneActive) drawVelocityLane();
+            drawVelocityLane();   // no-op interno si el carril está oculto (velLaneActive)
             _invalidateHeatMap();
         }
-        tip.remove();
+        close();
     };
 
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') tip.remove();
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }   // cancelar sin aplicar
     });
-    // Click fuera del tooltip lo cierra y aplica
-    setTimeout(() => document.addEventListener('mousedown', function _outside(ev) {
-        if (!tip.contains(ev.target)) { document.removeEventListener('mousedown', _outside); commit(); }
-    }), 50);
+
+    // Click fuera del tooltip → aplica y cierra.
+    setTimeout(() => {
+        _outside = (ev) => { if (!tip.contains(ev.target)) commit(); };
+        document.addEventListener('mousedown', _outside);
+    }, 50);
 }
 
 // ---- Manejadores de eventos del canvas ----
@@ -246,6 +265,22 @@ function _onMouseDown(e) {
         return;
     }
 
+    // Click plano sobre una nota ya seleccionada → arrastrar la selección entera
+    // para reposicionarla en el grid (pasos y semitonos).
+    if (_selCells.size > 0 && _cellInSelection(cell.step, cell.note)) {
+        _movingSel    = true;
+        _moveStart    = { step: cell.step, rowIndex: cell.rowIndex };
+        _moveSnapshot = _snapshotSelection();
+        _moveDelta    = { dStep: 0, dRow: 0 };
+        // Backup completo del grid: permite restaurar colisiones sobrescritas
+        // durante la previsualización y registrar un único punto de historia.
+        _moveGridBak  = {};
+        for (const [k, v] of Object.entries(state.gridData.cells)) _moveGridBak[k] = { ...v };
+        _moveTotalBak = state.totalSteps;
+        e.preventDefault();
+        return;
+    }
+
     _dragging        = true;
     _dragStartStep   = cell.step;
     _dragStartNote   = cell.note;
@@ -253,7 +288,132 @@ function _onMouseDown(e) {
     e.preventDefault();
 }
 
+/** ¿La celda (step,note) pertenece a una nota seleccionada (incluyendo su duración)? */
+function _cellInSelection(step, note) {
+    for (const key of _selCells) {
+        const [noteStr, stepStr] = key.split(',');
+        if (parseInt(noteStr) !== note) continue;
+        const start = parseInt(stepStr);
+        const dur   = state.gridData.cells[key]?.duration || 1;
+        if (step >= start && step < start + dur) return true;
+    }
+    return false;
+}
+
+/** Snapshot de las celdas seleccionadas (datos + posición) para mover desde un origen estable. */
+function _snapshotSelection() {
+    const snap = [];
+    for (const key of _selCells) {
+        const [noteStr, stepStr] = key.split(',');
+        const cell = state.gridData.cells[key];
+        if (!cell) continue;
+        snap.push({ note: parseInt(noteStr), step: parseInt(stepStr), duration: cell.duration, velocity: cell.velocity });
+    }
+    return snap;
+}
+
+/**
+ * Clampa (dStep, dRow) para que NINGUNA nota del snapshot se salga del grid:
+ * por la izquierda (step >= 0) y por los bordes de noteRows (índice válido).
+ * Por la derecha el grid se amplía, así que no se limita. Devuelve el delta corregido.
+ */
+function _clampMoveDelta(dStep, dRow) {
+    let minStep = Infinity, minRow = Infinity, maxRow = -Infinity;
+    for (const s of _moveSnapshot) {
+        const row = state.noteRows.indexOf(s.note);
+        minStep = Math.min(minStep, s.step);
+        minRow  = Math.min(minRow,  row);
+        maxRow  = Math.max(maxRow,  row);
+    }
+    if (minStep + dStep < 0)                         dStep = -minStep;
+    if (minRow + dRow < 0)                           dRow  = -minRow;
+    if (maxRow + dRow > state.noteRows.length - 1)   dRow  = state.noteRows.length - 1 - maxRow;
+    return { dStep, dRow };
+}
+
+/**
+ * Reconstruye el grid desde el backup íntegro y coloca la selección desplazada
+ * (dRow filas, dStep pasos), sobrescribiendo colisiones. Partir SIEMPRE del backup
+ * garantiza que las notas pisadas en un frame reaparezcan si el arrastre las libera.
+ * Reconstruye _selCells con las claves nuevas. No persiste history.
+ */
+function _applyMoveFromSnapshot(dStep, dRow) {
+    // 1. Restaurar el grid íntegro (incluye las notas no seleccionadas y las que
+    //    pudieran haber sido pisadas en una previsualización anterior).
+    state.gridData.cells = {};
+    for (const [k, v] of Object.entries(_moveGridBak)) state.gridData.cells[k] = { ...v };
+    state.totalSteps = _moveTotalBak;
+
+    // 2. Quitar las celdas que la selección ocupaba en su posición original.
+    for (const s of _moveSnapshot) delete state.gridData.cells[`${s.note},${s.step}`];
+
+    // 3. Colocar desde el snapshot con el delta. dRow desplaza el índice en noteRows.
+    const newSel = new Set();
+    let maxEnd = 0;
+    for (const s of _moveSnapshot) {
+        const row     = state.noteRows.indexOf(s.note);
+        const newNote = state.noteRows[row + dRow];   // delta ya clampado a índices válidos
+        const newStep = s.step + dStep;
+        const key     = `${newNote},${newStep}`;
+        state.gridData.cells[key] = { duration: s.duration, velocity: s.velocity };
+        newSel.add(key);
+        maxEnd = Math.max(maxEnd, newStep + s.duration);
+    }
+
+    // 4. Ampliar el grid por la derecha si la selección rebasa el final.
+    if (maxEnd > state.totalSteps) state.totalSteps = maxEnd;
+
+    _selCells  = newSel;
+    _selActive = true;
+}
+
+/** Previsualiza el movimiento en vivo mientras se arrastra (sin tocar history). */
+function _previewMove(dStep, dRow) {
+    const cl = _clampMoveDelta(dStep, dRow);
+    _moveDelta = { dStep, dRow };   // guardamos el bruto para comparar en el próximo move
+    _applyMoveFromSnapshot(cl.dStep, cl.dRow);
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawTimelineRuler();
+}
+
+/** Finaliza el arrastre de la selección: confirma posición, refresca análisis. */
+function _finishMove() {
+    _movingSel = false;
+    const moved = _moveDelta && (_moveDelta.dStep !== 0 || _moveDelta.dRow !== 0);
+    if (moved) {
+        // Registrar UN punto de historia con el estado PREVIO al movimiento (el backup),
+        // luego confirmar el delta final ya clampado. _applyMoveFromSnapshot restaura el
+        // backup internamente, así que el push captura el grid pre-arrastre.
+        const cl = _clampMoveDelta(_moveDelta.dStep, _moveDelta.dRow);
+        state.gridData.cells = {};
+        for (const [k, v] of Object.entries(_moveGridBak)) state.gridData.cells[k] = { ...v };
+        state.totalSteps = _moveTotalBak;
+        historyPush();
+        _applyMoveFromSnapshot(cl.dStep, cl.dRow);
+        _noteDragged = true;        // suprime el click que el navegador dispara tras el arrastre
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+        drawTimelineRuler();
+        _invalidateHeatMap();
+        scheduleHarmonicAnalysis();
+        tabMarkDirty();
+    }
+    _moveStart    = null;
+    _moveSnapshot = null;
+    _moveDelta    = null;
+    _moveGridBak  = null;
+    _updateFragmentButtons();
+}
+
 function _onMouseMove(e) {
+    if (_movingSel) {
+        const c = _coordsFromEvent(e);
+        const dStep = c.step     - _moveStart.step;
+        const dRow  = c.rowIndex - _moveStart.rowIndex;
+        if (dStep !== _moveDelta.dStep || dRow !== _moveDelta.dRow) {
+            _previewMove(dStep, dRow);
+        }
+        return;
+    }
     if (_selDragging) {
         _selDragEnd = _coordsFromEvent(e);
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
@@ -265,16 +425,22 @@ function _onMouseMove(e) {
 }
 
 function _onDocumentMouseUp(e) {
+    if (_movingSel) {
+        _finishMove();
+        return;
+    }
     if (_selDragging) {
         _selDragging = false;
         _selDragEnd  = _coordsFromEvent(e);
         _selectionFromRect();
         _selActive = _selCells.size > 0;
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+        _updateFragmentButtons();   // habilitar Copiar/Eliminar con la selección
     }
 }
 
 function _onMouseUp(e) {
+    if (_movingSel) { _finishMove(); return; }
     if (!_dragging) return;
     _dragging = false;
 
@@ -299,6 +465,8 @@ function _onMouseUp(e) {
 // ---- Operaciones de fragmento A-B ----
 
 export function copyFragment() {
+    // Si hay selección rectangular activa, el botón copia la selección.
+    if (_selCells.size > 0) { selectionCopy(); return; }
     if (!state.loopAB || state.loopA < 0 || state.loopB <= state.loopA) return;
     const cells = [];
     for (const [key, cell] of Object.entries(state.gridData.cells)) {
@@ -311,45 +479,68 @@ export function copyFragment() {
     _updateFragmentButtons();
 }
 
-export function pasteFragment(semitoneOffset) {
+/**
+ * Pega el fragmento del portapapeles en la posición del playhead. Las notas
+ * pegadas quedan SELECCIONADAS (como una selección rectangular), listas para
+ * reposicionarlas arrastrándolas o con las flechas — sin botones de octava.
+ */
+export function pasteFragment() {
     if (!state._clipboardFragment) return;
-    const offset = semitoneOffset !== undefined ? semitoneOffset : _pasteOctaveOffset;
     historyPush();
-    const atStep = state.pasoActual;
+    const atStep = Math.max(0, state.pasoActual);
 
-    // Expandir noteRows con las notas transpuestas que no existan en el grid
-    const newNotes = [...new Set(state._clipboardFragment.cells.map(c => c.note + offset))]
-        .filter(n => n >= 0 && n <= 127 && !state.noteRows.includes(n));
-    if (newNotes.length) {
-        state.noteRows = [...new Set([...state.noteRows, ...newNotes])].sort((a, b) => a - b);
-    }
-
+    const newSel = new Set();
     for (const c of state._clipboardFragment.cells) {
-        const targetNote = Math.max(0, Math.min(127, c.note + offset));
+        const targetNote = Math.max(0, Math.min(127, c.note));
         const targetStep = atStep + c.relStep;
         if (targetStep + c.duration > state.totalSteps) state.totalSteps = targetStep + c.duration;
-        state.gridData.cells[`${targetNote},${targetStep}`] = { duration: c.duration, velocity: c.velocity };
+        const key = `${targetNote},${targetStep}`;
+        state.gridData.cells[key] = { duration: c.duration, velocity: c.velocity };
+        newSel.add(key);
     }
+
+    // Dejar las notas pegadas seleccionadas para poder moverlas de inmediato.
+    _selCells  = newSel;
+    _selActive = newSel.size > 0;
+
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     drawTimelineRuler();
     _invalidateHeatMap();
     scheduleHarmonicAnalysis();
     tabMarkDirty();
+    _updateFragmentButtons();
 }
 
-/** Desplaza el offset de pegado en ±1 octava y actualiza el botón ⎗. */
-export function setPasteOctave(delta) {
-    _pasteOctaveOffset += delta * 12;
-    const btn = document.getElementById('pasteFragBtn');
-    if (!btn) return;
-    const oct = _pasteOctaveOffset / 12;
-    btn.textContent = oct === 0 ? '⎗' : `⎗${oct > 0 ? '+' : ''}${oct}`;
-    btn.title = oct === 0
-        ? 'Pegar en posición del playhead (Ctrl+V)'
-        : `Pegar ${oct > 0 ? '+' : ''}${oct} octava${Math.abs(oct) !== 1 ? 's' : ''} (Ctrl+V)`;
+/**
+ * Mueve la selección activa con el teclado: ±pasos / ±filas (semitonos en
+ * noteRows). Clampa a bordes y amplía el grid a la derecha. Devuelve true si
+ * había selección y se movió (para que el llamador haga preventDefault).
+ */
+export function moveSelection(dStep, dRow) {
+    if (_selCells.size === 0) return false;
+    _moveSnapshot = _snapshotSelection();
+    _moveGridBak  = {};
+    for (const [k, v] of Object.entries(state.gridData.cells)) _moveGridBak[k] = { ...v };
+    _moveTotalBak = state.totalSteps;
+
+    const cl = _clampMoveDelta(dStep, dRow);
+    if (cl.dStep === 0 && cl.dRow === 0) { _moveSnapshot = _moveGridBak = null; return true; }
+
+    historyPush();
+    _applyMoveFromSnapshot(cl.dStep, cl.dRow);
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawTimelineRuler();
+    _invalidateHeatMap();
+    scheduleHarmonicAnalysis();
+    tabMarkDirty();
+
+    _moveSnapshot = _moveGridBak = null;
+    return true;
 }
 
 export function deleteFragment() {
+    // Si hay selección rectangular activa, el botón borra la selección.
+    if (_selCells.size > 0) { selectionDelete(); return; }
     if (!state.loopAB || state.loopA < 0 || state.loopB <= state.loopA) return;
     historyPush();
     const fragLen = state.loopB - state.loopA;
@@ -427,21 +618,21 @@ export function selectionClear() {
     _selDragStart = null;
     _selDragEnd   = null;
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    _updateFragmentButtons();   // re-deshabilitar Copiar/Eliminar si ya no hay selección ni rango
 }
 
 export function _updateFragmentButtons() {
-    const hasRange  = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
-    const hasFrag   = !!state._clipboardFragment;
+    const hasRange = state.loopAB && state.loopA >= 0 && state.loopB > state.loopA;
+    const hasSel   = _selCells.size > 0;
+    const hasFrag  = !!state._clipboardFragment;
+    // Copiar/Eliminar operan sobre la selección rectangular O el rango A→B.
+    const canCopyDelete = hasRange || hasSel;
     const copyBtn      = document.getElementById('copyFragBtn');
     const pasteBtn     = document.getElementById('pasteFragBtn');
     const deleteBtn    = document.getElementById('deleteFragBtn');
-    const octDownBtn   = document.getElementById('pasteOctDownBtn');
-    const octUpBtn     = document.getElementById('pasteOctUpBtn');
-    if (copyBtn)     copyBtn.disabled    = !hasRange;
-    if (deleteBtn)   deleteBtn.disabled  = !hasRange;
+    if (copyBtn)     copyBtn.disabled    = !canCopyDelete;
+    if (deleteBtn)   deleteBtn.disabled  = !canCopyDelete;
     if (pasteBtn)    pasteBtn.disabled   = !hasFrag;
-    if (octDownBtn)  octDownBtn.disabled = !hasFrag;
-    if (octUpBtn)    octUpBtn.disabled   = !hasFrag;
 }
 
 /** Devuelve el estado de selección actual (para serializar en tabs). */

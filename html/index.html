@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PianoRoll — Secuenciador MIDI · Robot pianista · Análisis armónico</title>
+  <meta name="description" content="PianoRoll controla un robot pianista de servos impreso en 3D desde el navegador. Secuenciador MIDI web con análisis armónico en tiempo real y control ESP32. Sin instalación.">
+  <meta property="og:title" content="PianoRoll — Robot pianista controlado por MIDI">
+  <meta property="og:description" content="Servos impresos en 3D, LEDs sincronizados, análisis armónico. Controlado desde el navegador via ESP32.">
+  <meta property="og:image" content="img/vista_leds_frontal.jpg">
+  <meta property="og:url" content="https://elper.es">
+  <meta name="theme-color" content="#0d0d1c">
+  <!-- Google Analytics -->
+  <script src="https://www.googletagmanager.com/gtag/js?id=G-2NG3L0067G" async></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2NG3L0067G');
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d0d1c;
+      --bg2:     #13132a;
+      --bg3:     #1e1e2f;
+      --panel:   #22223a;
+      --border:  #3a3a5a;
+      --accent:  #6688cc;
+      --accent2: #88aaee;
+      --cyan:    #00bcd4;
+      --green:   #55cc88;
+      --gold:    #ccaa44;
+      --text:    #eeeeee;
+      --text2:   #aaaacc;
+      --text3:   #6666aa;
+      --r:       10px;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.6; overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(13,13,28,0.93); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 56px;
+    }
+    .nav-logo { font-size: 1.2rem; font-weight: 800; letter-spacing: .04em; color: var(--accent2); text-decoration: none; }
+    .nav-logo span { color: var(--text3); font-weight: 400; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { color: var(--text2); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent); color: #fff; border: none;
+      padding: .45rem 1.1rem; border-radius: 6px; font-size: .9rem;
+      cursor: pointer; text-decoration: none; font-weight: 700; transition: background .2s;
+    }
+    .nav-cta:hover { background: var(--accent2); }
+    .lang-toggle { display: flex; gap: .3rem; }
+    .lang-btn {
+      background: none; border: 1px solid var(--border); color: var(--text3);
+      padding: .2rem .55rem; border-radius: 4px; cursor: pointer; font-size: .75rem; transition: all .15s;
+    }
+    .lang-btn.active { border-color: var(--accent); color: var(--accent); }
+    @media (max-width: 640px) { .nav-links { display: none; } nav { padding: 0 1rem; } }
+
+    /* ── i18n ── */
+    [data-en] { display: none; }
+    body.en [data-es] { display: none; }
+    body.en [data-en] { display: revert; }
+
+    /* ── HERO — imagen de LEDs a pantalla completa ── */
+    .hero {
+      min-height: 100vh; position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 7rem 2rem 5rem; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background: linear-gradient(to bottom, rgba(13,13,28,.62) 0%, rgba(13,13,28,.92) 100%);
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .hero-eyebrow {
+      font-size: .75rem; letter-spacing: .2em; text-transform: uppercase;
+      color: #f0c060; margin-bottom: 1.2rem;
+      text-shadow: 0 0 20px rgba(240,192,96,.5);
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4.4rem); font-weight: 900; line-height: 1.08; max-width: 860px;
+      background: linear-gradient(135deg, #ffffff 40%, #f0c060 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      margin-top: 1.4rem; font-size: 1.1rem; color: #ffffff;
+      max-width: 600px; line-height: 1.75;
+      text-shadow: 0 1px 8px rgba(0,0,0,.9), 0 0 30px rgba(0,0,0,.7);
+    }
+    .hero-badges { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: center; margin-top: 2rem; }
+    .badge {
+      background: #f5f0e8; border: 1px solid #d8d0c0;
+      border-radius: 20px; padding: .28rem .8rem;
+      font-size: .75rem; color: #2a2a1a; font-family: monospace;
+      backdrop-filter: blur(4px);
+    }
+    .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-top: 2.5rem; }
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none;
+      padding: .85rem 2.2rem; border-radius: 8px; font-size: 1rem;
+      font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: background .2s, transform .15s; display: inline-block;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-2px); }
+    .btn-secondary {
+      background: rgba(255,255,255,.07); color: var(--text2);
+      border: 1px solid rgba(255,255,255,.2); backdrop-filter: blur(4px);
+      padding: .85rem 2.2rem; border-radius: 8px; font-size: 1rem;
+      cursor: pointer; text-decoration: none; transition: all .2s; display: inline-block;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); background: rgba(102,136,204,.1); }
+
+    /* ── SECCIONES GENÉRICAS ── */
+    section { padding: 5rem 2rem; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: .72rem; letter-spacing: .2em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: .8rem;
+    }
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem); font-weight: 800; line-height: 1.2; max-width: 720px;
+    }
+    .section-desc { margin-top: 1rem; color: var(--text2); max-width: 640px; font-size: 1rem; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* ── GALERÍA HERO ROBOT — 3 columnas ── */
+    .robot-gallery {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 6px; margin-top: 3rem;
+      border-radius: var(--r); overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .rg-main { grid-column: 1 / 3; grid-row: 1 / 3; }
+    .rg-main img, .rg-side img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .rg-main { height: 460px; }
+    .rg-side  { height: 227px; overflow: hidden; }
+    @media (max-width: 700px) {
+      .robot-gallery { grid-template-columns: 1fr; grid-template-rows: auto; }
+      .rg-main { grid-column: 1; grid-row: auto; height: 260px; }
+      .rg-side  { height: 180px; }
+    }
+
+    /* ── TRES PILARES ── */
+    .pillars {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem; margin-top: 3rem;
+    }
+    .pillar {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 2rem;
+      display: flex; flex-direction: column; gap: .8rem;
+    }
+    .pillar-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+    }
+    .pillar-icon.blue  { background: rgba(102,136,204,.18); }
+    .pillar-icon.cyan  { background: rgba(0,188,212,.15); }
+    .pillar-icon.gold  { background: rgba(204,170,68,.18); }
+    .pillar h3 { font-size: 1.15rem; font-weight: 700; }
+    .pillar p  { color: var(--text2); font-size: .95rem; line-height: 1.65; }
+
+    /* ── FEATURE CARDS ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem; margin-top: 2.5rem;
+    }
+    .feat-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 1.4rem;
+    }
+    .feat-card h4 { font-size: .92rem; font-weight: 700; margin-bottom: .4rem; display: flex; align-items: center; gap: .5rem; }
+    .feat-card p  { font-size: .83rem; color: var(--text2); line-height: 1.6; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-blue  { background: var(--accent); }
+    .dot-cyan  { background: var(--cyan); }
+    .dot-gold  { background: var(--gold); }
+    .dot-green { background: var(--green); }
+    .dot-red   { background: #cc6666; }
+
+    /* ── HARDWARE LAYOUT ── */
+    .hw-section { background: var(--bg2); }
+    .hw-layout {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 3.5rem; align-items: start; margin-top: 3rem;
+    }
+    @media (max-width: 740px) { .hw-layout { grid-template-columns: 1fr; gap: 2rem; } }
+    .hw-photo {
+      border-radius: var(--r); overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .hw-photo img { width: 100%; display: block; }
+    .hw-list { list-style: none; display: flex; flex-direction: column; gap: .9rem; margin-top: 1.5rem; }
+    .hw-list li { display: flex; align-items: flex-start; gap: .9rem; font-size: .95rem; color: var(--text2); }
+    .hw-list li::before { content: '→'; color: var(--accent); flex-shrink: 0; margin-top: .05em; }
+    .hw-list li strong { color: var(--text); }
+    .chip-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+    .chip {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 6px; padding: .25rem .7rem;
+      font-size: .78rem; font-family: monospace; color: var(--text2);
+    }
+
+    /* ── GALERÍA DE VISTAS ── */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px; margin-top: 3rem;
+    }
+    .gallery-item {
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid var(--border); position: relative; cursor: zoom-in;
+    }
+    .gallery-item img {
+      width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block;
+      transition: transform .4s ease, filter .3s;
+    }
+    .gallery-item:hover img { transform: scale(1.04); filter: brightness(1.1); }
+    .gallery-caption {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(13,13,28,.9) 0%, transparent 100%);
+      padding: 1.5rem .8rem .6rem;
+      font-size: .75rem; color: var(--text2); letter-spacing: .03em;
+    }
+
+    /* ── SECCIÓN LEDs — pantalla completa con overlay ── */
+    .leds-section {
+      position: relative; overflow: hidden;
+      min-height: 520px;
+      display: flex; align-items: center;
+    }
+    .leds-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background: url('img/vista_leds_interior.jpg') center/cover no-repeat;
+      filter: brightness(.35) saturate(1.6);
+    }
+    .leds-bg::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(13,13,28,.7) 40%, rgba(0,50,80,.4) 100%);
+    }
+    .leds-content {
+      position: relative; z-index: 1;
+      max-width: 600px; padding: 4rem 2rem; margin: 0 auto; text-align: center;
+    }
+    .leds-content .section-label { color: var(--cyan); }
+    .leds-content .section-title { color: #fff; max-width: 100%; }
+    .leds-content .section-desc  { color: rgba(200,215,230,.8); max-width: 100%; }
+    .leds-stats {
+      display: flex; gap: 2.5rem; justify-content: center; flex-wrap: wrap; margin-top: 2.5rem;
+    }
+    .leds-stat { text-align: center; }
+    .leds-stat-num {
+      font-size: 2.6rem; font-weight: 900; line-height: 1;
+      color: var(--cyan); text-shadow: 0 0 30px rgba(0,188,212,.7);
+    }
+    .leds-stat-label { font-size: .75rem; color: rgba(180,200,220,.7); margin-top: .3rem; letter-spacing: .08em; text-transform: uppercase; }
+
+    /* ── VÍDEO ── */
+    .video-section { background: var(--bg); }
+    .video-wrap {
+      margin-top: 3rem; border-radius: var(--r); overflow: hidden;
+      border: 1px solid var(--border);
+      width: 100%; max-width: 860px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .video-wrap video {
+      width: 100%; display: block;
+      background: #000;
+    }
+
+    /* ── FLUJO DE TRABAJO ── */
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0; margin-top: 3rem;
+      border: 1px solid var(--border); border-radius: var(--r); overflow: hidden;
+    }
+    .step {
+      padding: 2rem 1.6rem; border-right: 1px solid var(--border); background: var(--bg2);
+    }
+    .step:last-child { border-right: none; }
+    .step-num { font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text3); margin-bottom: .6rem; }
+    .step h4  { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .step p   { font-size: .84rem; color: var(--text2); line-height: 1.6; }
+    @media (max-width: 480px) {
+      .steps { grid-template-columns: 1fr; }
+      .step  { border-right: none; border-bottom: 1px solid var(--border); }
+      .step:last-child { border-bottom: none; }
+    }
+
+    /* ── SPECS TABLE ── */
+    .specs-table { width: 100%; border-collapse: collapse; margin-top: 2.5rem; font-size: .9rem; }
+    .specs-table th {
+      text-align: left; padding: .6rem 1rem;
+      background: var(--panel); color: var(--text2);
+      font-weight: 600; font-size: .76rem; text-transform: uppercase; letter-spacing: .08em;
+      border-bottom: 1px solid var(--border);
+    }
+    .specs-table td { padding: .65rem 1rem; border-bottom: 1px solid rgba(58,58,90,.35); vertical-align: top; }
+    .specs-table tr:last-child td { border-bottom: none; }
+    .specs-table td:first-child { color: var(--text2); font-weight: 500; white-space: nowrap; }
+    .specs-table td:last-child  { color: var(--text); font-family: monospace; font-size: .84rem; }
+
+    /* ── CTA FINAL ── */
+    .cta-section {
+      background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(0,188,212,.1) 0%, transparent 70%), var(--bg2);
+      text-align: center;
+    }
+    .cta-section h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 900; max-width: 600px; margin: 0 auto 1rem; }
+    .cta-section p  { color: var(--text2); max-width: 500px; margin: 0 auto 2.5rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 2rem; text-align: center; font-size: .82rem; color: var(--text3);
+      display: flex; flex-direction: column; gap: .5rem; align-items: center;
+    }
+    footer a { color: var(--text2); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+    .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+
+    /* ── LIGHTBOX ── */
+    #lb {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,.93); align-items: center; justify-content: center;
+      cursor: zoom-out;
+    }
+    #lb.open { display: flex; }
+    #lb img { max-width: 92vw; max-height: 88vh; border-radius: 6px; box-shadow: 0 0 60px rgba(0,0,0,.8); }
+    #lb-close {
+      position: fixed; top: 1.2rem; right: 1.5rem;
+      color: #fff; font-size: 2rem; cursor: pointer; opacity: .7; z-index: 1000;
+    }
+    #lb-close:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <a href="#" class="nav-logo">Piano<span>Roll</span></a>
+  <ul class="nav-links">
+    <li><a href="#gallery"  data-es>Galería</a>  <a href="#gallery"  data-en>Gallery</a></li>
+    <li><a href="#features" data-es>Funciones</a><a href="#features" data-en>Features</a></li>
+    <li><a href="#video"    data-es>Demo</a>      <a href="#video"    data-en>Demo</a></li>
+    <li><a href="#contacto" data-es>Contacto</a><a href="#contacto" data-en>Contact</a></li>
+  </ul>
+  <div style="display:flex;gap:.8rem;align-items:center;">
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('es')">ES</button>
+      <button class="lang-btn"        onclick="setLang('en')">EN</button>
+    </div>
+    <a href="./midiGrid.html" class="nav-cta" data-es>Abrir app →</a>
+    <a href="./midiGrid.html" class="nav-cta" data-en>Open app →</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section class="hero" style="background-image:url('img/vista_leds_frontal.jpg');background-size:cover;background-position:center;background-repeat:no-repeat;">
+  <div class="hero-bg"></div>
+  <p class="hero-eyebrow">Robot pianista · MIDI · ESP32 · Impresión 3D</p>
+  <h1 data-es>Un robot que toca<br>el piano de verdad</h1>
+  <h1 data-en>A robot that plays<br>a real piano</h1>
+  <p class="hero-sub" data-es>
+    Servos controlados por ESP32, piezas impresas en 3D, LEDs sincronizados con cada nota
+    y un secuenciador MIDI web que lo orquesta todo desde el navegador.
+  </p>
+  <p class="hero-sub" data-en>
+    ESP32-driven servos, 3D-printed parts, LEDs synced to every note
+    and a web MIDI sequencer that orchestrates it all from the browser.
+  </p>
+  <div class="hero-badges">
+    <a class="badge" href="https://www.printables.com/model/1658534-piano-robot-synchronized-servo-motion-for-midi-pla/files" target="_blank" rel="noopener" style="text-decoration:none;">Impresión 3D — 7 piezas STL ↗</a>
+    <a class="badge" href="https://www.instagram.com/piano__roll" target="_blank" rel="noopener" style="text-decoration:none;">Instagram ↗</a>
+    <a class="badge" href="https://github.com/portab76/aTambor" target="_blank" rel="noopener" style="text-decoration:none;">Open Source ↗</a>
+    <a class="badge" href="https://developer.chrome.com/docs/capabilities/serial" target="_blank" rel="noopener" style="text-decoration:none;">Web Serial API ↗</a>
+    <a class="badge" href="https://github.com/mudcube/MIDI.js" target="_blank" rel="noopener" style="text-decoration:none;">MIDI.js ↗</a>
+    <a class="badge" href="https://docs.espressif.com/projects/esp-idf/en/latest/esp32/" target="_blank" rel="noopener" style="text-decoration:none;">ESP32 docs ↗</a>
+    <a class="badge" href="https://learn.adafruit.com/16-channel-pwm-servo-driver" target="_blank" rel="noopener" style="text-decoration:none;">PCA9685 guide ↗</a>
+  </div>
+</section>
+
+<!-- ═══════════════ GALERÍA VISTAS ═══════════════ -->
+<hr class="divider">
+<section id="gallery">
+  <div class="section-inner">
+    <p class="section-label" data-es>El robot</p>
+    <p class="section-label" data-en>The robot</p>
+    <h2 class="section-title" style="max-width:100%;" data-es>Servos ES08MA, piezas impresas y un teclado que toca solo</h2>
+    <h2 class="section-title" style="max-width:100%;" data-en>ES08MA servos, 3D-printed parts and a keyboard that plays itself</h2>
+    <div class="gallery-grid">
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_panoramica.jpg"       alt="Vista panorámica — robot completo">
+        <div class="gallery-caption" data-es>Vista panorámica — robot completo</div>
+        <div class="gallery-caption" data-en>Panoramic view — full robot</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_frontal.jpg"           alt="Vista frontal — servos ES08MA en detalle">
+        <div class="gallery-caption" data-es>Vista frontal — servos ES08MA</div>
+        <div class="gallery-caption" data-en>Front view — ES08MA servos</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_lateral_blancas.jpg"   alt="Vista lateral — teclas blancas y electrónica">
+        <div class="gallery-caption" data-es>Lateral — teclas blancas + ESP32</div>
+        <div class="gallery-caption" data-en>Side — white keys + ESP32</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_lateral_negras.jpg"    alt="Vista lateral — teclas negras con LEDs">
+        <div class="gallery-caption" data-es>Lateral — teclas negras + LEDs</div>
+        <div class="gallery-caption" data-en>Side — black keys + LEDs</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_superior.jpg"          alt="Vista superior — cableado completo">
+        <div class="gallery-caption" data-es>Superior — cableado de servos</div>
+        <div class="gallery-caption" data-en>Top — servo wiring</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_inferior.jpg"          alt="Vista inferior — mecanismo completo">
+        <div class="gallery-caption" data-es>Inferior — mecanismo completo</div>
+        <div class="gallery-caption" data-en>Bottom — full mechanism</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_leds_frontal.jpg"      alt="LEDs azules encendidos — vista frontal">
+        <div class="gallery-caption" data-es>LEDs frontales encendidos</div>
+        <div class="gallery-caption" data-en>Front LEDs on</div>
+      </div>
+      <div class="gallery-item" onclick="openLb(this.querySelector('img'))">
+        <img src="img/vista_leds_interior.jpg"     alt="LEDs — perspectiva interior en profundidad">
+        <div class="gallery-caption" data-es>LEDs — perspectiva interior</div>
+        <div class="gallery-caption" data-en>LEDs — interior perspective</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════ 3 PILARES ═══════════════ -->
+<hr class="divider">
+<section id="features">
+  <div class="section-inner">
+    <p class="section-label" data-es>Por qué PianoRoll</p>
+    <p class="section-label" data-en>Why PianoRoll</p>
+    <h2 class="section-title" data-es style="max-width:100%;white-space:nowrap;font-size:clamp(1rem,3vw,2.2rem);">Tres cosas que ningún otro secuenciador web combina</h2>
+    <h2 class="section-title" data-en>Three things no other web sequencer combines</h2>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pillar-icon blue">⚙️</div>
+        <h3 data-es>Control de hardware real</h3>
+        <h3 data-en>Real hardware control</h3>
+        <p data-es>Envía comandos en tiempo real a servos, solenoides y motores conectados a un ESP32 via WebSocket WiFi o USB Serial. Sincronización beat-by-beat con corrección de drift.</p>
+        <p data-en>Sends real-time commands to servos, solenoids and motors connected to an ESP32 via WebSocket WiFi or USB Serial. Beat-by-beat sync with drift correction.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon cyan">🎹</div>
+        <h3 data-es>Secuenciador MIDI completo</h3>
+        <h3 data-en>Full MIDI sequencer</h3>
+        <p data-es>Grid con arrastrar y soltar, carril de velocidades, 128 instrumentos GM, importación y exportación de archivos .mid estándar compatibles con cualquier DAW.</p>
+        <p data-en>Drag-and-drop grid, velocity lane, 128 GM instruments, standard .mid import and export compatible with any DAW.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon gold">🧠</div>
+        <h3 data-es>Análisis armónico en tiempo real</h3>
+        <h3 data-en>Real-time harmonic analysis</h3>
+        <p data-es>Detección automática de tonalidad (Krumhansl-Kessler), acordes con Tonal.js, heat map 4D y análisis de cadencias mientras compones.</p>
+        <p data-en>Automatic key detection (Krumhansl-Kessler), chords with Tonal.js, 4D heat map and cadence analysis as you compose.</p>
+      </div>
+    </div>
+
+    <div style="margin:2.5rem 0;">
+      <img src="img/programa.jpg" alt="Interfaz del secuenciador PianoRoll"
+           style="width:100%;border-radius:12px;border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,.5);">
+    </div>
+
+    <div class="features-grid">
+      <div class="feat-card">
+        <h4><span class="dot dot-blue"></span><span data-es>Multipestaña</span><span data-en>Multi-tab</span></h4>
+        <p data-es>Varios proyectos abiertos con historial de deshacer independiente por pestaña.</p>
+        <p data-en>Multiple projects open with independent undo history per tab.</p>
+      </div>
+      <div class="feat-card">
+        <h4><span class="dot dot-cyan"></span><span data-es>AudioContext Scheduler</span><span data-en>AudioContext Scheduler</span></h4>
+        <p data-es>100 ms de lookahead para timing sample-accurate. Sin jitter por setInterval.</p>
+        <p data-en>100 ms lookahead for sample-accurate timing. No setInterval jitter.</p>
+      </div>
+      <div class="feat-card">
+        <h4><span class="dot dot-gold"></span><span data-es>Importación MML</span><span data-en>MML Import</span></h4>
+        <p data-es>Pega notación MML directamente y aparece en el grid.</p>
+        <p data-en>Paste MML notation directly and it populates the grid.</p>
+      </div>
+      <div class="feat-card">
+        <h4><span class="dot dot-blue"></span><span data-es>Minimap</span><span data-en>Minimap</span></h4>
+        <p data-es>Vista panorámica del proyecto con scrub rápido.</p>
+        <p data-en>Full-project overview with quick scrub.</p>
+      </div>
+      <div class="feat-card">
+        <h4><span class="dot dot-red"></span><span data-es>Mapa de motores</span><span data-en>Motor Map</span></h4>
+        <p data-es>Asigna notas MIDI a servos físicos con HIT_MS garantizado por tecla.</p>
+        <p data-en>Map MIDI notes to physical servos with guaranteed HIT_MS per key.</p>
+      </div>
+      <div class="feat-card">
+        <h4><span class="dot dot-green"></span><span data-es>Sin instalación</span><span data-en>Zero install</span></h4>
+        <p data-es>Funciona en Chrome, Edge y Opera. Sin npm, sin Electron, sin plugins.</p>
+        <p data-en>Works in Chrome, Edge and Opera. No npm, no Electron, no plugins.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ HARDWARE ═══════════════ -->
+
+
+<!-- ═══════════════ VÍDEO ═══════════════ -->
+<hr class="divider">
+<section id="video" class="video-section">
+  <div class="section-inner" style="display:flex;flex-direction:column;align-items:center;text-align:center;">
+    <p class="section-label" data-es>Demo en vivo</p>
+    <p class="section-label" data-en>Live demo</p>
+    <h2 class="section-title" data-es>Escúchalo tocar</h2>
+    <h2 class="section-title" data-en>Hear it play</h2>
+    <p class="section-desc" data-es style="margin:1rem auto 0;">
+      El robot tocando una secuencia compuesta en PianoRoll y enviada al ESP32 en tiempo real.
+    </p>
+    <p class="section-desc" data-en style="margin:1rem auto 0;">
+      The robot playing a sequence composed in PianoRoll and sent to the ESP32 in real time.
+    </p>
+    <div style="display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;margin-top:2rem;">
+      <iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7469004933082787840?collapsed=1"
+              height="500" width="504" frameborder="0" allowfullscreen
+              title="Publicación integrada" style="border-radius:12px;max-width:100%;"></iframe>
+      <iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7457515731757375488?collapsed=1"
+              height="500" width="504" frameborder="0" allowfullscreen
+              title="Publicación integrada" style="border-radius:12px;max-width:100%;"></iframe>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CONTACTO ═══════════════ -->
+<hr class="divider">
+<section id="contacto" style="text-align:center;">
+  <div class="section-inner" style="display:flex;flex-direction:column;align-items:center;">
+    <p class="section-label" data-es>Contacto</p>
+    <p class="section-label" data-en>Contact</p>
+    <h2 class="section-title" data-es>¿Quieres uno? ¿Tienes preguntas?</h2>
+    <h2 class="section-title" data-en>Want one? Got questions?</h2>
+    <p class="section-desc" data-es style="max-width:520px;margin:1rem auto 2rem;">
+      Escríbeme por WhatsApp — respondo en menos de 24 h. Puedo fabricar una unidad, resolver dudas técnicas o hablar de colaboraciones.
+    </p>
+    <p class="section-desc" data-en style="max-width:520px;margin:1rem auto 2rem;">
+      Message me on WhatsApp — I reply within 24 h. I can build a unit, answer technical questions or discuss collaborations.
+    </p>
+    <a href="https://wa.me/34669517891?text=Hola%2C%20me%20interesa%20el%20robot%20pianista%20aTambor"
+       target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:.75rem;background:#25D366;color:#fff;font-weight:700;font-size:1.05rem;padding:.9rem 2rem;border-radius:50px;text-decoration:none;box-shadow:0 4px 20px rgba(37,211,102,.35);transition:transform .15s,box-shadow .15s;"
+       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 28px rgba(37,211,102,.5)'"
+       onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(37,211,102,.35)'">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <span data-es>Escríbeme por WhatsApp</span><span data-en>Message me on WhatsApp</span>
+    </a>
+    <p style="margin-top:1.5rem;font-size:.85rem;color:var(--text3);">
+      <a href="mailto:portab76@gmail.com" style="color:var(--text3);">portab76@gmail.com</a>
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="footer-links">
+    <a href="./midiGrid.html"  data-es>Abrir app</a><a href="./midiGrid.html" data-en>Open app</a>
+    <a href="https://www.printables.com/model/1658534" target="_blank">Printables</a>
+    <a href="https://github.com/portab76/aTambor" target="_blank">GitHub</a>
+    <a href="mailto:portab76@gmail.com">Contacto</a>
+    <a href="nautica/"  data-es>Náutica</a><a href="nautica/"  data-en>Nautical</a>
+    <a href="news/"     data-es>Noticias</a><a href="news/"    data-en>News</a>
+    <a href="./_index.php"  data-es>Videos</a><a href="./_index.php"  data-en>Videos</a>
+  </div>
+  <span>© 2026 Pablo Ortiz Taboada · elper.es · Proyecto personal sin ánimo de lucro</span>
+</footer>
+
+<!-- ═══════════════ LIGHTBOX ═══════════════ -->
+<div id="lb" onclick="closeLb()">
+  <span id="lb-close" onclick="closeLb()">✕</span>
+  <img id="lb-img" src="" alt="">
+</div>
+
+<script>
+  function setLang(lang) {
+    document.body.classList.toggle('en', lang === 'en');
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent === lang.toUpperCase()));
+    localStorage.setItem('pr_lang', lang);
+  }
+  (function() {
+    const saved = localStorage.getItem('pr_lang');
+    const browser = navigator.language?.slice(0,2);
+    if (saved === 'en' || (!saved && browser !== 'es')) setLang('en');
+  })();
+
+  function openLb(img) {
+    document.getElementById('lb-img').src = img.src;
+    document.getElementById('lb-img').alt = img.alt;
+    document.getElementById('lb').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLb() {
+    document.getElementById('lb').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+  const nav = document.querySelector('nav');
+  window.addEventListener('scroll', () => {
+    nav.style.boxShadow = window.scrollY > 10 ? '0 2px 24px rgba(0,0,0,.6)' : 'none';
+  }, { passive: true });
+
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+    });
+  });
+</script>
+</body>
+</html>

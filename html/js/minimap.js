@@ -19,12 +19,17 @@ export function drawMinimap() {
 
     const mc = canvas.getContext('2d');
 
+    // Paleta del tema (claro/oscuro); fallback al tema oscuro.
+    const CT      = window.CANVAS_THEME || {};
+    const deepBg  = CT.deepBg   || '#07071a';
+    const deepLn  = CT.deepLine || '#1a1a3a';
+
     // ── Fondo ──────────────────────────────────────────────
-    mc.fillStyle = '#07071a';
+    mc.fillStyle = deepBg;
     mc.fillRect(0, 0, W, MINIMAP_H);
 
     if (!state.totalSteps || !state.stepWidth) {
-        mc.strokeStyle = '#1a1a3a';
+        mc.strokeStyle = deepLn;
         mc.lineWidth   = 1;
         mc.strokeRect(0.5, 0.5, W - 1, MINIMAP_H - 1);
         return;
@@ -96,7 +101,7 @@ export function drawMinimap() {
     }
 
     // ── Borde inferior ──────────────────────────────────────
-    mc.strokeStyle = '#1a1a3a';
+    mc.strokeStyle = deepLn;
     mc.lineWidth   = 1;
     mc.beginPath();
     mc.moveTo(0, MINIMAP_H - 0.5);

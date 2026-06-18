@@ -30,14 +30,20 @@ export function drawTimelineRuler() {
     const rc = canvas.getContext('2d');
     const RH = RULER_H - SECTION_H;  // altura neta de la sección de compases
 
+    // Paleta del tema (claro/oscuro); fallback al tema oscuro.
+    const CT       = window.CANVAS_THEME || {};
+    const deepBg   = CT.deepBg   || '#0d0d1c';
+    const sectionBg = CT.rowAlt  || '#0a0a1a';
+    const sepLine  = CT.grid     || '#2a2a44';
+
     // ── Fondo total ────────────────────────────────────────
-    rc.fillStyle = '#0d0d1c';
+    rc.fillStyle = deepBg;
     rc.fillRect(0, 0, W, RULER_H);
 
     // ── Franja de marcadores de sección (0..SECTION_H) ────
-    rc.fillStyle = '#0a0a1a';
+    rc.fillStyle = sectionBg;
     rc.fillRect(0, 0, W, SECTION_H);
-    rc.strokeStyle = '#2a2a44';
+    rc.strokeStyle = sepLine;
     rc.lineWidth   = 1;
     rc.beginPath();
     rc.moveTo(0, SECTION_H - 0.5);
