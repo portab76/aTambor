@@ -465,6 +465,16 @@ export function toggleNewGridPanel() {
     if (btn) btn.classList.toggle('btn-active', !visible);
 }
 
+// ── closeNewGridPanel — cierra el panel sin alternar (idempotente) ──
+// Necesario al cerrar o cambiar de tab mientras el panel está abierto: si no,
+// quedaría visible y un clic en un número de compases caería sobre otro tab.
+export function closeNewGridPanel() {
+    const panel = document.getElementById('newGridPanel');
+    const btn   = document.getElementById('newGridBtn');
+    if (panel) panel.style.display = 'none';
+    if (btn) btn.classList.remove('btn-active');
+}
+
 // ── _doLoadBlankGrid — crea el grid con el nº de compases elegido ──
 export function _doLoadBlankGrid(measures) {
     // Cerrar el panel
@@ -517,6 +527,13 @@ export function _doLoadBlankGrid(measures) {
 
     // Redimensionar canvas y redibujar (resetea zoom label al default 40/25)
     applyZoom(40, 25);
+
+    // Un grid nuevo siempre arranca al principio. applyZoom intenta preservar el
+    // "paso central" del viewport anterior, lo que aquí (cambio de stepWidth 8→40
+    // con un viewport ya montado) desplazaría el scroll a la derecha. Forzar 0;
+    // el listener de scroll sincroniza ruler, chord row y carril de velocidades.
+    const gs = document.getElementById('gridScroll');
+    if (gs) gs.scrollLeft = 0;
 
     // Habilitar transporte y botones de compases
     playBtn.disabled  = false;

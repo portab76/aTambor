@@ -163,10 +163,32 @@ export function buildMidiBytes() {
 // ── Punto de entrada público ──────────────────────────────────
 
 /**
- * Genera y descarga un archivo .mid desde el estado actual del grid.
- * Llama a esta función desde un botón de la toolbar.
+ * Nombre base por defecto para exportar MIDI (sin extensión). Refleja si la
+ * casilla 🤖 Comprimir estaba activa al construir el grid: sufijo _motores
+ * frente a _export.
  */
-export function exportMIDI() {
+export function defaultMidiExportName() {
+    const comprimir = document.getElementById('comprimirCheckbox')?.checked;
+    const baseName  = (state.currentMidiFileName || 'composicion').replace(/\.midi?$/i, '');
+    return comprimir ? `${baseName}_motores` : `${baseName}_export`;
+}
+
+/** Sanea un nombre de archivo (caracteres ilegales, espacios, vacío). */
+function _sanitizeFileName(name) {
+    const clean = String(name || '')
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\.+$/, '');
+    return clean || 'composicion';
+}
+
+/**
+ * Genera y descarga un archivo .mid desde el estado actual del grid.
+ * @param {string} [fileBaseName] — nombre (sin extensión) elegido por el usuario.
+ *        Si se omite, usa defaultMidiExportName().
+ */
+export function exportMIDI(fileBaseName) {
     if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
         alert('No hay notas en el grid para exportar.');
         return;
@@ -174,18 +196,12 @@ export function exportMIDI() {
 
     // El grid (gridData.cells) ya está comprimido a las octavas de los motores
     // si el checkbox del compresor estaba activo al construirlo (_buildChannelGrid).
-    // Aquí solo reflejamos ese estado en el nombre del archivo descargado.
-    const _comprimir = document.getElementById('comprimirCheckbox')?.checked;
-
     const midiBytes = buildMidiBytes();
     const blob      = new Blob([midiBytes], { type: 'audio/midi' });
     const url       = URL.createObjectURL(blob);
 
-    const baseName = (state.currentMidiFileName || 'composicion')
-        .replace(/\.midi?$/i, '');
-    const fileName = _comprimir
-        ? `${baseName}_motores.mid`
-        : `${baseName}_export.mid`;
+    const raw      = (fileBaseName && String(fileBaseName).trim()) || defaultMidiExportName();
+    const fileName = _sanitizeFileName(raw.replace(/\.midi?$/i, '')) + '.mid';
 
     const a    = document.createElement('a');
     a.href     = url;

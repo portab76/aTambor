@@ -8,7 +8,7 @@ import { historyPush } from './history.js';
 import { _OCT_RGB, drawPianoRollWithPlayhead } from './piano-roll.js';
 import { tabMarkDirty } from './tabs.js';
 
-let velLaneActive = true;  // visible por defecto
+let velLaneActive = false;  // oculto por defecto; se muestra al pulsar velLaneBtn
 const _VEL_LANE_H = 64;
 
 let _velDragging = false;

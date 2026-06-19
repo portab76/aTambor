@@ -8,7 +8,7 @@ import { state } from './state.js';
 import { getUndoRedoStacks, setUndoRedoStacks } from './history.js';
 import { getSelectionState, setSelectionState } from './editor.js';
 import { play, stop } from './playback.js';
-import { applyZoom, drawPianoRollWithPlayhead, toggleNewGridPanel, _enableMeasureButtons } from './piano-roll.js';
+import { applyZoom, drawPianoRollWithPlayhead, toggleNewGridPanel, closeNewGridPanel, _enableMeasureButtons } from './piano-roll.js';
 import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
 import { drawChordRow } from './chord-row.js';
 import { _refreshHeatMap } from './heat.js';
@@ -285,6 +285,9 @@ function _tabActiveSegs(t) {
 /** Cambia al tab idx guardando el estado actual. */
 export function tabSwitch(idx) {
     if (idx === _activeTabIdx || idx < 0 || idx >= _tabs.length) return;
+    // El panel "nuevo grid" pertenece al tab que se abandona: cerrarlo para que
+    // su clic de compases no caiga sobre el tab al que cambiamos.
+    closeNewGridPanel();
     const wasPlaying = state.reproduciendo;
     _tabSaveCurrent();
     _activeTabIdx = idx;
@@ -330,6 +333,9 @@ export function tabClose(idx) {
     if (t.isDirty && hasContent) {
         if (!confirm(`¿Cerrar "${t.name}" sin guardar?`)) return;
     }
+    // Cerrar el panel "nuevo grid" si estaba abierto: tras cerrar el tab caería
+    // sobre otro tab y un clic en un número de compases lo sobrescribiría.
+    closeNewGridPanel();
     _tabs.splice(idx, 1);
     if (_activeTabIdx > idx)  _activeTabIdx--;
     if (_activeTabIdx >= _tabs.length) _activeTabIdx = _tabs.length - 1;

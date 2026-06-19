@@ -26,10 +26,11 @@ function _emitApplied()    { projectCallbacks.onApplied?.(); }
 function _emitStatus(msg)  { projectCallbacks.onStatusChange?.(msg); }
 
 /**
- * Guarda el estado completo del proyecto en un archivo JSON.
+ * Construye el objeto de proyecto a partir del estado actual.
+ * Separado de saveProject para poder reutilizarlo (recientes, etc.).
  */
-export function saveProject() {
-    const project = {
+export function buildProjectData() {
+    return {
         gridData:      state.gridData,
         noteRows:      state.noteRows,
         totalSteps:    state.totalSteps,
@@ -46,9 +47,25 @@ export function saveProject() {
         stepWidth:     state.stepWidth,
         rowHeight:     state.rowHeight
     };
-    const name = state.currentMidiFileName
+}
+
+/** Nombre base por defecto para guardar (sin extensión). */
+export function defaultProjectName() {
+    return state.currentMidiFileName
         ? state.currentMidiFileName.replace(/\.midi?$/i, '')
         : 'midi_grid_project';
+}
+
+/**
+ * Guarda el estado completo del proyecto en un archivo JSON.
+ * @param {string} [fileBaseName] — nombre (sin extensión) elegido por el usuario.
+ *        Si se omite, usa defaultProjectName().
+ */
+export function saveProject(fileBaseName) {
+    const project = buildProjectData();
+    // Nombre elegido por el usuario (saneado) o el por defecto.
+    const raw  = (fileBaseName && String(fileBaseName).trim()) || defaultProjectName();
+    const name = _sanitizeFileName(raw.replace(/\.json$/i, ''));
     recentFilesAdd(name, project);
     _downloadJSON(project, `${name}.json`);
     _emitStatus("Proyecto guardado.");
@@ -205,6 +222,20 @@ export function loadProject(file) {
 }
 
 // ---- Utilidad interna ----
+
+/**
+ * Sanea un nombre de archivo: quita caracteres ilegales en Windows/Unix,
+ * recorta espacios y evita un nombre vacío.
+ */
+export function _sanitizeFileName(name) {
+    const clean = String(name || '')
+        .replace(/[\\/:*?"<>|]/g, '_')   // caracteres prohibidos
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\.+$/, '');            // sin puntos finales (Windows)
+    return clean || 'sin_titulo';
+}
+
 function _downloadJSON(data, filename) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url  = URL.createObjectURL(blob);

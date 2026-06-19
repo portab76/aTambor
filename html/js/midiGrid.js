@@ -18,7 +18,7 @@ import {
     getHarmonicSegments, detectKey, findChord, analyzeChordsOnSegments,
     fuseSegments, detectPhrases, getChordFunction, detectInversion,
 } from './harmonic.js';
-import { exportMIDI } from './midi-export.js';
+import { exportMIDI, defaultMidiExportName } from './midi-export.js';
 
 // ── Render del piano roll ────────────────────────────────────
 import {
@@ -65,7 +65,7 @@ import {
 } from './editor.js';
 
 // ── Persistencia / recientes ─────────────────────────────────
-import { saveProject, loadProject, _applyProjectData, projectCallbacks } from './persistence.js';
+import { saveProject, loadProject, _applyProjectData, projectCallbacks, defaultProjectName } from './persistence.js';
 import {
     recentFilesAdd, toggleRecentInMenu, recentFilesLoad, recentFilesClear,
 } from './recent-files.js';
@@ -578,8 +578,83 @@ document.getElementById('bpmInput').addEventListener('change', () => {
     refreshPlaybackTempo();
 });
 
+// ---- Modal de nombre de archivo (Guardar / Exportar MIDI) ----
+// Pequeño diálogo reutilizable: muestra un input con el nombre por defecto y
+// resuelve con el nombre saneado al confirmar (Enter / botón) o null al cancelar.
+let _fileNameOnConfirm = null;   // callback activo del modal
+
+function promptFileName({ title, defaultName, extension, confirmLabel, onConfirm }) {
+    const modal = document.getElementById('fileNameModal');
+    const input = document.getElementById('fileNameInput');
+    const ext   = document.getElementById('fileNameExt');
+    const ttl   = document.getElementById('fileNameModalTitle');
+    const btn   = document.getElementById('fileNameConfirmBtn');
+    if (!modal || !input) return;
+
+    ttl.textContent = title || 'Guardar archivo';
+    ext.textContent = extension || '';
+    btn.textContent = confirmLabel || 'Guardar';
+    input.value     = defaultName || '';
+    _fileNameOnConfirm = onConfirm || null;
+
+    modal.style.display = 'flex';
+    // Seleccionar el nombre (sin extensión) para sobrescribir cómodamente.
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+}
+
+function closeFileNameModal() {
+    const modal = document.getElementById('fileNameModal');
+    if (modal) modal.style.display = 'none';
+    _fileNameOnConfirm = null;
+}
+
+function _confirmFileName() {
+    const input = document.getElementById('fileNameInput');
+    const name  = input ? input.value.trim() : '';
+    if (!name) { input?.focus(); return; }   // no permitir nombre vacío
+    const cb = _fileNameOnConfirm;
+    closeFileNameModal();
+    cb?.(name);
+}
+
+// Wiring del modal: botón confirmar, Enter en el input, Escape para cerrar.
+document.getElementById('fileNameConfirmBtn')?.addEventListener('click', _confirmFileName);
+document.getElementById('fileNameInput')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); _confirmFileName(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeFileNameModal(); }
+});
+// Click en el fondo oscuro cierra el modal.
+document.getElementById('fileNameModal')?.addEventListener('mousedown', (e) => {
+    if (e.target.id === 'fileNameModal') closeFileNameModal();
+});
+
+/** Abre el diálogo de nombre para guardar el proyecto JSON. */
+function promptSaveProject() {
+    promptFileName({
+        title:       'Guardar proyecto',
+        defaultName: defaultProjectName(),
+        extension:   '.json',
+        confirmLabel: 'Guardar',
+        onConfirm:   (name) => saveProject(name),
+    });
+}
+
+/** Abre el diálogo de nombre para exportar el MIDI. */
+function promptExportMidi() {
+    promptFileName({
+        title:       'Exportar MIDI',
+        defaultName: defaultMidiExportName(),
+        extension:   '.mid',
+        confirmLabel: 'Exportar',
+        onConfirm:   (name) => exportMIDI(name),
+    });
+}
+
 // ---- Botones de persistencia ----
-document.getElementById('saveProjectBtn')?.addEventListener('click', saveProject);
+document.getElementById('saveProjectBtn')?.addEventListener('click', () => {
+    closeAppMenu();
+    promptSaveProject();
+});
 document.getElementById('loadProjectBtn')?.addEventListener('click', () => {
     document.getElementById('loadProjectInput').click();
 });
@@ -955,7 +1030,7 @@ Object.assign(window, {
     performHarmonicAnalysis, performHarmonicAnalysisFromGrid,
     getHarmonicSegments, detectKey, findChord, analyzeChordsOnSegments,
     fuseSegments, detectPhrases, getChordFunction, detectInversion,
-    exportMIDI,
+    exportMIDI, promptExportMidi, promptSaveProject, closeFileNameModal,
 
     // piano roll
     buildGridFromChannel, drawPianoRoll, drawPianoRollWithPlayhead,

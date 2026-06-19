@@ -639,7 +639,7 @@
                             title="Importar MML" class="menu-btn">🎼 MML</button>
                     <button id="saveProjectBtn" title="Guardar proyecto como JSON" class="menu-btn">💾 Guardar</button>
                     <button id="loadProjectBtn" title="Cargar proyecto JSON" class="menu-btn">📂 Cargar</button>
-                    <button id="exportMidiMenuBtn" onclick="exportMIDI();closeAppMenu()" disabled
+                    <button id="exportMidiMenuBtn" onclick="promptExportMidi();closeAppMenu()" disabled
                             title="Exportar composición como archivo .mid compatible con cualquier DAW"
                             class="menu-btn" style="color:#88cc88;border-color:#336633;">⬇ Export .mid</button>
                 </div>
@@ -759,7 +759,7 @@
     <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
     <button id="heatMapBtn" onclick="toggleHeatMap()" disabled
             title="Notas de calor: resaltar notas dominantes (Motor de Atención)">Calor</button>
-    <button id="velLaneBtn" onclick="toggleVelocityLane()" class="btn-active"
+    <button id="velLaneBtn" onclick="toggleVelocityLane()"
             title="Mostrar/ocultar carril de velocidades">Vel.</button>
 <button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
     <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
@@ -845,7 +845,7 @@
         </div>
 
         <!-- Contenido -->
-        <div style="color:black;padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
+        <div style="color:var(--c-text2);padding:16px 18px;display:flex;flex-direction:column;gap:14px;">
 
             <!-- ══ ATAJOS DE TECLADO ══ -->
             <div class="help-section">
@@ -887,8 +887,8 @@
                     <tr><td class="help-key">📄 Nuevo</td><td>Crear grid vacío — elige nº de compases (1–16) y BPM inicial</td></tr>
                     <tr><td class="help-key">🎵 Abrir MIDI</td><td>Importar archivo .mid / .midi · también arrastrar directamente a la ventana (abre en nuevo tab si hay contenido)</td></tr>
                     <tr><td class="help-key">🎼 MML</td><td>Importar partitura en formato Music Macro Language (texto compacto)</td></tr>
-                    <tr><td class="help-key">⬇ .mid</td><td><strong>Exportar a MIDI estándar</strong> — genera archivo .mid Tipo 1 compatible con Ableton, Logic, MuseScore, Cubase y cualquier DAW. Incluye mapa de tempo y transposición activa</td></tr>
-                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto completo como JSON (incluye análisis armónico, mapa de tempo y marcadores)</td></tr>
+                    <tr><td class="help-key">⬇ .mid</td><td><strong>Exportar a MIDI estándar</strong> — genera archivo .mid Tipo 1 compatible con Ableton, Logic, MuseScore, Cubase y cualquier DAW. Incluye mapa de tempo y transposición activa · abre un diálogo para <strong>poner nombre al archivo</strong> (nombre por defecto con sufijo <code>_motores</code> si 🤖 Comprimir está activo, si no <code>_export</code>)</td></tr>
+                    <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto completo como JSON (incluye análisis armónico, mapa de tempo y marcadores) · abre un diálogo para <strong>poner nombre al archivo</strong> antes de descargar (Enter confirma, Esc cancela)</td></tr>
                     <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado previamente</td></tr>
                     <tr><td class="help-key">Archivos recientes</td><td>Los últimos 10 proyectos JSON se recuerdan en el menú · muestra tiempo transcurrido desde la última vez</td></tr>
                     <tr><td class="help-key">☀️ / 🌙 Tema</td><td>Alternar tema claro / oscuro — se guarda entre sesiones</td></tr>
@@ -931,7 +931,7 @@
             <div class="help-section">
                 <div class="help-title">Carril de velocidades</div>
                 <table class="help-table">
-                    <tr><td class="help-key">Visible por defecto</td><td>El carril aparece siempre al cargar un grid; se puede ocultar con el botón <strong>Vel.</strong> de la toolbar</td></tr>
+                    <tr><td class="help-key">Oculto por defecto</td><td>El carril no se muestra al cargar un grid; se activa con el botón <strong>Vel.</strong> de la toolbar</td></tr>
                     <tr><td class="help-key">Arrastrar barra</td><td>Edita la velocity de todas las notas en ese paso · el color sigue la octava de la nota</td></tr>
                     <tr><td class="help-key">Shift + arrastrar</td><td>Aplica esa velocity a <strong>todas</strong> las notas del grid a la vez (línea guía amarilla + etiqueta ALL)</td></tr>
                     <tr><td class="help-key">Ctrl + Click (grid)</td><td>Tooltip inline sobre la nota seleccionada — edición precisa sin abandonar el grid</td></tr>
@@ -959,7 +959,7 @@
                 <div class="help-title">Herramientas de análisis y visualización</div>
                 <table class="help-table">
                     <tr><td class="help-key">Notas</td><td>Panel flotante con todas las notas únicas presentes en el grid</td></tr>
-                    <tr><td class="help-key">Vel.</td><td>Muestra / oculta el carril de velocidades (visible por defecto)</td></tr>
+                    <tr><td class="help-key">Vel.</td><td>Muestra / oculta el carril de velocidades (oculto por defecto)</td></tr>
                     <tr><td class="help-key">🤖 Comprimir</td><td>Casilla junto a <strong>Mostrar</strong>: al construir el grid de un canal, remapea cada nota a la nota física más cercana del Motor Map — concentra la pieza en las teclas que el robot puede tocar. La octava destino se pondera con el heat map (o una octava por defecto si no hay análisis). Se habilita al cargar un MIDI con canales y se resetea con cada archivo nuevo. Al exportar con la casilla activa, el MIDI lleva el sufijo <code>_motores.mid</code></td></tr>
                     <tr><td class="help-key">Calor</td><td>Colorea el piano roll por importancia estructural mediante el Motor de Atención (softmax 4D): rojo = nota dominante · azul = subordinada</td></tr>
                     <tr><td class="help-key">Motor</td><td>Abre el panel unificado Motor Map + Escala de transposición</td></tr>
@@ -1034,6 +1034,44 @@
 
     </div><!-- /modal-inner -->
 </div><!-- /helpModal -->
+
+
+<!-- ── Modal: nombre de archivo (Guardar / Exportar MIDI) ── -->
+<div id="fileNameModal" style="display:none;position:fixed;inset:0;background:#00000099;
+     z-index:100000;align-items:center;justify-content:center;">
+    <div style="background:#1e1e32;border:1px solid #5a5aaa;border-radius:10px;
+                width:420px;max-width:94vw;font-family:'Segoe UI',sans-serif;
+                color:#ddeeff;box-shadow:0 12px 40px #00000099;overflow:hidden;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:12px 16px;background:#2a2a48;border-bottom:1px solid #3a3a5a;">
+            <span id="fileNameModalTitle" style="font-size:15px;font-weight:bold;color:#fff;">Guardar archivo</span>
+            <button onclick="closeFileNameModal()"
+                    style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;
+                           padding:2px 8px;border-radius:4px;"
+                    onmouseover="this.style.background='#aa3333';this.style.color='#fff'"
+                    onmouseout="this.style.background='none';this.style.color='#888'">✕</button>
+        </div>
+        <!-- Cuerpo -->
+        <div style="padding:18px 16px;display:flex;flex-direction:column;gap:14px;">
+            <label for="fileNameInput" style="font-size:12px;color:#9999cc;">Nombre del archivo</label>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <input type="text" id="fileNameInput" autocomplete="off" spellcheck="false"
+                       style="flex:1;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
+                              border-radius:5px;padding:7px 9px;font-size:14px;">
+                <span id="fileNameExt" style="font-size:13px;color:#7777aa;white-space:nowrap;">.json</span>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+                <button onclick="closeFileNameModal()"
+                        style="background:#2a2a44;color:#bbccdd;border:1px solid #3a3a5a;
+                               border-radius:5px;padding:7px 16px;font-size:13px;cursor:pointer;">Cancelar</button>
+                <button id="fileNameConfirmBtn"
+                        style="background:#336633;color:#ddffdd;border:1px solid #4a8a4a;
+                               border-radius:5px;padding:7px 18px;font-size:13px;cursor:pointer;font-weight:bold;">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div><!-- /fileNameModal -->
 
 
 <style>
@@ -1126,7 +1164,7 @@
 .help-table   { width:100%;border-collapse:collapse; }
 .help-table tr { border-bottom:1px solid var(--c-border2); }
 .help-table tr:last-child { border-bottom:none; }
-.help-table td { padding:5px 4px;vertical-align:middle; }
+.help-table td { padding:5px 4px;vertical-align:middle;color:var(--c-text2); }
 .help-key     { font-family:monospace;background:var(--c-deep);border:1px solid var(--c-border);
                 border-radius:4px;padding:2px 7px;white-space:nowrap;
                 color:var(--c-text);font-size:12px;width:1%;padding-right:12px; }
@@ -1205,8 +1243,8 @@
         </div>
     </div>
 
-    <!-- Carril de velocidades (visible por defecto) -->
-    <div class="velocity-lane-wrapper" id="velocityLaneWrapper" style="display:flex;">
+    <!-- Carril de velocidades (oculto por defecto; se muestra con el botón Vel.) -->
+    <div class="velocity-lane-wrapper" id="velocityLaneWrapper" style="display:none;">
         <div class="velocity-lane-spacer">VEL</div>
         <div class="velocity-lane-scroll" id="velocityLaneScroll">
             <canvas id="velocityLaneCanvas"></canvas>
