@@ -45,7 +45,7 @@ function _midiNote(noteName, octave) {
 // ── Configuración del strip LED WS2812B ───────────────────────
 // NUM_LEDS: total de LEDs en el strip (C1–B5 cromático).
 export const NUM_LEDS      = 61;
-export const LED_BASE_NOTE = _midiNote('B', 0);  // B0 = MIDI 23 → C1 = LED 1; B5 = MIDI 83 → LED 60
+export const LED_BASE_NOTE = _midiNote('C', 1);  // B0 = MIDI 23 → C1 = LED 1; B5 = MIDI 83 → LED 60
 
 // LED index automático: no necesita campo 'led' en MOTOR_MAP.
 export function ledForNote(midiNote) {

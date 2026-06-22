@@ -126,15 +126,27 @@ export function buildGridFromChannel(channel) {
     for (let n = minNote; n <= maxNote; n++) state.noteRows.push(n);
 
     // Convertir notas a celdas del grid
+    const _minVel = parseInt(document.getElementById('midiImportMinVel')?.value) || 1;
+    const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
     state.gridData = { cells: {} };
     for (const n of notesList) {
         const startStep = Math.floor(n.tickOn / state.ticksPerStep);
         const endStep   = Math.floor((n.tickOff - 1) / state.ticksPerStep);
         const duration  = endStep - startStep + 1;
         if (duration <= 0) continue;
-        const _minVel = parseInt(document.getElementById('midiImportMinVel')?.value) || 1;
-        const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
-        state.gridData.cells[`${n.note},${startStep}`] = { duration, velocity: Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel)) };
+        const velocity = Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel));
+        const key = `${n.note},${startStep}`;
+        // Colisión: dos notas distintas (p.ej. tras comprimir a motores) caen en
+        // el mismo motor y step. En vez de sobrescribir silenciosamente (la última
+        // del array ganaba sin criterio), conservamos la mayor velocidad y la mayor
+        // duración por separado, para no perder presencia ni sostenido.
+        const prev = state.gridData.cells[key];
+        if (prev) {
+            prev.duration = Math.max(prev.duration, duration);
+            prev.velocity = Math.max(prev.velocity, velocity);
+        } else {
+            state.gridData.cells[key] = { duration, velocity };
+        }
     }
 
     // Redimensionar canvas

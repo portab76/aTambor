@@ -71,6 +71,7 @@ export const state = {
     // --- Heat map (notas de calor, Motor de Atención) ---
     heatMapActive: false,  // true = modo calor activo desde toolbar
     heatMapData:   null,   // Map "note,step" → heatScore [0,1] | null = sin calcular
+    heatMapDataPreCompresion: null,  // heatmap del grid ORIGINAL (antes de comprimir a motores)
 
     // --- Segmentos de respiración (puntos de reset I2C) ---
     breathingSegments: [],  // [{startStep, endStep, energy, activeNotes}] | [] = sin calcular

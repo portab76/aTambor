@@ -342,8 +342,19 @@ function _buildChannelGrid(ch, { async = true } = {}) {
     const _comprimir = document.getElementById('comprimirCheckbox')?.checked;
     let _rawEventsOrig = null;
     if (_comprimir && MOTOR_MAP.length > 0) {
+        // Heatmap PRE-compresión: se calcula del grid ORIGINAL y se conserva para
+        // que la compresión decida colisiones por atención y para poder comparar
+        // antes/después. Se construye el grid original una vez aquí.
+        buildGridFromChannel(ch);
+        const heatPre = (state.gridData && Object.keys(state.gridData.cells).length > 0)
+            ? calcularHeatScores(state.gridData.cells, state.noteRows)
+            : null;
+        state.heatMapDataPreCompresion = heatPre;
+
         _rawEventsOrig = state.rawEvents;
-        state.rawEvents = comprimirAMotores(state.rawEvents, ch, MOTOR_MAP);
+        state.rawEvents = comprimirAMotores(state.rawEvents, ch, MOTOR_MAP, heatPre);
+    } else {
+        state.heatMapDataPreCompresion = null;
     }
 
     buildGridFromChannel(ch);
@@ -479,8 +490,10 @@ loadInstrumentBtn.addEventListener('click', () => {
         `Pasos=${state.totalSteps}, Rango=${state.noteRows[0]}–${state.noteRows[state.noteRows.length - 1]}, ` +
         `Zoom=${state.stepWidth}px/paso, Canvas=${canvas.width}×${canvas.height}px`;
 
-    // Actualizar nombre del tab con el archivo MIDI cargado
-    tabMarkFileLoaded(state.currentMidiFileName);
+    // Actualizar nombre del tab: nombre del instrumento seguido del archivo MIDI
+    const _instrName = state.instrumentNames[ch] || `Canal ${ch + 1}`;
+    const _fileName  = state.currentMidiFileName || 'Sin título';
+    tabMarkFileLoaded(`${_instrName} - ${_fileName}`);
 
     // Lógica de setup compartida — el análisis armónico corre en el worker.
     // Todo lo que dependa de la tonalidad/segmentos se aplica al resolver.

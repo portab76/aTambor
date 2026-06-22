@@ -70,6 +70,7 @@ function off(note, channel = 0, tick = 96) {
 // ── Setup: sin datos de atención (octava por defecto = 2) ─────
 function resetState() {
     state.heatMapData = null;
+    state.heatMapDataPreCompresion = null;
     state.gridData    = null;
 }
 
@@ -168,25 +169,38 @@ export function runTests() {
     });
 
     // ── Mapeo por pitch class (octava objetivo = 2, ancla MIDI 24) ───
+    // Pasamos un heatPre explícito anclado en octava 2 (MIDI 24-35) para que
+    // estos tests sigan probando SOLO el mapeo por pitch class, sin depender del
+    // auto-cálculo del heatmap (que con una nota suelta daría su propia octava).
+    const HEAT_OCT2 = new Map();
+    for (let n = 24; n < 36; n++) HEAT_OCT2.set(`${n},0`, 1);
 
-    test('C4 (MIDI 60, pc=0) → C2 (MIDI 36) con octava objetivo 2', () => {
+    test('C4 (MIDI 60, pc=0) → C3 (MIDI 48) por contorno (sobre el umbral C2/C3)', () => {
         resetState();
-        // octavaObjetivo=2 → ideal pc0 = 24; C más cercana a 24 = C2 (36) vs C3 (48)
-        const result = comprimirAMotores([on(60)], 0, ROBOT_MAP);
-        assertEqual(result[0].note, 36, 'C4 → C2');
+        // C tiene 2 motores: C2(36) y C3(48); umbral = punto medio = 42.
+        // C4(60) > 42 → motor agudo C3(48). Preserva el contorno de altura.
+        const result = comprimirAMotores([on(60)], 0, ROBOT_MAP, HEAT_OCT2);
+        assertEqual(result[0].note, 48, 'C4 → C3 (motor agudo)');
     });
 
-    test('E4 (MIDI 64, pc=4) → E2 (MIDI 40) con octava objetivo 2', () => {
+    test('C2 (MIDI 36, pc=0) → C2 (MIDI 36) por contorno (bajo el umbral)', () => {
         resetState();
-        const result = comprimirAMotores([on(64)], 0, ROBOT_MAP);
-        assertEqual(result[0].note, 40, 'E4 → E2');
+        // C2(36) ≤ 42 → motor grave C2(36). El par grave/agudo se conserva.
+        const result = comprimirAMotores([on(36)], 0, ROBOT_MAP, HEAT_OCT2);
+        assertEqual(result[0].note, 36, 'C2 → C2 (motor grave)');
     });
 
-    test('B3 (MIDI 59, pc=11) → B1 (MIDI 35) con octava objetivo 2', () => {
+    test('E4 (MIDI 64, pc=4) → E2 (MIDI 40): E solo tiene un motor', () => {
         resetState();
-        // ideal pc11 = 24+11 = 35; candidatos B1(35) y B2(47): gana 35 (distancia 0)
-        const result = comprimirAMotores([on(59)], 0, ROBOT_MAP);
-        assertEqual(result[0].note, 35, 'B3 → B1 (más cercano al ancla 24)');
+        const result = comprimirAMotores([on(64)], 0, ROBOT_MAP, HEAT_OCT2);
+        assertEqual(result[0].note, 40, 'E4 → E2 (motor único)');
+    });
+
+    test('B3 (MIDI 59, pc=11) → B2 (MIDI 47) por contorno (sobre el umbral B1/B2)', () => {
+        resetState();
+        // B tiene B1(35) y B2(47); umbral = 41. B3(59) > 41 → motor agudo B2(47).
+        const result = comprimirAMotores([on(59)], 0, ROBOT_MAP, HEAT_OCT2);
+        assertEqual(result[0].note, 47, 'B3 → B2 (motor agudo)');
     });
 
     test('noteOff recibe el mismo remapeo de pitch class que noteOn', () => {
@@ -231,6 +245,165 @@ export function runTests() {
         assertEqual(result[0].note, 50, 'D5 → D3 (octava objetivo=4, ancla 48 → D3 más cercana)');
 
         state.heatMapData = null;
+    });
+
+    // ── Polifonía contextual guiada por atención ─────────────
+    // ppqn=96 → ticksPerStep=24; tick=0 → step 0. Notas con mismo tick colisionan.
+
+    test('A/A simultáneas usan los DOS motores de A (A1 y A2), no se pisan', () => {
+        resetState();
+        // A3(57) y A4(69): ambos pc=9. El robot tiene A1(33) y A2(45).
+        const events = [on(57, 0, 0), on(69, 0, 0), off(57, 0, 96), off(69, 0, 96)];
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        const notas = result.filter(e => e.type === 'noteOn').map(e => e.note).sort((a,b)=>a-b);
+        assertEqual(notas.length, 2, 'ambas A deben sobrevivir');
+        assert(notas[0] !== notas[1], 'deben ir a motores distintos');
+        assert(notas.every(n => n % 12 === 9), 'ambas siguen siendo pitch class A');
+    });
+
+    test('G/G simultáneas: solo 1 sobrevive (G solo tiene un motor), gana la de + atención', () => {
+        resetState();
+        // G3(55) y G4(67): pc=7. Solo hay G2(43). heatPre da más score a G4.
+        const heatPre = new Map();
+        heatPre.set('55,0', 0.2);  // G3 menos importante
+        heatPre.set('67,0', 0.9);  // G4 más importante
+        const events = [on(55, 0, 0), on(67, 0, 0), off(55, 0, 96), off(67, 0, 96)];
+        const result = comprimirAMotores(events, 0, ROBOT_MAP, heatPre);
+        const noteOns = result.filter(e => e.type === 'noteOn');
+        assertEqual(noteOns.length, 1, 'solo una G sobrevive');
+        assertEqual(noteOns[0].note, 43, 'la superviviente va a G2 (motor único)');
+    });
+
+    test('nota descartada NO deja noteOff huérfano', () => {
+        resetState();
+        const heatPre = new Map();
+        heatPre.set('55,0', 0.2);
+        heatPre.set('67,0', 0.9);
+        const events = [on(55, 0, 0), on(67, 0, 0), off(55, 0, 96), off(67, 0, 96)];
+        const result = comprimirAMotores(events, 0, ROBOT_MAP, heatPre);
+        const ons  = result.filter(e => e.type === 'noteOn').length;
+        const offs = result.filter(e => e.type === 'noteOff').length;
+        assertEqual(ons, offs, 'cada noteOn tiene su noteOff (sin huérfanos)');
+    });
+
+    test('notas en STEPS distintos no colisionan (mismo motor, distinto tiempo)', () => {
+        resetState();
+        // Dos G en steps separados (tick 0 y tick 48 = step 2): ambas al motor G2.
+        const events = [on(55, 0, 0), off(55, 0, 24), on(67, 0, 48), off(67, 0, 72)];
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        const noteOns = result.filter(e => e.type === 'noteOn');
+        assertEqual(noteOns.length, 2, 'ambas G sobreviven en steps distintos');
+        assert(noteOns.every(e => e.note === 43), 'ambas en G2');
+    });
+
+    test('la nota de MAYOR atención conserva su motor natural', () => {
+        resetState();
+        // C4(60) y C5(72), pc=0. Robot tiene C2(36) y C3(48). Octava heat por defecto=2
+        // → ancla 24 → motor natural de C es C2(36). El de + atención debe quedárselo.
+        const heatPre = new Map();
+        heatPre.set('60,0', 0.9);  // C4 importante → debe coger C2(36)
+        heatPre.set('72,0', 0.3);  // C5 menos → realojo a C3(48)
+        const events = [on(60, 0, 0), on(72, 0, 0), off(60, 0, 96), off(72, 0, 96)];
+        const result = comprimirAMotores(events, 0, ROBOT_MAP, heatPre);
+        const map = {};
+        for (const e of result.filter(e => e.type === 'noteOn')) map[e.velocity] = e.note;
+        // ambas C deben sobrevivir en motores distintos (C tiene 2 motores)
+        const notas = result.filter(e => e.type === 'noteOn').map(e => e.note).sort((a,b)=>a-b);
+        assertEqual(notas.length, 2, 'ambas C sobreviven (C2 y C3)');
+        assert(notas.includes(36) && notas.includes(48), 'usan C2(36) y C3(48)');
+    });
+
+    // ── Patrón real de la canción (compases 49–54 de la imagen) ──────────
+    // Transcripción del fragmento mostrado. step = (compás-49)*16 + step_local.
+    // tick = step * ticksPerStep (ppqn=96 → 24). Una sola voz por step (melódico):
+    // el fragmento es secuencial, así que NINGUNA nota debería perderse ni
+    // moverse de step al comprimir. Esto reproduce el bug reportado de las G.
+    //
+    // Tabla editable (corregir aquí si la lectura de la imagen no es exacta):
+    //   step | nota MIDI | descripción
+    const PATRON_49_54 = [
+        { step:  0, note: 36 },  // C2  (bloque amarillo, inicio compás 49)
+        { step:  7, note: 48 },  // C3  (verde)
+        { step:  8, note: 36 },  // C2
+        { step: 10, note: 36 },  // C2
+        { step: 15, note: 48 },  // C3  (verde)
+        { step: 18, note: 59 },  // B3  (rojo, fila B m:13)
+        { step: 24, note: 47 },  // B2  (marrón, fila B m:6)
+        { step: 30, note: 47 },  // B2
+        { step: 33, note: 57 },  // A3  (rojo, fila A m:12)
+        { step: 36, note: 67 },  // G4  (rojo, fila G alta)
+        { step: 39, note: 43 },  // G2  (marrón, fila G m:4)
+        { step: 42, note: 67 },  // G4
+        { step: 45, note: 67 },  // G4
+        { step: 48, note: 43 },  // G2
+        { step: 51, note: 67 },  // G4
+        { step: 56, note: 43 },  // G2
+        { step: 57, note: 67 },  // G4
+        { step: 64, note: 43 },  // G2
+        { step: 68, note: 36 },  // C2  (compás 53)
+        { step: 73, note: 48 },  // C3  (verde, compás 53)
+        { step: 74, note: 36 },  // C2
+        { step: 77, note: 36 },  // C2
+        { step: 81, note: 48 },  // C3  (verde)
+        { step: 85, note: 59 },  // B3  (rojo, compás 54)
+        { step: 89, note: 47 },  // B2  (marrón)
+        { step: 90, note: 59 },  // B3
+        { step: 93, note: 59 },  // B3
+        { step: 97, note: 47 },  // B2
+    ];
+
+    // Construye eventos on/off con duración 1 step para cada entrada del patrón.
+    function eventosDePatron(patron) {
+        const TPS = 24;  // ppqn(96)/4
+        const evs = [];
+        for (const p of patron) {
+            const t = p.step * TPS;
+            evs.push(on(p.note, 0, t), off(p.note, 0, t + TPS));
+        }
+        return evs.sort((a, b) => a.tick - b.tick);
+    }
+
+    test('patrón 49–54: ninguna nota se pierde (todas secuenciales)', () => {
+        resetState();
+        const events = eventosDePatron(PATRON_49_54);
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        const ons = result.filter(e => e.type === 'noteOn').length;
+        assertEqual(ons, PATRON_49_54.length,
+            `deben sobrevivir las ${PATRON_49_54.length} notas (no hay colisiones simultáneas)`);
+    });
+
+    test('patrón 49–54: cada nota conserva su step original (bug de posición)', () => {
+        resetState();
+        const events = eventosDePatron(PATRON_49_54);
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        const stepsOrig   = PATRON_49_54.map(p => p.step).sort((a, b) => a - b);
+        const stepsSalida = result.filter(e => e.type === 'noteOn')
+            .map(e => Math.floor(e.tick / 24)).sort((a, b) => a - b);
+        assertEqual(JSON.stringify(stepsSalida), JSON.stringify(stepsOrig),
+            'el conjunto de steps de inicio no debe cambiar tras comprimir');
+    });
+
+    test('patrón 49–54: cada nota acaba en un motor válido del MOTOR_MAP', () => {
+        resetState();
+        const events = eventosDePatron(PATRON_49_54);
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        for (const e of result.filter(e => e.type === 'noteOn')) {
+            assert(ROBOT_NOTES.has(e.note),
+                `nota de salida ${e.note} no está en el Motor Map`);
+        }
+    });
+
+    test('patrón 49–54: las notas G (pc=7) se mapean todas a G2 (motor 43)', () => {
+        resetState();
+        const events = eventosDePatron(PATRON_49_54);
+        const result = comprimirAMotores(events, 0, ROBOT_MAP);
+        // Steps que en el patrón son pitch class G (G4=67 o G2=43)
+        const stepsG = new Set(PATRON_49_54.filter(p => p.note % 12 === 7).map(p => p.step));
+        for (const e of result.filter(e => e.type === 'noteOn')) {
+            if (stepsG.has(Math.floor(e.tick / 24))) {
+                assertEqual(e.note, 43, `G en step ${e.tick / 24} debe ir a G2(43), no ${e.note}`);
+            }
+        }
     });
 
     return results;

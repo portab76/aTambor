@@ -9,59 +9,159 @@ import { calcularHeatScores, calcularOctavaDesdeHeat } from './heat.js';
 import { state } from './state.js';
 
 /**
- * Remapea rawEvents a las notas disponibles en motorMap.
- * Reutiliza state.heatMapData si ya existe (botón Calor activado),
- * o lo calcula en el momento si no existe.
+ * Construye un cellsMap "note,step" → {duration, velocity} a partir de los
+ * rawEvents de un canal, replicando el emparejamiento noteOn/noteOff de
+ * buildGridFromChannel(). Se usa para calcular el heatmap PRE-compresión sin
+ * depender de state.gridData (que aún no existe cuando se comprime).
+ *
+ * @param {Array}  rawEvents
+ * @param {number} channel
+ * @param {number} ticksPerStep
+ * @returns {Object} cellsMap simple ({} si no hay notas)
+ */
+function _cellsMapDesdeRaw(rawEvents, channel, ticksPerStep) {
+    const eventos = rawEvents
+        .filter(e => e.channel === channel)
+        .sort((a, b) => a.tick - b.tick);
+
+    const pendientes = new Map();   // note → {tickOn, velocity}
+    const cells = {};
+    const _push = (tickOn, tickOff, note, velocity) => {
+        const startStep = Math.floor(tickOn / ticksPerStep);
+        const endStep   = Math.floor((tickOff - 1) / ticksPerStep);
+        const duration  = endStep - startStep + 1;
+        if (duration <= 0) return;
+        cells[`${note},${startStep}`] = { duration, velocity };
+    };
+
+    for (const ev of eventos) {
+        if (ev.type === 'noteOn' && ev.velocity > 0) {
+            pendientes.set(ev.note, { tickOn: ev.tick, velocity: ev.velocity });
+        } else if (ev.type === 'noteOff' || (ev.type === 'noteOn' && ev.velocity === 0)) {
+            const on = pendientes.get(ev.note);
+            if (on) { _push(on.tickOn, ev.tick, ev.note, on.velocity); pendientes.delete(ev.note); }
+        }
+    }
+    for (const [note, on] of pendientes) _push(on.tickOn, on.tickOn + 1, note, on.velocity);
+    return cells;
+}
+
+/**
+ * Remapea rawEvents a las notas disponibles en motorMap, resolviendo la
+ * polifonía de forma CONTEXTUAL (step a step) y guiada por la matriz de
+ * atención (heat):
+ *
+ *   1. Cada pitch class puede tener VARIOS motores físicos (A,B → 2; C,D → 2;
+ *      resto → 1). Se ordenan por cercanía a la octava de energía.
+ *   2. En cada step, las notas se procesan por atención descendente: la más
+ *      importante coge su motor natural; si está ocupado ese step, se intenta
+ *      otro motor del MISMO pitch class; si no hay, la nota (la de MENOR
+ *      atención) se descarta. Así nunca se pierde la nota importante por azar,
+ *      y se aprovechan los motores duplicados.
+ *
+ * El noteOff hereda el destino (o el descarte) de su noteOn correspondiente.
  *
  * @param {Array}  rawEvents  — state.rawEvents (no se muta)
  * @param {number} channel    — canal MIDI a procesar
  * @param {Array}  motorMap   — MOTOR_MAP de motor-map.js
+ * @param {Map}    [heatPre]  — heatmap del grid ORIGINAL ("note,step" → score).
+ *                              Si se omite, se calcula internamente.
  * @returns {Array}           — copia de rawEvents con notas remapeadas
  */
-export function comprimirAMotores(rawEvents, channel, motorMap) {
-    // 1. Notas de motor disponibles, ordenadas
+export function comprimirAMotores(rawEvents, channel, motorMap, heatPre) {
     const motorNotes = motorMap.map(m => m.note).sort((a, b) => a - b);
     if (motorNotes.length === 0) return rawEvents;
 
-    // 2. Usar heatMap existente o calcular uno desde rawEvents del canal
-    let heatMap = state.heatMapData;
-    if (!heatMap && state.gridData) {
-        heatMap = calcularHeatScores(state.gridData.cells, state.noteRows);
+    const ticksPerStep = (state.ppqn || 96) / 4;
+
+    // 1. heatmap pre-compresión: parámetro, o state, o cálculo al vuelo
+    let heatMap = heatPre || state.heatMapDataPreCompresion || state.heatMapData;
+    if (!heatMap) {
+        const cells = _cellsMapDesdeRaw(rawEvents, channel, ticksPerStep);
+        heatMap = Object.keys(cells).length ? calcularHeatScores(cells, state.noteRows) : null;
     }
     const octavaObjetivo = calcularOctavaDesdeHeat(heatMap);
+    const scoreDe = (note, step) => heatMap?.get(`${note},${step}`) ?? 0.5;
 
-    // 3. Para cada pitch class (0-11), ¿cuál motor lo tiene en la octava objetivo?
-    //    Precomputar: pitchClass → nota de motor más cercana
-    const pcToMotor = new Map();
+    // 2. pitchClass → LISTA de motores que lo tienen, ORDENADOS por altura MIDI
+    //    (grave→agudo). Para pc sin motor propio, fallback al más cercano al ancla.
+    const pcToMotores = new Map();
     for (let pc = 0; pc < 12; pc++) {
-        // Buscar motor con este pitch class
-        const candidatos = motorNotes.filter(n => n % 12 === pc);
+        const ideal = octavaObjetivo * 12 + pc;
+        let candidatos = motorNotes.filter(n => n % 12 === pc);
         if (candidatos.length === 0) {
-            // No hay motor para este PC → buscar el más cercano en MIDI
-            const ideal = octavaObjetivo * 12 + pc;
             const nearest = motorNotes.reduce((best, n) =>
-                Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best
-            , motorNotes[0]);
-            pcToMotor.set(pc, nearest);
-        } else if (candidatos.length === 1) {
-            pcToMotor.set(pc, candidatos[0]);
-        } else {
-            // Varios motores con el mismo PC → elegir el más cercano a octavaObjetivo
-            const ideal = octavaObjetivo * 12 + pc;
-            const nearest = candidatos.reduce((best, n) =>
-                Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best
-            , candidatos[0]);
-            pcToMotor.set(pc, nearest);
+                Math.abs(n - ideal) < Math.abs(best - ideal) ? n : best, motorNotes[0]);
+            candidatos = [nearest];
+        }
+        candidatos = [...candidatos].sort((a, b) => a - b);  // grave → agudo
+        pcToMotores.set(pc, candidatos);
+    }
+
+    // Elige el motor PREFERIDO de una nota según su altura original, para
+    // preservar el contorno grave/agudo: si el pc tiene 2 motores (p.ej. C2/C3),
+    // la frontera es el punto medio entre ellos. Devuelve la lista de candidatos
+    // reordenada con el preferido primero, luego los demás (fallback en colisión).
+    const motorPreferido = (note) => {
+        const candidatos = pcToMotores.get(note % 12) || [];
+        if (candidatos.length <= 1) return candidatos;
+        // Buscar el motor cuyo "punto medio" deja la nota en su tramo de altura.
+        let idx = 0;
+        for (let i = 0; i < candidatos.length - 1; i++) {
+            const umbral = (candidatos[i] + candidatos[i + 1]) / 2;
+            if (note > umbral) idx = i + 1;
+        }
+        // Preferido primero; resto ordenado por cercanía al preferido (fallback).
+        const pref = candidatos[idx];
+        const resto = candidatos.filter((_, i) => i !== idx)
+            .sort((a, b) => Math.abs(a - pref) - Math.abs(b - pref));
+        return [pref, ...resto];
+    };
+
+    // 3. Resolver step a step: cada nota pide su motor PREFERIDO (por contorno);
+    //    en colisión, la de mayor atención lo conserva y las demás caen al
+    //    siguiente motor libre del mismo pc, o se descartan si no hay.
+    const reasignacion = new Map();
+    const porStep = new Map();
+    for (const ev of rawEvents) {
+        if (ev.channel !== channel || ev.type !== 'noteOn' || ev.velocity <= 0) continue;
+        const step = Math.floor(ev.tick / ticksPerStep);
+        if (!porStep.has(step)) porStep.set(step, []);
+        porStep.get(step).push(ev);
+    }
+    for (const [step, notas] of porStep) {
+        const ocupados = new Set();
+        notas.sort((a, b) => scoreDe(b.note, step) - scoreDe(a.note, step));
+        for (const ev of notas) {
+            const candidatos = motorPreferido(ev.note);
+            const libre = candidatos.find(n => !ocupados.has(n));
+            if (libre !== undefined) { ocupados.add(libre); reasignacion.set(ev, libre); }
+            else                     { reasignacion.set(ev, null); }  // descartar
         }
     }
 
-    // 4. Reasignar notas en los eventos del canal seleccionado
-    return rawEvents.map(ev => {
-        if (ev.channel !== channel) return ev;
-        if (ev.type !== 'noteOn' && ev.type !== 'noteOff') return ev;
-        const nuevaNota = pcToMotor.get(ev.note % 12) ?? ev.note;
-        return { ...ev, note: nuevaNota };
-    });
+    // 4. Emitir eventos remapeados; el noteOff hereda el destino de su noteOn.
+    //    pendientes: note original → destino (nota de motor, o null = descartado).
+    const pendientes = new Map();
+    const salida = [];
+    for (const ev of rawEvents) {
+        if (ev.channel !== channel) { salida.push(ev); continue; }
+
+        if (ev.type === 'noteOn' && ev.velocity > 0) {
+            const destino = reasignacion.has(ev) ? reasignacion.get(ev) : ev.note;
+            pendientes.set(ev.note, destino);
+            if (destino !== null) salida.push({ ...ev, note: destino });
+            // destino null → noteOn descartado (no se emite)
+        } else if (ev.type === 'noteOff' || (ev.type === 'noteOn' && ev.velocity === 0)) {
+            const destino = pendientes.has(ev.note) ? pendientes.get(ev.note) : ev.note;
+            pendientes.delete(ev.note);
+            if (destino !== null) salida.push({ ...ev, note: destino });
+            // destino null → su noteOn fue descartado: no emitir noteOff huérfano
+        } else {
+            salida.push(ev);  // meta/otros eventos del canal: intactos
+        }
+    }
+    return salida;
 }
 
 // ── Test rápido (activo con ?testCompresor en la URL) ─────────
