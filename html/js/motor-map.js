@@ -8,12 +8,18 @@
 //   motorMapUI()         — abre/cierra el panel visual de edición
 //
 // Estructura de cada entrada:
-//   { note, name, motor, homePwm }
+//   { note, name, motor, homePwm, velMin, velMax }
 //
 //   note     — número de nota MIDI (0-127)
 //   name     — nombre legible ("C4", "D#3"...)
 //   motor    — índice global del motor en el ESP32 (0-127)
 //   homePwm  — posición de reposo del servo (150-600, neutro=375)
+//   velMin   — fuerza MÍNIMA del golpe para ESTE motor (escala ESP32 1-100)
+//   velMax   — fuerza MÁXIMA del golpe para ESTE motor (escala ESP32 1-100)
+//
+// El rango [velMin, velMax] de cada motor es la AUTORIDAD sobre cuánta
+// fuerza recibe cada golpe: al abrir una canción la velocity MIDI de cada
+// nota se reescala al rango del motor que la toca (no hay rango global).
 //
 // MOTOR_MAP es el único lugar que hay que editar para cambiar
 // qué notas MIDI controlan qué solenoides físicos.
@@ -54,27 +60,32 @@ export function ledForNote(midiNote) {
 
 // ── E1 — MOTOR_MAP ────────────────────────────────────────────
 // Solo motores físicos (solenoides). Sin campo 'led' — se calcula con ledForNote(note).
+// VEL_MIN_DEFAULT / VEL_MAX_DEFAULT: rango de fuerza por defecto (escala ESP32 1-100)
+// que toma un motor que aún no tiene velMin/velMax propios.
+export const VEL_MIN_DEFAULT = 30;
+export const VEL_MAX_DEFAULT = 40;
+
 export let MOTOR_MAP = [
 
-  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a' },
-  { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false, key: 's' },
+  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a', velMin: 20, velMax: 30 },
+  { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false, key: 's', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
 
     // Octava 2 (C2–B2): motores 0–11
-  { note: _midiNote('C',   2), name: 'C2',  motor:  0, homePwm: 375, muted: false, key: 'd' },
-  { note: _midiNote('C#',  2), name: 'C#2', motor: 10, homePwm: 375, muted: false, key: 'r' },
-  { note: _midiNote('D',   2), name: 'D2',  motor:  1, homePwm: 375, muted: false, key: 'f' },
-  { note: _midiNote('D#',  2), name: 'D#2', motor: 11, homePwm: 375, muted: false, key: 't' },
-  { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false, key: 'g' },
-  { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false, key: 'h' },
-  { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false, key: 'u' },
-  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false, key: 'j' },
-  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false, key: 'i' },
-  { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false, key: 'k' },
-  { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false, key: 'o' },
-  { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false, key: 'l' },
+  { note: _midiNote('C',   2), name: 'C2',  motor:  0, homePwm: 375, muted: false, key: 'd', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('C#',  2), name: 'C#2', motor: 10, homePwm: 375, muted: false, key: 'r', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('D',   2), name: 'D2',  motor:  1, homePwm: 375, muted: false, key: 'f', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('D#',  2), name: 'D#2', motor: 11, homePwm: 375, muted: false, key: 't', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false, key: 'g', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false, key: 'h', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false, key: 'u', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false, key: 'j', velMin: 20, velMax: 30 },
+  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false, key: 'i', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false, key: 'k', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false, key: 'o', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false, key: 'l', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
 
-   { note: _midiNote('C',   3), name: 'C3',  motor:  14, homePwm: 375, muted: false, key: 'ñ' },
-   { note: _midiNote('D',   3), name: 'D3',  motor:  15, homePwm: 375, muted: false, key: 'p' },
+   { note: _midiNote('C',   3), name: 'C3',  motor:  14, homePwm: 375, muted: false, key: 'ñ', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+   { note: _midiNote('D',   3), name: 'D3',  motor:  15, homePwm: 375, muted: false, key: 'p', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
 ];
 
 // ── Persistencia en localStorage ─────────────────────────────
@@ -96,6 +107,8 @@ const _MM_STORAGE_KEY = 'aTambor_motorMap';
             if (saved.homePwm !== undefined) entry.homePwm = saved.homePwm;
             if (saved.muted   !== undefined) entry.muted   = saved.muted;
             if (saved.key     !== undefined) entry.key     = saved.key;
+            if (saved.velMin  !== undefined) entry.velMin  = saved.velMin;
+            if (saved.velMax  !== undefined) entry.velMax  = saved.velMax;
         });
         console.log('[motor-map] Configuración restaurada desde localStorage');
     } catch(e) {
@@ -138,7 +151,7 @@ export function restoreMotorMap(snapshot) {
  * historial (Ctrl+Z). Punto único por el que pasan las ediciones de la UI
  * (asignación de motor, homePWM, mute…), así el snapshot se toma ANTES de mutar.
  * @param {number} i     índice en MOTOR_MAP
- * @param {string} field 'motor' | 'homePwm' | 'muted' | 'led' | 'vel' | 'key'
+ * @param {string} field 'motor' | 'homePwm' | 'muted' | 'led' | 'key' | 'velMin' | 'velMax'
  * @param {*}      value  nuevo valor
  */
 export function _mmEdit(i, field, value) {
@@ -183,6 +196,8 @@ export function motorMapImport() {
                     if (saved.homePwm  !== undefined) entry.homePwm  = saved.homePwm;
                     if (saved.muted    !== undefined) entry.muted    = saved.muted;
                     if (saved.key      !== undefined) entry.key      = saved.key;
+                    if (saved.velMin   !== undefined) entry.velMin   = saved.velMin;
+                    if (saved.velMax   !== undefined) entry.velMax   = saved.velMax;
                 });
                 _mmSaveToStorage();
                 _renderMotorMapRows();
@@ -274,6 +289,8 @@ export function motorMapUI() {
                 <th style="padding:4px 6px;text-align:left;">Nota</th>
                 <th style="padding:4px 6px;text-align:left;">Motor</th>
                 <th style="padding:4px 6px;text-align:left;">HomePWM</th>
+                <th style="padding:4px 6px;text-align:left;" title="Fuerza mínima del golpe (1-100)">Vmín</th>
+                <th style="padding:4px 6px;text-align:left;" title="Fuerza máxima del golpe (1-100)">Vmáx</th>
                 <th style="padding:4px 6px;text-align:left;">PCA/ch</th>
                 <th style="padding:4px 6px;text-align:center;" title="Silenciar motor y nota">Mute</th>
             </tr>
@@ -291,7 +308,8 @@ export function motorMapUI() {
         const m = MOTOR_MAP[_mmSelectedIdx];
         const hit  = 80;
         const gap  = 150;
-        const cmd  = `e; m ${m.motor}; o ${m.homePwm}; t ${hit}; v 80; t${gap}; v 0; p;`;
+        const vel  = _mmMidVel(m);   // fuerza media del rango del motor
+        const cmd  = `e; m ${m.motor}; o ${m.homePwm}; t ${hit}; v ${vel}; t${gap}; v 0; p;`;
         sendCommand(cmd);
     });
 }
@@ -317,11 +335,14 @@ export function _renderMotorMapRows() {
 
         tr.style.opacity = m.muted ? '0.4' : '1';
         const _kl = m.key || '·';
+        const { min: vMin, max: vMax } = _mmVelRange(m);
         tr.innerHTML = `
             <td style="padding:3px 6px;color:#aaaadd;">${m.note}</td>
             <td style="padding:3px 6px;font-weight:bold;color:#ddeeff;">${m.name}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'motor',   m.motor,   0, 127)}</td>
             <td style="padding:3px 6px;">${_editCell(i, 'homePwm', m.homePwm, 150, 600)}</td>
+            <td style="padding:3px 6px;">${_editCell(i, 'velMin',  vMin, 1, 100)}</td>
+            <td style="padding:3px 6px;">${_editCell(i, 'velMax',  vMax, 1, 100)}</td>
             <td style="padding:3px 6px;color:#666;font-size:11px;">PCA${pca}/ch${ch}</td>
             <td style="padding:3px 6px;text-align:center;">
                 <input type="checkbox" ${m.muted ? 'checked' : ''}
@@ -527,11 +548,6 @@ export function _renderMotorMapPanelRows() {
     const tbody = document.getElementById('motorMapPanelTbody');
     if (!tbody) return;
 
-    const summary = document.getElementById('motorMapSummary');
-    if (summary) summary.textContent = `${MOTOR_MAP.length} motores mapeados`;
-    const summaryBar = document.getElementById('motorMapSummaryBar');
-    if (summaryBar) summaryBar.textContent = `${MOTOR_MAP.length} motores mapeados`;
-
     tbody.innerHTML = '';
     MOTOR_MAP.forEach((m, i) => {
         const tr  = document.createElement('tr');
@@ -562,6 +578,7 @@ export function _renderMotorMapPanelRows() {
 
         tr.style.opacity = m.muted ? '0.4' : '1';
         const keyLabel = m.key || '·';
+        const { min: vMin, max: vMax } = _mmVelRange(m);
         tr.innerHTML = `
             <td style="color:${col.text};font-size:11px;">${m.note}</td>
             <td style="font-weight:bold;color:${col.text};">${m.name}</td>
@@ -571,6 +588,14 @@ export function _renderMotorMapPanelRows() {
                 onclick="event.stopPropagation();"></td>
             <td><input class="mm-input" type="number" value="${m.homePwm}" min="150" max="600"
                 onchange="_mmEdit(${i}, 'homePwm', parseInt(this.value));_renderMotorMapPanelRows();"
+                onclick="event.stopPropagation();"></td>
+            <td><input class="mm-input" type="number" value="${vMin}" min="1" max="100"
+                title="Fuerza mínima del golpe para este motor (1-100)"
+                onchange="_mmEdit(${i}, 'velMin', parseInt(this.value));_renderMotorMapPanelRows();"
+                onclick="event.stopPropagation();"></td>
+            <td><input class="mm-input" type="number" value="${vMax}" min="1" max="100"
+                title="Fuerza máxima del golpe para este motor (1-100)"
+                onchange="_mmEdit(${i}, 'velMax', parseInt(this.value));_renderMotorMapPanelRows();"
                 onclick="event.stopPropagation();"></td>
             <td style="color:${col.border};font-size:10px;">PCA${pca}/ch${ch}</td>
             <td style="text-align:center;">
@@ -610,7 +635,8 @@ function _mmFireNote(canvas, note) {
     // 2. Motor ESP32 (solo si tiene motor asignado)
     const entry = MOTOR_MAP.find(m => m.note === note);
     if (entry) {
-        const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v 80; t150; v 0; p;`;
+        const vel = _mmMidVel(entry);   // fuerza media del rango del motor
+        const cmd = `e; m ${entry.motor}; o ${entry.homePwm}; t 80; v ${vel}; t150; v 0; p;`;
         sendCommand(cmd);
     }
 
@@ -689,7 +715,8 @@ export function _mmPanelTest() {
         return;
     }
     const m   = MOTOR_MAP[_mmPanelSelectedIdx];
-    const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v 80; t150; v 0; p;`;
+    const vel = _mmMidVel(m);   // fuerza media del rango del motor
+    const cmd = `e; m ${m.motor}; o ${m.homePwm}; t 80; v ${vel}; t150; v 0; p;`;
     sendCommand(cmd);
 }
 
@@ -717,16 +744,30 @@ export function _mmRebuildKeyMap() {
     });
 }
 
-// Lee midiImportMaxVel (1-127) y lo convierte a escala ESP32 (1-100)
-export function _mmGetVel() {
-    const raw = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
-    return Math.round(Math.max(1, Math.min(127, raw)) * 100 / 127);
+// ── Rango de fuerza por motor (escala ESP32 1-100) ────────────
+// El rango [velMin, velMax] de cada motor es la autoridad sobre la fuerza del
+// golpe. Si una entrada no tiene velMin/velMax (config antigua), cae al default.
+
+/** Devuelve {min, max} efectivos de un motor, saneados al rango ESP32 1-100. */
+export function _mmVelRange(entry) {
+    let min = Number.isFinite(entry?.velMin) ? entry.velMin : VEL_MIN_DEFAULT;
+    let max = Number.isFinite(entry?.velMax) ? entry.velMax : VEL_MAX_DEFAULT;
+    min = Math.max(1, Math.min(100, min));
+    max = Math.max(1, Math.min(100, max));
+    if (min > max) [min, max] = [max, min];   // por si están invertidos
+    return { min, max };
 }
 
-// Envía NoteOn: establece home, luego N motor vel
+/** Punto medio del rango del motor (1-100). Golpe "normal" para click/Test/tecla. */
+export function _mmMidVel(entry) {
+    const { min, max } = _mmVelRange(entry);
+    return Math.round((min + max) / 2);
+}
+
+// Envía NoteOn: establece home, luego N motor vel (fuerza media del rango del motor)
 function _mmNoteOn(entry) {
     if (entry.muted) return;
-    const vel = _mmGetVel();
+    const vel = _mmMidVel(entry);
     sendCommand(`m ${entry.motor}; o ${entry.homePwm}; N ${entry.motor} ${vel};`);
 }
 

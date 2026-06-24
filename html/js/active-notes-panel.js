@@ -5,7 +5,7 @@
 // ============================================================
 
 import { state } from './state.js';
-import { motorForNote, MOTOR_MAP, _mmOctaveColor, _mmSaveToStorage, _mmGetVel, _renderMotorMapRows, _renderMotorMapPanelRows } from './motor-map.js';
+import { motorForNote, MOTOR_MAP, _mmOctaveColor, _mmSaveToStorage, _mmMidVel, _renderMotorMapRows, _renderMotorMapPanelRows } from './motor-map.js';
 import { sendCommand } from './ws-connector.js';
 import { drawNoteLabels } from './piano-roll.js';
 
@@ -357,7 +357,7 @@ function _anpPlayNote(midi, chipElement) {
         if (cfg && !cfg.muted) {
             const hitMs     = 80;
             const retractMs = 150;
-            const vel       = _mmGetVel();
+            const vel       = _mmMidVel(cfg);   // fuerza media del rango del motor
             const cmd = `e; m ${cfg.motor}; o ${cfg.homePwm}; t ${hitMs}; v ${vel}; t ${retractMs}; v 0; p;`;
             sendCommand(cmd);
         }

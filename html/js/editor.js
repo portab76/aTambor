@@ -2,18 +2,17 @@
 // editor.js — Edición interactiva del grid en el canvas
 // Click para añadir/quitar notas; arrastre para ajustar duración;
 // Ctrl+Click para editar velocity.
-// Depende de: state.js, piano-roll.js, heat.js
+// Depende de: state.js, piano-roll.js
 // ============================================================
 
 import { state } from './state.js';
 import { historyPush } from './history.js';
-import { _refreshHeatMap } from './heat.js';
 import { drawPianoRollWithPlayhead } from './piano-roll.js';
 import { drawVelocityLane } from './velocity-lane.js';
 import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
 import { tabMarkDirty } from './tabs.js';
 import { motorForNote, _mmSaveToStorage, _renderMotorMapPanelRows, _renderMotorMapRows } from './motor-map.js';
-import { canvas, statusSpan } from './dom-refs.js';
+import { canvas } from './dom-refs.js';
 import { performHarmonicAnalysisFromGrid } from './harmonic.js';
 import { drawChordRow } from './chord-row.js';
 
@@ -89,13 +88,6 @@ let _moveDelta     = null;       // { dStep, dRow } aplicado en la última previ
 let _moveGridBak   = null;       // clon de gridData.cells antes del arrastre (para history y restaurar colisiones)
 let _moveTotalBak  = 0;          // totalSteps antes del arrastre
 
-// Helper: invalidar heat map después de ediciones
-function _invalidateHeatMap() {
-    if (state.heatMapActive) {
-        _refreshHeatMap();
-    }
-}
-
 // ---- Coordenadas ----
 
 // Coordenadas clamped al canvas (para arrastres que salen del borde)
@@ -131,7 +123,6 @@ function toggleCell(step, note) {
         state.gridData.cells[key] = { duration: 1, velocity: 40 };
     }
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
-    _invalidateHeatMap();
     scheduleHarmonicAnalysis();
 }
 
@@ -140,7 +131,6 @@ function setNoteDuration(step, note, newDuration) {
     if (state.gridData.cells[key]) {
         state.gridData.cells[key].duration = Math.max(1, newDuration);
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
-        _invalidateHeatMap();
         scheduleHarmonicAnalysis();
     }
 }
@@ -198,7 +188,6 @@ function editVelocity(step, note) {
             state.gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
             drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
             drawVelocityLane();   // no-op interno si el carril está oculto (velLaneActive)
-            _invalidateHeatMap();
         }
         close();
     };
@@ -225,7 +214,6 @@ function _toggleMotorMute(note) {
     _renderMotorMapPanelRows();
     _renderMotorMapRows();
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
-    statusSpan.innerText = `Motor ${entry.motor} (${entry.name}): ${entry.muted ? 'muteado' : 'activo'}`;
 }
 
 function _onCanvasClick(e) {
@@ -393,7 +381,6 @@ function _finishMove() {
         _noteDragged = true;        // suprime el click que el navegador dispara tras el arrastre
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
         drawTimelineRuler();
-        _invalidateHeatMap();
         scheduleHarmonicAnalysis();
         tabMarkDirty();
     }
@@ -454,7 +441,6 @@ function _onMouseUp(e) {
         const key      = `${_dragStartNote},${start}`;
         state.gridData.cells[key] = { duration, velocity: state.gridData.cells[key]?.velocity || 40 };
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
-        _invalidateHeatMap();
         scheduleHarmonicAnalysis();
     }
 
@@ -505,7 +491,6 @@ export function pasteFragment() {
 
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     drawTimelineRuler();
-    _invalidateHeatMap();
     scheduleHarmonicAnalysis();
     tabMarkDirty();
     _updateFragmentButtons();
@@ -530,7 +515,6 @@ export function moveSelection(dStep, dRow) {
     _applyMoveFromSnapshot(cl.dStep, cl.dRow);
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     drawTimelineRuler();
-    _invalidateHeatMap();
     scheduleHarmonicAnalysis();
     tabMarkDirty();
 
@@ -559,7 +543,6 @@ export function deleteFragment() {
     drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     drawTimelineRuler();
     _updateAbBtn();
-    _invalidateHeatMap();
     scheduleHarmonicAnalysis();
 }
 
@@ -587,7 +570,6 @@ export function selectionDelete() {
     historyPush();
     for (const key of _selCells) delete state.gridData.cells[key];
     selectionClear();
-    if (state.heatMapActive) _refreshHeatMap();
     scheduleHarmonicAnalysis();
     tabMarkDirty();
 }

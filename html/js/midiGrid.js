@@ -39,8 +39,12 @@ import {
 import { drawMinimap, initMinimap } from './minimap.js';
 import { toggleVelocityLane, drawVelocityLane, initVelocityLane } from './velocity-lane.js';
 import {
-    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints, toggleHeatMap,
+    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints,
 } from './heat.js';
+import {
+    applyInterpretationToGrid, refreshInterpretPreview,
+    setWeight, setRange, resetWeightsAndRanges, WEIGHTS, RANGE,
+} from './interpretation.js';
 
 // ── Fila de acordes / panel armónico ─────────────────────────
 import {
@@ -88,7 +92,7 @@ import { toggleMotorEscalaPanel } from './motor-escala-panel.js';
 
 // ── Referencias DOM compartidas ──────────────────────────────
 import {
-    fileInput, instrumentSelect, loadInstrumentBtn, debugDiv, statusSpan,
+    fileInput, instrumentSelect, loadInstrumentBtn, debugDiv,
     playBtn, stopBtn, canvas, ctx, gridScroll, notesPanelScroll,
 } from './dom-refs.js';
 
@@ -119,7 +123,7 @@ function _activeSegmentsFor(level, analysis) {
     return analysis?.segments || state.currentHarmonicSegments;
 }
 
-// Las referencias DOM (canvas, ctx, statusSpan, …) se importan de dom-refs.js.
+// Las referencias DOM (canvas, ctx, …) se importan de dom-refs.js.
 
 // ---- Sincronización de scroll: columna de notas sigue al grid ----
 let _lastScrollTop = 0;
@@ -148,7 +152,6 @@ fileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
     state.currentMidiFileName = file.name;
-    statusSpan.innerText = "Leyendo archivo...";
     const reader = new FileReader();
     reader.onload = (e) => {
         // Convertir ArrayBuffer → binary string que espera jasmid Stream()
@@ -195,7 +198,6 @@ document.body.addEventListener('drop', (e) => {
 
     // Mismo flujo que fileInput change
     state.currentMidiFileName = file.name;
-    statusSpan.innerText = 'Leyendo archivo...';
     const reader = new FileReader();
     reader.onload = (ev) => {
         const bytes = new Uint8Array(ev.target.result);
@@ -226,7 +228,6 @@ function _applyMidiLoadResult(result) {
 
     if (!result || result.error) {
         debugDiv.innerHTML = `<strong>Error al parsear MIDI:</strong> ${result?.error ?? 'desconocido'}`;
-        statusSpan.innerText = "Error: archivo MIDI inválido.";
         return result;
     }
 
@@ -252,7 +253,6 @@ function _applyMidiLoadResult(result) {
 
     // Rellenar el selector de canales y habilitar transporte
     enableInstrumentSelection();
-    statusSpan.innerText = "MIDI cargado. Selecciona un instrumento/canal.";
     return result;
 }
 
@@ -287,8 +287,6 @@ function _enableChannelButtons() {
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
-    const heatBtn = document.getElementById('heatMapBtn');
-    if (heatBtn) heatBtn.disabled = false;
     const chordPanelBtn = document.getElementById('chordPanelBtn');
     if (chordPanelBtn) chordPanelBtn.disabled = false;
 }
@@ -417,7 +415,6 @@ function _setupChannelTab(ch, snap, { name, async = false } = {}) {
 // ---- Cargar instrumento y mostrar grid ----
 loadInstrumentBtn.addEventListener('click', () => {
     if (state.selectedChannel === null) {
-        statusSpan.innerText = "Primero selecciona un canal.";
         return;
     }
 
@@ -454,9 +451,6 @@ loadInstrumentBtn.addEventListener('click', () => {
         // Refrescar panel de notas activas si está abierto
         if (document.getElementById('activeNotesPanel')) activeNotesPanelRefresh();
 
-        statusSpan.innerText =
-            `🔄 Instrumento cambiado en caliente · Canal ${state.selectedChannel + 1} · ` +
-            `${Object.keys(state.gridData.cells).length} notas`;
         return;
     }
 
@@ -472,8 +466,6 @@ loadInstrumentBtn.addEventListener('click', () => {
         enableInstrumentSelection();
         tabRender();
     }
-
-    statusSpan.innerText = `Construyendo grid para canal ${ch + 1}...`;
 
     // Volver al inicio del grid al cargar un nuevo canal
     const _gs = document.getElementById('gridScroll');
@@ -498,14 +490,6 @@ loadInstrumentBtn.addEventListener('click', () => {
     // Lógica de setup compartida — el análisis armónico corre en el worker.
     // Todo lo que dependa de la tonalidad/segmentos se aplica al resolver.
     _buildChannelGrid(ch, { async: true }).then((analysis) => {
-        // Redibujar con heat map si está activo (necesita los segmentos ya aplicados)
-        if (state.heatMapActive) drawPianoRollWithPlayhead(-1);
-
-        statusSpan.innerText =
-            `Grid listo · Canal ${ch + 1} · ` +
-            `${Object.keys(state.gridData.cells).length} notas · ` +
-            `Tonalidad: ${state.currentKey}`;
-
         if (analysis) {
             const cadCounts = state.currentPhraseSegments.reduce((acc, p) => {
                 acc[p.cadenceType] = (acc[p.cadenceType] || 0) + 1; return acc;
@@ -560,9 +544,6 @@ playbackCallbacks.onStop = () => {
 };
 playbackCallbacks.onPause = () => {
     playBtn.disabled = false;
-};
-playbackCallbacks.onStatusChange = (msg) => {
-    statusSpan.innerText = msg;
 };
 playbackCallbacks.onStepChange = (step) => {
     // Si el panel de acordes está abierto y hay highlight activo, dibujar con él;
@@ -703,8 +684,6 @@ function _enableAllButtons() {
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
     document.getElementById('activeNotesBtn').disabled = false;
-    const heatBtn = document.getElementById('heatMapBtn');
-    if (heatBtn) heatBtn.disabled = false;
     const chordPanelBtn = document.getElementById('chordPanelBtn');
     if (chordPanelBtn) chordPanelBtn.disabled = false;
 
@@ -721,12 +700,11 @@ function _enableAllButtons() {
 
 // persistence.js dispara estos callbacks; aquí gestionamos la UI.
 projectCallbacks.onApplied      = _enableAllButtons;
-projectCallbacks.onStatusChange = (msg) => { statusSpan.innerText = msg; };
 
 // ---- Callbacks de UI de mml-parser.js (desacople DOM) ----
 // mml-parser puebla el estado y dispara onLoaded(result); aquí actualizamos la
 // barra (BPM, ruler), el panel de debug, el selector y construimos el grid.
-mmlCallbacks.onError = (msg) => { statusSpan.innerText = msg; };
+mmlCallbacks.onError = (msg) => { console.error('[mml]', msg); };
 mmlCallbacks.onLoaded = (result) => {
     // BPM input
     const bpmInput = document.getElementById('bpmInput');
@@ -766,6 +744,141 @@ initRulerSeek();
 initMinimap();
 
 // ---- Log ESP32 en ventana emergente ----
+/**
+ * Handler del checkbox "Interpretar". Acción puntual: al marcar, reescribe
+ * velocity + duración de cada nota según su relevancia fusionada (visible y
+ * editable), y si el sub-checkbox "Densidad" está activo, omite voces internas
+ * poco relevantes en acordes densos. Registra historial → Ctrl+Z revierte. El
+ * checkbox se resetea solo: revertir es siempre vía Undo.
+ */
+/**
+ * Botón «Aplicar cambios» del panel ⚙: reescribe velocity/duración del grid
+ * según los pesos actuales. Reversible con Ctrl+Z. Antes era el checkbox
+ * 🎵 Interpretar de la barra (onInterpretToggle).
+ */
+async function applyInterpretFromPanel(btn) {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        console.warn('[interpret] grid vacío — nada que interpretar');
+        return;
+    }
+
+    historyPush();  // snapshot ANTES de mutar → Undo restaura los originales
+    const { velChanged, durChanged, total } =
+        await applyInterpretationToGrid({ dynamics: true, articulation: true });
+
+    if (velChanged === 0 && durChanged === 0) {
+        historyUndo();  // revertir el push vacío
+        console.warn('[interpret] sin cambios — ¿hay análisis armónico / heat?');
+        return;
+    }
+
+    console.log(`[interpret] aplicado sobre ${total} notas: ` +
+        `${velChanged} vel · ${durChanged} dur (Ctrl+Z para revertir)`);
+
+    // Refrescar grid + carril de velocidades para que se vean los nuevos valores
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawVelocityLane();
+
+    // Feedback breve en el botón
+    if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = '✓ Aplicado';
+        setTimeout(() => { btn.textContent = prev; }, 1100);
+    }
+}
+
+// ── Fase 5: vista previa por color + panel de pesos ──────────────
+
+/** Activa la vista previa por color (pinta cada nota por su relevancia). */
+async function _enableInterpretPreview() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        console.warn('[interpret] grid vacío — nada que previsualizar');
+        return false;
+    }
+    state.interpretPreviewActive = true;
+    await refreshInterpretPreview();
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    return true;
+}
+
+/** Desactiva la vista previa y devuelve el grid a sus colores normales. */
+function _disableInterpretPreview() {
+    if (!state.interpretPreviewActive) return;
+    state.interpretPreviewActive = false;
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+}
+
+/**
+ * Muestra/oculta el panel de sliders. Al abrirlo activa la vista previa por
+ * color del grid (misma funcionalidad que el antiguo botón 👁); al cerrarlo
+ * la desactiva.
+ */
+async function toggleInterpretWeights() {
+    const panel = document.getElementById('interpretWeightsPanel');
+    if (!panel) return;
+    const btn = document.getElementById('interpretWeightsBtn');
+    const show = panel.style.display === 'none' || !panel.style.display;
+
+    if (show) {
+        panel.style.display = 'block';
+        _syncWeightSliders();
+        if (btn) btn.classList.add('btn-active');
+        await _enableInterpretPreview();
+    } else {
+        panel.style.display = 'none';
+        if (btn) btn.classList.remove('btn-active');
+        _disableInterpretPreview();
+    }
+}
+
+/** Vuelca los valores actuales de WEIGHTS/RANGE en los sliders y sus etiquetas. */
+function _syncWeightSliders() {
+    const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+        const lbl = document.getElementById(id + 'Val');
+        if (lbl) lbl.textContent = Number(val).toFixed(2);
+    };
+    set('wHeat', WEIGHTS.heat);     set('wChord', WEIGHTS.chord);
+    set('wVoice', WEIGHTS.voice);   set('wCadence', WEIGHTS.cadence);
+    set('wBreath', WEIGHTS.breath);
+    set('rDynFloor', RANGE.dynFloor); set('rDynCeil', RANGE.dynCeil);
+    set('rArtFloor', RANGE.artFloor); set('rArtCeil', RANGE.artCeil);
+}
+
+/** Slider de peso → actualiza WEIGHTS, etiqueta y vista previa. */
+async function onWeightSlider(name, el) {
+    setWeight(name, parseFloat(el.value));
+    const lbl = document.getElementById(el.id + 'Val');
+    if (lbl) lbl.textContent = parseFloat(el.value).toFixed(2);
+    if (state.interpretPreviewActive) {
+        await refreshInterpretPreview();
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    }
+}
+
+/** Slider de rango → actualiza RANGE y etiqueta (no afecta a la vista previa). */
+function onRangeSlider(name, el) {
+    setRange(name, parseFloat(el.value));
+    const lbl = document.getElementById(el.id + 'Val');
+    if (lbl) lbl.textContent = parseFloat(el.value).toFixed(2);
+}
+
+/** Botón «Resetear» del panel ⚙: vuelve los sliders a sus valores por defecto. */
+async function resetInterpretWeights(btn) {
+    resetWeightsAndRanges();
+    _syncWeightSliders();   // reflejar los valores por defecto en los sliders
+    if (state.interpretPreviewActive) {
+        await refreshInterpretPreview();
+        drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    }
+    if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = prev; }, 900);
+    }
+}
+
 function openEsp32LogWindow() {
     const mode = document.getElementById('connModeSelect')?.value || 'wifi';
 
@@ -878,7 +991,6 @@ function initMIDI() {
         instrument:   state.currentInstrument,
         onsuccess: () => {
             state.soundfontLoaded = true;
-            statusSpan.innerText = "SoundFont listo. Carga un archivo MIDI.";
             console.log("MIDI.js: SoundFont cargado.");
             if (state.midiData) enableInstrumentSelection();
 
@@ -886,8 +998,7 @@ function initMIDI() {
             initWebSocket();
         },
         onerror: (err) => {
-            console.error("Error SoundFont:", err);
-            statusSpan.innerText = "SoundFont no disponible (reproducción desactivada).";
+            console.error("Error SoundFont (reproducción de audio desactivada):", err);
             // Intentar conectar igualmente — los servos funcionan sin audio
             initWebSocket();
         }
@@ -986,7 +1097,6 @@ function openAllInstruments() {
         instrumentSelect.querySelectorAll('option[value]:not([value=""])')
     );
     if (opts.length === 0) {
-        statusSpan.innerText = 'No hay canales MIDI cargados.';
         return;
     }
 
@@ -1003,7 +1113,6 @@ function openAllInstruments() {
     });
 
     tabSwitch(startIdx);   // activa el primer tab nuevo
-    statusSpan.innerText = `${opts.length} canal${opts.length > 1 ? 'es' : ''} abierto${opts.length > 1 ? 's' : ''} en tabs separados.`;
 }
 
 // ---- Conexión ESP32 (handlers de la barra) ──────────────────
@@ -1058,7 +1167,9 @@ Object.assign(window, {
 
     // minimap / velocidades / calor
     drawMinimap, toggleVelocityLane, drawVelocityLane,
-    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints, toggleHeatMap,
+    calcularHeatScores, _refreshHeatMap, calcularBreathingPoints,
+    applyInterpretFromPanel, toggleInterpretWeights, resetInterpretWeights,
+    onWeightSlider, onRangeSlider,
 
     // acordes
     drawChordRow, toggleChordPanel, onChordBlockClick, _selectChordAtStep,

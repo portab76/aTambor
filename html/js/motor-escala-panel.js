@@ -12,14 +12,12 @@ import { _sliderRange } from './transpose.js';
 
 export function toggleMotorEscalaPanel() {
     const panel  = document.getElementById('motorEscalaPanel');
-    const toggle = document.getElementById('motorMapToggle');
     const btn    = document.getElementById('motorEscalaBtn');
     if (!panel) return;
 
     state.motorEscalaPanelOpen = !state.motorEscalaPanelOpen;
     const open = state.motorEscalaPanelOpen;
     panel.classList.toggle('me-open', open);
-    if (toggle) toggle.classList.toggle('me-open', open);
     if (btn)    btn.classList.toggle('btn-active', open);
 
     // Al cerrar el panel, liberar todos los motores activos por seguridad

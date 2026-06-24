@@ -30,7 +30,6 @@ const THEMES = {
             helpModal:    { background: '#1e1e32', borderColor: '#5a5aaa' },
             helpHeader:   { background: '#2a2a48', borderColor: '#3a3a5a' },
             motorPanel:   { background: '#13132a', borderColor: '#33335a' },
-            motorToggle:  { background: '#1a1a30', borderColor: '#33335a', color: '#7777aa' },
         },
     },
 
@@ -54,7 +53,6 @@ const THEMES = {
             helpModal:    { background: '#f0f2fa', borderColor: '#9090cc' },
             helpHeader:   { background: '#e4e6f8', borderColor: '#b0b4d0' },
             motorPanel:   { background: '#eaecf8', borderColor: '#b8bcd8' },
-            motorToggle:  { background: '#e0e2f0', borderColor: '#b8bcd8', color: '#5566aa' },
         },
     },
 };
@@ -96,11 +94,6 @@ export function setTheme(name) {
     document.querySelectorAll('.motor-map-panel').forEach(el => {
         el.style.background  = p.motorPanel.background;
         el.style.borderColor = p.motorPanel.borderColor;
-    });
-    document.querySelectorAll('.motor-map-toggle').forEach(el => {
-        el.style.background  = p.motorToggle.background;
-        el.style.borderColor = p.motorToggle.borderColor;
-        el.style.color       = p.motorToggle.color;
     });
 
     // 4. Actualizar botón del menú

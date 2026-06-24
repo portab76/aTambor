@@ -11,9 +11,8 @@ import { play, stop } from './playback.js';
 import { applyZoom, drawPianoRollWithPlayhead, toggleNewGridPanel, closeNewGridPanel, _enableMeasureButtons } from './piano-roll.js';
 import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
 import { drawChordRow } from './chord-row.js';
-import { _refreshHeatMap } from './heat.js';
 import { _tpSlider } from './transpose.js';
-import { playBtn, stopBtn, instrumentSelect, loadInstrumentBtn, statusSpan } from './dom-refs.js';
+import { playBtn, stopBtn, instrumentSelect, loadInstrumentBtn } from './dom-refs.js';
 
 // ── Estado por defecto de un tab vacío ───────────────────────
 function _tabDefaults() {
@@ -187,11 +186,9 @@ function _tabRestoreFrom(t) {
 
     // ── Botones de toolbar ──
     const abBtn         = document.getElementById('abLoopBtn');
-    const heatBtn       = document.getElementById('heatMapBtn');
     const chordPanelBtn = document.getElementById('chordPanelBtn');
     const activeNotesBtn= document.getElementById('activeNotesBtn');
     if (abBtn)          abBtn.disabled          = !hasGrid;
-    if (heatBtn)        heatBtn.disabled        = !hasGrid;
     if (chordPanelBtn)  chordPanelBtn.disabled  = !hasGrid;
     if (activeNotesBtn) activeNotesBtn.disabled = !hasGrid;
 
@@ -245,9 +242,8 @@ function _tabRestoreFrom(t) {
     // ── A-B ──
     _updateAbBtn();
 
-    // ── Heat map ──
+    // ── Heat map ── (se recalcula bajo demanda desde la interpretación)
     state.heatMapData = null;
-    if (state.heatMapActive && hasGrid) _refreshHeatMap();
 
     // ── Historial Undo/Redo ──
     setUndoRedoStacks(t.undoStack, t.redoStack);
@@ -258,11 +254,6 @@ function _tabRestoreFrom(t) {
     // ── Scroll ──
     const gs = document.getElementById('gridScroll');
     if (gs) { gs.scrollLeft = t.scrollLeft; gs.scrollTop = t.scrollTop; }
-
-    // ── Status ──
-    statusSpan.innerText = hasGrid
-        ? `${t.name} · ${Object.keys(state.gridData.cells).length} notas`
-        : 'Tab vacío — abre un MIDI (🎵) o crea un grid nuevo (📄 Nuevo).';
 }
 
 // ── Helpers internos ─────────────────────────────────────────

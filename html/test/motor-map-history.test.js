@@ -23,7 +23,6 @@ function resetEnv() {
     state.gridData = { cells: {} };
     state.noteRows = [];
     state.totalSteps = 0;
-    state.heatMapActive = false;
     historyClear();
 }
 

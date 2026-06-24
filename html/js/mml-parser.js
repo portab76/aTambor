@@ -381,11 +381,7 @@ export function openMMLImportModal() {
     footer.appendChild(openFileBtn);
     footer.appendChild(mkBtn('➕ Cargar en grid', '#4a9aff', () => {
         const text = (document.getElementById('mmlGridInputText') || {}).value || '';
-        if (!text.trim()) {
-            const st = document.getElementById('statusMsg');
-            if (st) st.innerText = 'Pega una partitura MML primero.';
-            return;
-        }
+        if (!text.trim()) return;   // nada que cargar
         loadMMLText(text);
         closeMMLImportModal();
     }));

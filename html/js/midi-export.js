@@ -6,7 +6,6 @@
 // ============================================================
 
 import { state } from './state.js';
-import { statusSpan } from './dom-refs.js';
 
 // ── Codificación de enteros MIDI ──────────────────────────────
 
@@ -208,6 +207,4 @@ export function exportMIDI(fileBaseName) {
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
-
-    statusSpan.innerText = `MIDI exportado: ${a.download}`;
 }

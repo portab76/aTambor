@@ -238,7 +238,6 @@ export function closeWebSocket() {
 export function _setWsStatus(status, message) {
     const dot = document.getElementById('esp32StatusDot');
     const lbl = document.getElementById('esp32StatusLabel');  // opcional
-    const msg = document.getElementById('statusMsg');
 
     const MAP = {
         connected:    { color: '#44dd88', text: 'ESP32 conectado'    },
@@ -250,7 +249,6 @@ export function _setWsStatus(status, message) {
     const text = message || s.text;
     if (dot) dot.style.color = s.color;
     if (lbl) lbl.textContent = text;
-    if (msg) msg.textContent = text;
 }
 
 /** Muestra u oculta el botón "Reintentar" de reconexión manual. */

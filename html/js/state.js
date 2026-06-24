@@ -42,6 +42,11 @@ export const state = {
     // --- Highlight activo del popup (se mantiene durante la reproducción) ---
     activeHighlight: null,   // { classes, startStep, endStep } o null
 
+    // --- Edición de velocidad: step que se está editando en el carril ---
+    // El carril (velocity-lane.js) lo fija mientras se arrastra para que el
+    // piano roll resalte con glow las celdas afectadas en ese paso. null = inactivo.
+    velEditStep: null,       // número de paso o null
+
     // --- Transposición global de escala ---
     transposeOffset: 0,      // semitonos aplicados a todos los lookups de motor (−24 … +24)
 
@@ -68,8 +73,11 @@ export const state = {
     ledColorMode: 'octava',  // 'rainbow' | 'octava' | 'calor' | 'blanco'
     ledAdvanceMs: 0,         // ms de anticipación LED Synthesia (0 = desactivado)
 
-    // --- Heat map (notas de calor, Motor de Atención) ---
-    heatMapActive: false,  // true = modo calor activo desde toolbar
+    // --- Vista previa de interpretación (Fase 5) ---
+    interpretPreviewActive: false,  // true = pintar relevance fusionada por color
+    interpretPreviewData:   null,   // Map "note,step" → relevance [0,1] | null
+
+    // --- Heat map (Motor de Atención) — alimenta interpretación, LEDs y compresor ---
     heatMapData:   null,   // Map "note,step" → heatScore [0,1] | null = sin calcular
     heatMapDataPreCompresion: null,  // heatmap del grid ORIGINAL (antes de comprimir a motores)
 

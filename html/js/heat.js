@@ -1,12 +1,12 @@
 // ============================================================
 // heat.js — Motor de Atención: cálculo de heat scores
 // Porta calcularAtencion() de CompresorOctava.java a JavaScript
-// Depende de: state.js (gridData, noteRows, heatMapActive, heatMapData)
+// Depende de: state.js (gridData, noteRows, heatMapData)
 // ============================================================
 
 import { state } from './state.js';
 import { BATCH_SIZE } from './chord-row.js';
-import { drawPianoRollWithPlayhead } from './piano-roll.js';
+import { invalidate as invalidateInterpretation } from './interpretation.js';
 
 const MAX_NOTES_HEAT = 10000;  // Máximo de notas para la matriz (>2000 usa muestreo uniforme)
 
@@ -152,6 +152,7 @@ export function _refreshHeatMap() {
         return;
     }
     state.heatMapData = calcularHeatScores(state.gridData.cells, state.noteRows);
+    invalidateInterpretation();  // el heat cambió → la relevancia fusionada caduca
 
     // Debug: mostrar distribución de scores en consola
     if (state.heatMapData) {
@@ -252,27 +253,6 @@ export function calcularBreathingPoints() {
 
     const silences = uniqueBreaks.length - 2; // sin contar 0 y totalSteps
     console.log(`[breath] ${state.breathingSegments.length} bloques, ${silences} silencios reales detectados`);
-}
-
-/**
- * Toggle del modo heat map desde la toolbar
- * Activa/desactiva visualización, calcula si es necesario
- */
-export function toggleHeatMap() {
-    state.heatMapActive = !state.heatMapActive;
-
-    const btn = document.getElementById('heatMapBtn');
-    if (btn) {
-        btn.classList.toggle('btn-active', state.heatMapActive);
-    }
-
-    // Si activando y no hay datos aún, calcular
-    if (state.heatMapActive && state.heatMapData === null && state.gridData && Object.keys(state.gridData.cells).length > 0) {
-        _refreshHeatMap();
-    }
-
-    // Redibujar con los nuevos datos
-    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
 }
 
 /**

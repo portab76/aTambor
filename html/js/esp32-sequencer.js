@@ -12,7 +12,7 @@
 // ============================================================
 
 import { state } from './state.js';
-import { MOTOR_MAP, NUM_LEDS, ledForNote } from './motor-map.js';
+import { MOTOR_MAP, NUM_LEDS, ledForNote, _mmVelRange } from './motor-map.js';
 import { MS_PER_STEP } from './playback.js';
 
 // Parámetros de golpe (ms) — deben coincidir con los del firmware
@@ -245,15 +245,26 @@ function _buildSequence(motorMap, startStep, endStep) {
                 cmd += `t ${Math.round(restMs)}; v 0;\n`;
             }
 
-            // Velocidad real del golpe: velocity de la nota escalada a rango 1-100
-            const velEsp32 = Math.max(1, Math.min(100, Math.round(ev.velocity / 127 * 100)));
+            // Velocidad real del golpe: la velocity del grid (escala 0-127) ya
+            // viene comprimida al rango del motor desde el import, así que aquí
+            // solo se convierte a escala ESP32 (0-100). NO se impone un suelo:
+            // la velocity del grid manda — a 0, no hay golpe (silencio).
+            // El techo vMax se respeta como protección física del solenoide.
+            const { max: vMax } = _mmVelRange(cfg);
+            const velEsp32 = Math.min(vMax, Math.round(ev.velocity / 127 * 100));
 
             const hitMs  = Math.min(HIT_MS, stepMs - 10);
             const holdMs = Math.max(0, ev.duration * stepMs - hitMs - RETRACT_MS);
 
-            cmd += `t ${hitMs}; v ${velEsp32};\n`;
-            if (holdMs > 0) cmd += `t ${Math.round(holdMs)}; v ${velEsp32};\n`;
-            cmd += `t ${RETRACT_MS}; v 0;\n`;
+            if (velEsp32 <= 0) {
+                // Velocity 0 → la nota no golpea: solo consume su tiempo en silencio.
+                const silentMs = hitMs + holdMs + RETRACT_MS;
+                cmd += `t ${Math.round(silentMs)}; v 0;\n`;
+            } else {
+                cmd += `t ${hitMs}; v ${velEsp32};\n`;
+                if (holdMs > 0) cmd += `t ${Math.round(holdMs)}; v ${velEsp32};\n`;
+                cmd += `t ${RETRACT_MS}; v 0;\n`;
+            }
             cursorMs = startMs + hitMs + holdMs + RETRACT_MS;
         }
 

@@ -9,7 +9,7 @@
 //   - parada tras agotar intentos + botón "Reintentar"
 //   - sendCommand devuelve Promise y la rechaza si el canal está cerrado
 //
-// Requiere DOM mínimo (esp32StatusDot/Label, statusMsg, esp32RetryBtn,
+// Requiere DOM mínimo (esp32StatusDot/Label, esp32RetryBtn,
 // esp32IpInput) que runner.html provee.
 // ============================================================
 
@@ -161,7 +161,7 @@ export async function runTests() {
             state._serialActive = false; state.wsConnected = false;
             initWebSocket();
             _lastWs._fail();   // primer fallo → "Reintentando 1/10…"
-            const msg = document.getElementById('statusMsg').textContent;
+            const msg = document.getElementById('esp32StatusLabel').textContent;
             assert(/Reintentando\s+1\/10/.test(msg), `mensaje inesperado: "${msg}"`);
         } finally {
             closeWebSocket(); restoreWebSocket(); restoreTimers();
@@ -188,7 +188,7 @@ export async function runTests() {
             assertEqual(nextTimerDelay(), null, 'no debe seguir reintentando');
             // El botón Reintentar debe estar visible
             assert(retryBtn.style.display !== 'none', 'el botón Reintentar debe mostrarse');
-            const msg = document.getElementById('statusMsg').textContent;
+            const msg = document.getElementById('esp32StatusLabel').textContent;
             assert(/10 intentos/.test(msg), `mensaje final inesperado: "${msg}"`);
 
             // retryWebSocket() resetea el contador y reintenta (oculta el botón)

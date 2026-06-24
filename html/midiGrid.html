@@ -457,23 +457,6 @@
             max-height: none;
             overflow-y: auto;
         }
-        .motor-map-toggle {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 14px;
-            background: #1a1a30;
-            border-top: 1px solid #33335a;
-            cursor: pointer;
-            font-size: 11px;
-            color: #7777aa;
-            user-select: none;
-            flex-shrink: 0;
-            position: relative;
-            z-index: 1001;
-        }
-        .motor-map-toggle:hover { background: #22223a; color: #aaaacc; }
-
         /* ── Panel de acordes colapsable ── */
         .chord-panel { flex-shrink:0; background:#12122a; border-top:1px solid #2a2a4a; max-height:0; overflow:hidden; transition:max-height .28s ease; }
         .chord-panel.open { max-height:320px; }
@@ -512,17 +495,6 @@
         .cpanel-btn-auto { background:#1a2a4a; border-color:#2a5a8a; color:#aaccff; }
         .cpanel-btn-auto:hover:not(:disabled) { background:#1e3a6a; }
         .cpanel-btn-auto.cpop-auto-on { background:#0d3a7a; border-color:#4488ff; color:#fff; box-shadow:0 0 8px rgba(68,136,255,.5); }
-        .motor-map-panel.open ~ .motor-map-toggle {
-            position: fixed;
-            bottom: 10px;
-            right: 20px;
-            left: auto;
-            top: auto;
-            border: 1px solid #3a3a5a;
-            border-radius: 4px;
-            width: auto;
-            border-top: 1px solid #3a3a5a;
-        }
         .motor-map-inner {
             overflow-y: auto;
             max-height: 200px;
@@ -585,20 +557,6 @@
         .me-tab-btn.me-tab-active {
             color: #aaccff;
             border-bottom-color: #4488ff;
-        }
-
-        /* toggle inferior: cuando el panel está abierto,
-           se fija en esquina inferior derecha (igual que el antiguo) */
-        #motorMapToggle.me-open {
-            position: fixed;
-            bottom: 10px;
-            right: 20px;
-            left: auto;
-            top: auto;
-            border: 1px solid #3a3a5a;
-            border-radius: 4px;
-            width: auto;
-            z-index: 1001;
         }
     </style>
 </head>
@@ -757,8 +715,8 @@
 
     <!-- ── Herramientas ── -->
     <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
-    <button id="heatMapBtn" onclick="toggleHeatMap()" disabled
-            title="Notas de calor: resaltar notas dominantes (Motor de Atención)">Calor</button>
+    <button id="interpretWeightsBtn" onclick="toggleInterpretWeights()"
+            title="Interpretar: pinta las notas por relevancia (azul=relleno → rojo=clave) y ajusta la firma expresiva. Aplica los cambios al grid desde el panel.">🎵 Interpretar</button>
     <button id="velLaneBtn" onclick="toggleVelocityLane()"
             title="Mostrar/ocultar carril de velocidades">Vel.</button>
 <button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
@@ -811,14 +769,10 @@
 
 </div>
 
-<!-- ── Estado fijo: esquina inferior derecha ── -->
+<!-- ── Buffer de streaming: esquina inferior derecha ── -->
 <div id="statusBar" style="position:fixed;bottom:8px;right:12px;text-align:right;
      pointer-events:none;z-index:9000;line-height:1.5;">
-    <div id="motorMapSummaryBar" style="font-size:11px;color:#6666aa;"></div>
-    <div style="display:flex;align-items:baseline;gap:10px;justify-content:flex-end;">
-        <span id="streamingBuffer" style="font-size:11px;font-family:monospace;display:none;"></span>
-        <div id="statusMsg" style="font-size:10px;color:#3d3d5a;">Esperando MIDI...</div>
-    </div>
+    <span id="streamingBuffer" style="font-size:11px;font-family:monospace;display:none;"></span>
 </div>
 
 <!-- ══ Modal de Ayuda ══ -->
@@ -1177,6 +1131,25 @@
 }
 .menu-btn:hover:not(:disabled) { background:var(--c-control-h);color:var(--c-text); }
 .menu-btn:disabled { opacity:.38;cursor:default; }
+.iw-desc {
+    font-size:9px;color:var(--c-text3);line-height:1.35;
+    margin:0 0 8px;padding-left:2px;opacity:.85;
+}
+.iw-step {
+    font-size:11px;font-weight:700;color:var(--c-text2);
+    letter-spacing:.3px;margin:14px 0 2px;
+    border-top:1px solid var(--c-border2);padding-top:10px;
+}
+.iw-step:first-of-type { border-top:none;padding-top:0;margin-top:4px; }
+.iw-guide {
+    font-size:9px;color:var(--c-text3);line-height:1.35;
+    margin:0 0 8px;padding-left:2px;font-style:italic;opacity:.9;
+}
+.iw-sub {
+    font-size:9px;color:var(--c-group);letter-spacing:.4px;
+    text-transform:uppercase;margin:8px 0 4px;
+}
+#interpretApplyBtn:hover { background:#ffa055; }
 </style>
 
 <!-- toggleAppMenu / closeAppMenu / toggleMotorEscalaPanel ahora viven en js/midiGrid.js -->
@@ -1303,16 +1276,110 @@
         </div>
     </div>
 
-    <!-- Toggle inferior — abre el panel unificado -->
-    <div class="motor-map-toggle" id="motorMapToggle" onclick="toggleMotorEscalaPanel()">
-        <span class="mm-arrow">▲</span>
-        <span>Motor Map / Escala — MIDI note → ESP32 motor</span>
-        <span style="margin-left:auto;font-size:10px;color:#555;" id="motorMapSummary"></span>
-    </div>
 
 </div><!-- /.content -->
 
 <!-- ══ Panel unificado Motor Map + Escala (overlay fijo) ══ -->
+<!-- ── Panel de pesos de interpretación (Fase 5) ── -->
+<div id="interpretWeightsPanel" style="display:none;position:fixed;top:56px;right:12px;
+     z-index:1100;background:var(--c-deep);border:1px solid var(--c-border);border-radius:8px;
+     padding:12px 14px;width:280px;max-height:calc(100vh - 72px);overflow-y:auto;
+     font-family:'Segoe UI',monospace;font-size:12px;
+     color:var(--c-text2);box-shadow:0 8px 24px rgba(0,0,0,.5);">
+    <div style="display:flex;align-items:center;margin-bottom:4px;">
+        <span style="font-size:11px;color:var(--c-label);letter-spacing:.5px;text-transform:uppercase;">Firma expresiva</span>
+        <div style="flex:1;"></div>
+        <button onclick="toggleInterpretWeights()"
+                style="background:none;border:none;color:var(--c-text3);font-size:15px;cursor:pointer;padding:0 4px;line-height:1;">✕</button>
+    </div>
+
+    <div class="iw-step">PASO 1 · ¿Qué notas importan?</div>
+    <div class="iw-guide">Cuánto pesa cada criterio. Colorea el grid (azul = relleno → rojo = clave).</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Atención</span>
+        <input type="range" min="0" max="1" step="0.02" id="wHeat" oninput="onWeightSlider('heat',this)" style="flex:1;accent-color:#ff8844;">
+        <span id="wHeatVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Peso de las notas dominantes (las más oídas).</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Acorde</span>
+        <input type="range" min="0" max="1" step="0.02" id="wChord" oninput="onWeightSlider('chord',this)" style="flex:1;accent-color:#ff8844;">
+        <span id="wChordVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Peso de las notas del acorde frente a las de paso.</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Voz</span>
+        <input type="range" min="0" max="1" step="0.02" id="wVoice" oninput="onWeightSlider('voice',this)" style="flex:1;accent-color:#ff8844;">
+        <span id="wVoiceVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Peso de la melodía principal (la voz más aguda).</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Cadencia</span>
+        <input type="range" min="0" max="1" step="0.02" id="wCadence" oninput="onWeightSlider('cadence',this)" style="flex:1;accent-color:#ff8844;">
+        <span id="wCadenceVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Peso de los finales de frase y cierres (cadencias).</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Respiración</span>
+        <input type="range" min="0" max="1" step="0.02" id="wBreath" oninput="onWeightSlider('breath',this)" style="flex:1;accent-color:#ff8844;">
+        <span id="wBreathVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Peso de la primera nota tras un silencio.</div>
+
+    <div class="iw-step">PASO 2 · ¿Qué hacer con ellas?</div>
+    <div class="iw-guide">Cómo se traduce la importancia en expresión. Solo se nota al pulsar «Aplicar».</div>
+    <div class="iw-sub">Dinámica (×velocity)</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Suave</span>
+        <input type="range" min="0.3" max="1" step="0.02" id="rDynFloor" oninput="onRangeSlider('dynFloor',this)" style="flex:1;accent-color:#4488ff;">
+        <span id="rDynFloorVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Volumen del relleno. 1.0 = sin cambio; menos = más flojo.</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Fuerte</span>
+        <input type="range" min="1" max="1.6" step="0.02" id="rDynCeil" oninput="onRangeSlider('dynCeil',this)" style="flex:1;accent-color:#4488ff;">
+        <span id="rDynCeilVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Volumen de las notas clave. 1.0 = sin cambio; más = más fuerte.</div>
+
+    <div class="iw-sub">Articulación (×duración)</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Staccato</span>
+        <input type="range" min="0.3" max="1" step="0.02" id="rArtFloor" oninput="onRangeSlider('artFloor',this)" style="flex:1;accent-color:#44cc88;">
+        <span id="rArtFloorVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Duración del relleno. 1.0 = sin cambio; menos = más corto.</div>
+    <label style="display:flex;align-items:center;gap:6px;margin:3px 0;">
+        <span style="width:72px;color:var(--c-text3);">Legato</span>
+        <input type="range" min="1" max="2" step="0.02" id="rArtCeil" oninput="onRangeSlider('artCeil',this)" style="flex:1;accent-color:#44cc88;">
+        <span id="rArtCeilVal" style="width:30px;text-align:right;color:var(--c-text3);"></span>
+    </label>
+    <div class="iw-desc">Duración de las notas clave. 1.0 = sin cambio; más = más largo.</div>
+
+    <div style="display:flex;gap:6px;margin:12px 0 4px;">
+        <button id="interpretApplyBtn" onclick="applyInterpretFromPanel(this)"
+                title="Aplica la interpretación al grid: reescribe velocity y duración de cada nota según los pesos. Ctrl+Z para revertir."
+                style="flex:1;padding:7px 8px;font-size:12px;font-weight:600;
+                       border-radius:5px;border:1px solid #b5651d;background:#ff8844;color:#1a1a2e;cursor:pointer;">
+            🎵 Aplicar cambios
+        </button>
+        <button id="interpretResetBtn" onclick="resetInterpretWeights(this)"
+                title="Vuelve todos los sliders a sus valores por defecto."
+                style="flex-shrink:0;padding:7px 12px;font-size:12px;
+                       border-radius:5px;border:1px solid var(--c-border);background:var(--c-control);color:var(--c-text2);cursor:pointer;">
+            ↺ Resetear
+        </button>
+    </div>
+    <!-- ── Leyenda de colores del grid (referencia del Paso 1) ── -->
+    <div class="iw-sub" style="margin-top:14px;">Color de cada nota = su importancia</div>
+    <div style="height:12px;border-radius:3px;border:1px solid var(--c-border2);
+                background:linear-gradient(to right,
+                    rgb(15,30,120), rgb(10,130,140), rgb(60,200,50), rgb(255,140,0), rgb(255,30,0));"></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--c-text3);margin:2px 0 6px;">
+        <span>Relleno</span><span>Media</span><span>Clave</span>
+    </div>
+</div>
+
 <div id="motorEscalaPanel" style="position:fixed;top:56px;left:0;right:0;bottom:0;
      z-index:1000;background:var(--c-deep);border-top:2px solid #33335a;
      flex-direction:column;font-family:'Segoe UI',monospace;font-size:12px;color:#ddd;">
@@ -1357,22 +1424,8 @@
                             <input type="checkbox" id="motorOnlyCheckbox" style="cursor:pointer;accent-color:#6666cc;">
                             Solo motores
                         </label>
-                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
-                                       white-space:nowrap;border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;background:#1a1a2e;"
-                               title="Velocidad mínima al importar MIDI (1-127).">
-                            Vel. mín:
-                            <input type="number" id="midiImportMinVel" min="1" max="127" value="35"
-                                   style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
-                                          border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
-                        </label>
-                        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
-                                       white-space:nowrap;border:1px solid #3a3a5a;border-radius:4px;padding:2px 7px;background:#1a1a2e;"
-                               title="Velocidad máxima al importar MIDI (1-127).">
-                            Vel. máx:
-                            <input type="number" id="midiImportMaxVel" min="1" max="127" value="40"
-                                   style="width:42px;background:#0e0e1e;color:#ffcc44;border:1px solid #3a3a5a;
-                                          border-radius:3px;padding:1px 4px;font-size:11px;text-align:center;">
-                        </label>
+                        <!-- Vel. mín/máx global eliminados: el rango de fuerza ahora es
+                             por motor (velMin/velMax en MOTOR_MAP, editable en el panel Motor). -->
                     </div>
                 </div>
             </div>
@@ -1390,7 +1443,10 @@
                     <thead>
                         <tr>
                             <th>MIDI</th><th>Nota</th><th>Motor</th>
-                            <th>HomePWM</th><th>PCA/ch</th>
+                            <th>HomePWM</th>
+                            <th title="Fuerza MÍNIMA del golpe para este motor (1-100)">Vmín</th>
+                            <th title="Fuerza MÁXIMA del golpe para este motor (1-100)">Vmáx</th>
+                            <th>PCA/ch</th>
                             <th title="Silenciar motor y nota">Mute</th>
                             <th title="Tecla del teclado asignada a este motor">Key</th>
                         </tr>

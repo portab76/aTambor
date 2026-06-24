@@ -8,7 +8,6 @@ import { state } from './state.js';
 import { _applyProjectData } from './persistence.js';
 import { tabNew, tabMarkFileLoaded } from './tabs.js';
 import { closeAppMenu } from './app-menu.js';
-import { statusSpan } from './dom-refs.js';
 
 const _RF_KEY = 'aTambor_recentFiles';
 const _RF_MAX = 10;
@@ -92,7 +91,6 @@ export function recentFilesLoad(idx) {
 
     _applyProjectData(entry.content);
     tabMarkFileLoaded(entry.name);
-    statusSpan.innerText = `"${entry.name}" cargado desde historial.`;
 
     // Refrescar timestamp en la lista
     list.splice(idx, 1);

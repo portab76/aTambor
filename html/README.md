@@ -25,6 +25,7 @@ El audio interno (MIDI.js + SoundFont) sirve de monitorización; el hardware rep
 - **Entrada.** Importación de archivos `.mid`/`.midi` (parser jasmid) y de texto **MML** (Music Macro Language). Carga/guardado de proyectos en JSON e historial de recientes en `localStorage`.
 - **Análisis armónico en tiempo real.** Detección de tonalidad por correlación **Krumhansl-Kessler**, reconocimiento de acordes con **Tonal.js**, fusión por tiempo y **detección de cadencias** (auténtica V→I, plagal IV→I, rota V→vi, semicadencia I→V) para segmentar en frases. Se ejecuta en un **Web Worker** para no bloquear la interfaz con archivos grandes.
 - **Mapa de Atención (heat map).** Coloreado del grid por importancia estructural de cada nota.
+- **Interpretación expresiva (🎵 Interpretar).** Panel «Firma expresiva» que *escucha antes de tocar*: fusiona cinco señales que la app ya calcula — atención (heat), pertenencia al acorde, rol de voz (melodía/bajo/voces internas), cadencia y respiración — en un único *score de relevancia* por nota (0–1). El **Paso 1** ajusta con sliders cuánto pesa cada criterio y pinta el grid de azul (relleno) a rojo (clave) como vista previa; el **Paso 2** traduce esa relevancia en **dinámica** (×velocity) y **articulación** (×duración) entre un suelo y un techo configurables. **Aplicar cambios** reescribe el grid de forma destructiva pero reversible con Undo, respetando el rango de velocity del motor asignado a cada nota; **Resetear** devuelve los sliders a sus valores por defecto.
 - **Compresión a motores (🤖 Comprimir).** Casilla en la toolbar (junto a *Mostrar*) que, al construir el grid de un canal, remapea cada nota a la nota física más cercana disponible en el Motor Map — concentrando la pieza en las teclas que el robot puede tocar. La octava destino se pondera con el heat map (o cae a una octava por defecto si no hay análisis). Se habilita al cargar un MIDI con canales y se resetea con cada archivo nuevo.
 - **Control de hardware ESP32.** Dos transportes: **WebSocket** sobre WiFi (`ws://IP:81`) y **USB Serial** (Web Serial API). Streaming de secuencias en bloques `APPEND`, sincronización por beats, reconexión con backoff exponencial.
 - **Exportación `.mid` real.** Genera un archivo MIDI Tipo 1 binario estándar (no JSON) con mapa de tempo, compás y la transposición activa, compatible con cualquier DAW.
@@ -55,6 +56,10 @@ La **lógica pura** del algoritmo (segmentación temporal, Krumhansl-Kessler, re
 ### Chord row y heat map (`chord-row.js`, `heat.js`, `active-notes-panel.js`)
 
 `chord-row.js` dibuja la fila de acordes sincronizada con el grid en cuatro niveles (pasos / acordes / frases / respiración), el popup de información de acorde y el auto-avance segmento a segmento. `heat.js` calcula el "Motor de Atención" (puntuación de dominancia por nota), los segmentos de respiración y `calcularOctavaDesdeHeat()` (octava central ponderada por el heat score). `active-notes-panel.js` es el panel flotante de notas únicas presentes.
+
+### Interpretación expresiva (`interpretation.js`, `voicing.js`)
+
+`voicing.js` clasifica cada nota del grid por **rol de voz** (`melody` / `bass` / `inner`) y cachea el resultado. `interpretation.js` es la **capa de interpretación** ("escuchar antes de tocar"): `buildInterpretation()` recorre el heat map y, por cada celda, fusiona cinco señales con pesos configurables (`WEIGHTS`: atención, acorde, voz, cadencia, respiración) en un score de relevancia `[0,1]`, cacheado e invalidado con `invalidate()`. Las entradas — heat (`heat.js`), segmentos fusionados y frases (`harmonic-core.js`), respiración y rol de voz — ya las produce el resto de la app; el módulo solo las combina, sin recalcular nada. `applyInterpretationToGrid({dynamics, articulation})` traduce esa relevancia en factores multiplicativos sobre la **velocity** (clampada al rango del motor de cada nota vía `MOTOR_MAP`) y la **duración** (topada al siguiente golpe de la misma altura para no solapar el servo); es destructivo y reversible con Undo. `refreshInterpretPreview()` vuelca la relevancia en `state.interpretPreviewData` para que `piano-roll.js` la pinte como vista previa (azul → rojo), y `setWeight()` / `setRange()` / `resetWeightsAndRanges()` cablean los sliders del panel «Firma expresiva».
 
 ### Compresión a motores (`octave-compressor.js`)
 
@@ -165,6 +170,8 @@ PianoRoll/
 │   ├── heat.js                # Motor de Atención (heat map), respiración y octava ponderada
 │   ├── octave-compressor.js   # Remapeo de notas a las teclas físicas del Motor Map (🤖 Comprimir)
 │   ├── active-notes-panel.js  # Panel flotante de notas activas
+│   ├── voicing.js             # Clasificación de rol de voz por nota (melody/bass/inner)
+│   ├── interpretation.js      # Interpretación expresiva: fusiona señales → velocity/duración (🎵 Interpretar)
 │   │
 │   ├── playback.js            # Motor de reproducción: AudioContext scheduler (lookahead 100 ms)
 │   │

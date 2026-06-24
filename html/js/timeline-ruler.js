@@ -9,7 +9,6 @@ import { state } from './state.js';
 import { drawMinimap } from './minimap.js';
 import { _bpmAtStep, seekToStep } from './playback.js';
 import { _updateFragmentButtons } from './editor.js';
-import { statusSpan } from './dom-refs.js';
 
 const SECTION_H = 16;             // franja de marcadores de sección (parte superior)
 const RULER_H   = 34 + SECTION_H; // altura total del canvas de regla en px
@@ -266,9 +265,6 @@ export function toggleTempoEditMode() {
         btn.textContent = tempoEditMode ? '♩ Editando' : '♩ Tempo';
     }
     drawTimelineRuler();
-    statusSpan.innerText = tempoEditMode
-        ? 'Tempo: clic para añadir/editar · arrastra para mover · clic derecho para borrar'
-        : 'Modo edición de tempo desactivado';
 }
 
 export function initRulerSeek() {
@@ -543,7 +539,6 @@ export function toggleLoopAB() {
         _abNextClick = 'A';
     }
     _updateAbBtn();
-    statusSpan.innerText = state.loopAB ? 'Loop A-B: clic en regla para marcar inicio (A)' : 'Loop A-B desactivado';
 }
 
 /**

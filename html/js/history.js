@@ -7,7 +7,6 @@
 import { state } from './state.js';
 import { drawPianoRollWithPlayhead, drawNoteLabels } from './piano-roll.js';
 import { drawTimelineRuler } from './timeline-ruler.js';
-import { _refreshHeatMap } from './heat.js';
 import { tabMarkDirty } from './tabs.js';
 import { getMotorMapSnapshot, restoreMotorMap } from './motor-map.js';
 
@@ -42,7 +41,6 @@ function _historyApply(snap) {
     drawPianoRollWithPlayhead(state.pasoActual !== undefined ? state.pasoActual : -1);
     drawNoteLabels();
     drawTimelineRuler();
-    if (state.heatMapActive) _refreshHeatMap();
     tabMarkDirty();
 }
 

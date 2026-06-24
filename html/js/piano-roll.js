@@ -4,12 +4,12 @@
 // ============================================================
 
 import { state } from './state.js';
-import { canvas, ctx, statusSpan, playBtn } from './dom-refs.js';
+import { canvas, ctx, playBtn } from './dom-refs.js';
 import { drawVelocityLane } from './velocity-lane.js';
 import { drawMinimap } from './minimap.js';
 import { drawTimelineRuler } from './timeline-ruler.js';
 import { drawChordRow } from './chord-row.js';
-import { motorForNote } from './motor-map.js';
+import { motorForNote, _mmVelRange, MOTOR_MAP } from './motor-map.js';
 import { sendCommand } from './ws-connector.js';
 import { historyClear } from './history.js';
 import { tabMarkFileLoaded } from './tabs.js';
@@ -125,16 +125,36 @@ export function buildGridFromChannel(channel) {
     state.noteRows = [];
     for (let n = minNote; n <= maxNote; n++) state.noteRows.push(n);
 
-    // Convertir notas a celdas del grid
-    const _minVel = parseInt(document.getElementById('midiImportMinVel')?.value) || 1;
-    const _maxVel = parseInt(document.getElementById('midiImportMaxVel')?.value) || 40;
+    // Convertir notas a celdas del grid.
+    // La velocity de cada nota se comprime al rango [velMin, velMax] del MOTOR
+    // que la toca (autoridad por motor, no global). El rango del motor está en
+    // escala ESP32 (1-100); aquí lo expresamos en 0-127, que es la escala del
+    // grid (el sequencer la reconvierte a 1-100 al reproducir).
+    // Notas sin motor asignado → rango completo 0-127 sin comprimir.
     state.gridData = { cells: {} };
     for (const n of notesList) {
         const startStep = Math.floor(n.tickOn / state.ticksPerStep);
         const endStep   = Math.floor((n.tickOff - 1) / state.ticksPerStep);
         const duration  = endStep - startStep + 1;
         if (duration <= 0) continue;
-        const velocity = Math.max(_minVel, Math.round(n.velocity / 127 * _maxVel));
+
+        // Buscar el motor por la nota ABSOLUTA del grid (sin aplicar
+        // transposeOffset: el offset es una transformación de runtime sobre un
+        // grid ya construido, no afecta a cómo se lee el archivo). Usar
+        // motorForNote aquí restaría un offset residual de una sesión previa y
+        // dejaría notas válidas (p.ej. G2) sin motor → velocity cruda. Por eso
+        // se busca directamente en MOTOR_MAP por m.note === n.note.
+        const cfg = MOTOR_MAP.find(m => m.note === n.note) ?? null;
+        let velocity;
+        if (cfg) {
+            const { min, max } = _mmVelRange(cfg);   // escala ESP32 1-100
+            const lo = Math.round(min / 100 * 127);  // → escala grid 0-127
+            const hi = Math.round(max / 100 * 127);
+            const t  = Math.max(0, Math.min(1, n.velocity / 127));
+            velocity = Math.round(lo + (hi - lo) * t);
+        } else {
+            velocity = n.velocity;                   // sin motor: velocity cruda
+        }
         const key = `${n.note},${startStep}`;
         // Colisión: dos notas distintas (p.ej. tras comprimir a motores) caen en
         // el mismo motor y step. En vez de sobrescribir silenciosamente (la última
@@ -552,7 +572,6 @@ export function _doLoadBlankGrid(measures) {
     _enableMeasureButtons();
     const abBtn = document.getElementById('abLoopBtn');
     if (abBtn) abBtn.disabled = false;
-    statusSpan.innerText = `Grid vacío · ${motorNotes.length} notas · ${measures} compás${measures > 1 ? 'es' : ''} · ${bpm} BPM`;
 
     // Actualizar nombre del tab
     tabMarkFileLoaded(`Sin título · ${measures} comp.`);
@@ -627,7 +646,6 @@ export function addMeasures(n) {
     canvas.style.width = `${canvas.width}px`;
     drawPianoRoll();
     drawTimelineRuler();
-    statusSpan.innerText = `${Math.round(state.totalSteps / state.currentTimeSig.stepsPerMeasure)} compases`;
 }
 
 export function removeMeasures(n) {
@@ -635,7 +653,7 @@ export function removeMeasures(n) {
     const m       = n || _phraseMeasures();
     const spm     = state.currentTimeSig.stepsPerMeasure;
     const cutStep = state.totalSteps - m * spm;
-    if (cutStep < spm) { statusSpan.innerText = 'Mínimo 1 compás'; return; }
+    if (cutStep < spm) return;   // no eliminar por debajo de 1 compás
 
     // Avisar si hay notas en los compases a eliminar
     const hasNotes = Object.keys(state.gridData.cells).some(k => parseInt(k.split(',')[1]) >= cutStep);
@@ -653,7 +671,6 @@ export function removeMeasures(n) {
     canvas.style.width = `${canvas.width}px`;
     drawPianoRoll();
     drawTimelineRuler();
-    statusSpan.innerText = `${Math.round(state.totalSteps / spm)} compases`;
 }
 
 // --- Función interna de dibujo de notas ---
@@ -698,22 +715,6 @@ function _heatColor(heat, or, og, ob, bright) {
     ];
 }
 
-/**
- * Dibuja un marcador de calor (punto brillante) sobre una nota dominante
- */
-function _drawHeatSymbol(ctx, x, y, w, h, heat) {
-    ctx.save();
-    // Punto blanco-amarillento, tamaño proporcional al heat
-    const r = Math.min(3, Math.max(1.5, heat * 4));
-    const cx = x + r + 2;   // Posición en extremo izquierdo de la nota
-    const cy = y + h / 2;   // Centrado verticalmente
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 200, ${0.5 + heat * 0.5})`;
-    ctx.fill();
-    ctx.restore();
-}
-
 function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
     const selCells = getSelCells();
     const [firstRow, lastRow] = _visibleRowRange();
@@ -749,14 +750,13 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
             ctx.fillStyle   = `rgb(${hr},${hg},${hb})`;
             ctx.strokeStyle = 'gold';
             ctx.lineWidth   = 2;
-        } else if (state.heatMapActive && state.heatMapData) {
-            // Modo heat map: interpolar frío-caliente según score de dominancia
-            const heat       = state.heatMapData.get(key) ?? 0.5;
-            const [fr, fg, fb] = _heatColor(heat, or, og, ob, bright);
+        } else if (state.interpretPreviewActive && state.interpretPreviewData) {
+            // Vista previa de interpretación (Fase 5): color por relevance fusionada
+            const rel        = state.interpretPreviewData.get(key) ?? 0.5;
+            const [fr, fg, fb] = _heatColor(rel, or, og, ob, bright);
             ctx.fillStyle    = `rgb(${fr},${fg},${fb})`;
-            // Borde más grueso y coloreado para notas muy calientes
-            ctx.strokeStyle  = heat > 0.75 ? 'rgba(255,60,0,0.9)' : 'rgba(0,0,0,0.35)';
-            ctx.lineWidth    = heat > 0.75 ? 1.5 : 0.5;
+            ctx.strokeStyle  = rel > 0.75 ? 'rgba(255,60,0,0.9)' : 'rgba(0,0,0,0.35)';
+            ctx.lineWidth    = rel > 0.75 ? 1.5 : 0.5;
         } else {
             // Modo normal: color por octava + brillo por velocity
             const r = Math.round(or * bright);
@@ -800,11 +800,18 @@ function _drawNotes(highlightClasses, hlStartStep = null, hlEndStep = null) {
             ctx.restore();
         }
 
-        // Dibuja símbolo de calor sobre notas muy dominantes
-        if (state.heatMapActive && state.heatMapData && w >= 8) {
-            const heat = state.heatMapData.get(key) ?? 0;
-            if (heat > 0.80) _drawHeatSymbol(ctx, x, y, w, h, heat);
+        // Glow de edición de velocidad: la(s) celda(s) del paso que el usuario
+        // está editando en el carril. Si hay fragmento activo, solo sus clases.
+        if (state.velEditStep === step && (!highlightClasses || (highlightClasses.includes(note % 12) && inRange))) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(255,220,0,0.9)';
+            ctx.shadowBlur  = 12;
+            ctx.strokeStyle = 'rgba(255,220,0,0.95)';
+            ctx.lineWidth   = 2;
+            ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+            ctx.restore();
         }
+
     }
     ctx.lineWidth = 0.5;
 }
