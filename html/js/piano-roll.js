@@ -130,7 +130,9 @@ export function buildGridFromChannel(channel) {
     // que la toca (autoridad por motor, no global). El rango del motor está en
     // escala ESP32 (1-100); aquí lo expresamos en 0-127, que es la escala del
     // grid (el sequencer la reconvierte a 1-100 al reproducir).
-    // Notas sin motor asignado → rango completo 0-127 sin comprimir.
+    // Notas sin motor asignado → rango por defecto [VEL_MIN_DEFAULT, VEL_MAX_DEFAULT],
+    // que es lo que devuelve _mmVelRange(null); así ninguna velocity importada
+    // sobrepasa los umbrales aunque la nota no tenga motor.
     state.gridData = { cells: {} };
     for (const n of notesList) {
         const startStep = Math.floor(n.tickOn / state.ticksPerStep);
@@ -144,17 +146,15 @@ export function buildGridFromChannel(channel) {
         // motorForNote aquí restaría un offset residual de una sesión previa y
         // dejaría notas válidas (p.ej. G2) sin motor → velocity cruda. Por eso
         // se busca directamente en MOTOR_MAP por m.note === n.note.
+        // _mmVelRange(null) cae a [VEL_MIN_DEFAULT, VEL_MAX_DEFAULT], de modo que
+        // las notas sin motor se comprimen al rango por defecto en vez de quedar
+        // con la velocity cruda del MIDI (que podía superar los umbrales).
         const cfg = MOTOR_MAP.find(m => m.note === n.note) ?? null;
-        let velocity;
-        if (cfg) {
-            const { min, max } = _mmVelRange(cfg);   // escala ESP32 1-100
-            const lo = Math.round(min / 100 * 127);  // → escala grid 0-127
-            const hi = Math.round(max / 100 * 127);
-            const t  = Math.max(0, Math.min(1, n.velocity / 127));
-            velocity = Math.round(lo + (hi - lo) * t);
-        } else {
-            velocity = n.velocity;                   // sin motor: velocity cruda
-        }
+        const { min, max } = _mmVelRange(cfg);   // escala ESP32 1-100
+        const lo = Math.round(min / 100 * 127);  // → escala grid 0-127
+        const hi = Math.round(max / 100 * 127);
+        const t  = Math.max(0, Math.min(1, n.velocity / 127));
+        const velocity = Math.round(lo + (hi - lo) * t);
         const key = `${n.note},${startStep}`;
         // Colisión: dos notas distintas (p.ej. tras comprimir a motores) caen en
         // el mismo motor y step. En vez de sobrescribir silenciosamente (la última

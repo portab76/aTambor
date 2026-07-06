@@ -11,7 +11,8 @@ import { drawPianoRollWithPlayhead } from './piano-roll.js';
 import { drawVelocityLane } from './velocity-lane.js';
 import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
 import { tabMarkDirty } from './tabs.js';
-import { motorForNote, _mmSaveToStorage, _renderMotorMapPanelRows, _renderMotorMapRows } from './motor-map.js';
+import { motorForNote, _mmSaveToStorage, _renderMotorMapPanelRows, _renderMotorMapRows,
+         velGridToEsp32, velEsp32ToGrid, velMaxGridForNote } from './motor-map.js';
 import { canvas } from './dom-refs.js';
 import { performHarmonicAnalysisFromGrid } from './harmonic.js';
 import { drawChordRow } from './chord-row.js';
@@ -139,7 +140,8 @@ function editVelocity(step, note) {
     const key = `${note},${step}`;
     if (!state.gridData.cells[key]) return;
 
-    const cur = state.gridData.cells[key].velocity;
+    // Mostrar en escala ESP32 (1-100), la misma del Motor Map. El grid guarda 0-127.
+    const cur = velGridToEsp32(state.gridData.cells[key].velocity);
 
     // Tooltip inline: pequeño input flotante sobre el canvas, evita bloquear el hilo
     const existing = document.getElementById('_velTooltip');
@@ -162,7 +164,7 @@ function editVelocity(step, note) {
         fontSize: '12px', color: '#ddeeff', boxShadow: '0 2px 8px #0008'
     });
     tip.innerHTML = `<span style="opacity:.7">vel</span>
-        <input id="_velInput" type="number" min="0" max="127" value="${cur}"
+        <input id="_velInput" type="number" min="0" max="100" value="${cur}"
                style="width:52px;background:#0e0e1e;color:#ddeeff;border:1px solid #3a3a5a;
                       border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;">
         <span style="opacity:.5;font-size:10px">↵</span>`;
@@ -182,10 +184,13 @@ function editVelocity(step, note) {
     };
 
     const commit = () => {
-        const val = parseInt(input.value);
+        const val = parseInt(input.value);   // el usuario teclea en escala ESP32 1-100
         if (!isNaN(val)) {
             historyPush();
-            state.gridData.cells[key].velocity = Math.min(127, Math.max(0, val));
+            // Convertir a escala grid y acotar al velMax del motor de esta nota,
+            // para no rebasar el límite físico del solenoide.
+            const vGrid = velEsp32ToGrid(val);
+            state.gridData.cells[key].velocity = Math.min(vGrid, velMaxGridForNote(note));
             drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
             drawVelocityLane();   // no-op interno si el carril está oculto (velLaneActive)
         }

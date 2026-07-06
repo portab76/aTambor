@@ -62,12 +62,12 @@ export function ledForNote(midiNote) {
 // Solo motores físicos (solenoides). Sin campo 'led' — se calcula con ledForNote(note).
 // VEL_MIN_DEFAULT / VEL_MAX_DEFAULT: rango de fuerza por defecto (escala ESP32 1-100)
 // que toma un motor que aún no tiene velMin/velMax propios.
-export const VEL_MIN_DEFAULT = 30;
-export const VEL_MAX_DEFAULT = 40;
+export const VEL_MIN_DEFAULT = 20;
+export const VEL_MAX_DEFAULT =  40;
 
 export let MOTOR_MAP = [
 
-  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a', velMin: 20, velMax: 30 },
+  { note: _midiNote('A',   1), name: 'A1',  motor:  12, homePwm: 375, muted: false, key: 'a', velMin: 15, velMax: 25 },
   { note: _midiNote('B',   1), name: 'B1',  motor:  13, homePwm: 375, muted: false, key: 's', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
 
     // Octava 2 (C2–B2): motores 0–11
@@ -78,8 +78,8 @@ export let MOTOR_MAP = [
   { note: _midiNote('E',   2), name: 'E2',  motor:  2, homePwm: 375, muted: false, key: 'g', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
   { note: _midiNote('F',   2), name: 'F2',  motor:  3, homePwm: 375, muted: false, key: 'h', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
   { note: _midiNote('F#',  2), name: 'F#2', motor:  7, homePwm: 375, muted: false, key: 'u', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
-  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false, key: 'j', velMin: 20, velMax: 30 },
-  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false, key: 'i', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
+  { note: _midiNote('G',   2), name: 'G2',  motor:  4, homePwm: 375, muted: false, key: 'j', velMin: 15, velMax: 25 },
+  { note: _midiNote('G#',  2), name: 'G#2', motor:  8, homePwm: 375, muted: false, key: 'i', velMin: 15, velMax: 25 },
   { note: _midiNote('A',   2), name: 'A2',  motor:  5, homePwm: 375, muted: false, key: 'k', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
   { note: _midiNote('A#',  2), name: 'A#2', motor:  9, homePwm: 375, muted: false, key: 'o', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
   { note: _midiNote('B',   2), name: 'B2',  motor:  6, homePwm: 375, muted: false, key: 'l', velMin: VEL_MIN_DEFAULT, velMax: VEL_MAX_DEFAULT },
@@ -762,6 +762,35 @@ export function _mmVelRange(entry) {
 export function _mmMidVel(entry) {
     const { min, max } = _mmVelRange(entry);
     return Math.round((min + max) / 2);
+}
+
+// ── Conversión de escalas grid ↔ ESP32 ───────────────────────
+// El grid guarda la velocity en escala MIDI 0-127 (estándar, lo que usan export,
+// heat, interpretación…). Los motores y el Motor Map razonan en escala ESP32
+// 1-100. Estos helpers convierten SOLO para presentación al usuario, para que
+// el panel de velocidad y el Ctrl+Click muestren la misma escala que VEL_*_DEFAULT.
+
+/** Velocity de grid (0-127) → escala ESP32 (1-100) para mostrar. */
+export function velGridToEsp32(vGrid) {
+    return Math.round(Math.max(0, Math.min(127, vGrid)) / 127 * 100);
+}
+
+/** Escala ESP32 (1-100) introducida por el usuario → velocity de grid (0-127). */
+export function velEsp32ToGrid(vEsp32) {
+    return Math.round(Math.max(0, Math.min(100, vEsp32)) / 100 * 127);
+}
+
+/**
+ * Techo de velocity en escala grid (0-127) para una nota del grid, según el
+ * velMax del motor que REALMENTE la toca (aplicando transposeOffset, como el
+ * sequencer). Si la nota no cae en ningún motor, usa VEL_MAX_DEFAULT. Es el
+ * límite físico: ninguna edición de velocity debe superarlo o se fuerza el
+ * solenoide. Convierte velMax de escala ESP32 (1-100) a grid (0-127).
+ */
+export function velMaxGridForNote(midiNote) {
+    const cfg = motorForNote(midiNote);   // motor destino (respeta el offset)
+    const { max } = _mmVelRange(cfg);     // _mmVelRange(null) → VEL_MAX_DEFAULT
+    return Math.round(max / 100 * 127);
 }
 
 // Envía NoteOn: establece home, luego N motor vel (fuerza media del rango del motor)

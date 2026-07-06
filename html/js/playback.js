@@ -33,6 +33,8 @@ function _emitStep(step)     { playbackCallbacks.onStepChange?.(step); }
 let _playInterval    = null;   // handle del setInterval de UI (playhead, chords)
 let _playStartOffset = 0;      // paso desde el que arrancó play() — para loop y sync ESP32
 let _pendingTimers   = [];     // handles de setTimeout activos — se cancelan en stop()
+let _waitingEsp32Ack = false;  // true entre enviar la secuencia y recibir 'playing' del ESP32
+let _esp32AckTimer   = null;   // timeout de seguridad de la espera del ACK
 
 // ── AudioContext scheduler (timing sample-accurate) ───────────────────────────
 // El audio se agenda con lookahead de 100ms usando AudioContext.currentTime,
@@ -199,6 +201,7 @@ export function play() {
         return;
     }
     if (state.reproduciendo) return;
+    if (_waitingEsp32Ack) return;   // ya hay un play esperando el ACK del ESP32
 
     if (!state.soundfontLoaded) {
         _emitStatus("⚠ SoundFont no cargado aún. Espera unos segundos.");
@@ -223,14 +226,56 @@ export function play() {
         console.log(`[seq] ${abActive ? `A-B [${state.loopA},${state.loopB})` : state.pasoActual > 0 ? `desde paso ${state.pasoActual}` : 'full'} · ${seq?.length ?? 0}B`);
 
         if (!seq) {
+            // Sin secuencia para el ESP32 → arrancar el audio sin esperar ACK.
             console.warn('[play] Sin notas mapeadas a motores — se omite PLAY al ESP32');
+            _playStartOffset = state.pasoActual;
+            _startPlaybackLoop();
         } else {
+            // Sincronía audio↔ESP32: enviamos la secuencia y NO arrancamos el
+            // audio hasta que el ESP32 confirme con 'playing' (state.onEsp32PlayingCallback).
+            // El ESP32 empieza al recibir el p; final (que llega tras varios bloques),
+            // así ambos arrancan en el mismo instante desde el paso 0.
             _sendPlayCommand(seq);
+            _waitForEsp32Ack();
         }
+    } else {
+        // Sin conexión: solo audio, arranque inmediato.
+        _playStartOffset = state.pasoActual;
+        _startPlaybackLoop();
     }
+}
 
+// Espera el ACK 'playing' del ESP32 antes de arrancar el audio. Si no llega
+// dentro del timeout, se avisa y NO se reproduce (opción estricta elegida).
+const _ESP32_ACK_TIMEOUT_MS = 8000;
+function _waitForEsp32Ack() {
+    _waitingEsp32Ack = true;
+    _emitStatus("Cargando en ESP32…");
+    _esp32AckTimer = setTimeout(() => {
+        if (!_waitingEsp32Ack) return;
+        _waitingEsp32Ack = false;
+        _esp32AckTimer   = null;
+        _pendingTimers.forEach(clearTimeout);
+        _pendingTimers = [];
+        _emitStatus("⚠ El ESP32 no respondió. No se reproduce (comprueba la conexión).");
+        console.warn('[play] Timeout esperando ACK del ESP32 — reproducción cancelada');
+    }, _ESP32_ACK_TIMEOUT_MS);
+}
+
+// Llamado desde state.onEsp32PlayingCallback cuando el ESP32 confirma 'playing'.
+function _onEsp32Playing() {
+    if (!_waitingEsp32Ack) return;   // ACK de un play anterior o no esperábamos
+    _waitingEsp32Ack = false;
+    if (_esp32AckTimer) { clearTimeout(_esp32AckTimer); _esp32AckTimer = null; }
+    console.log('[play] ESP32 confirmó playing — arrancando audio sincronizado');
     _playStartOffset = state.pasoActual;
     _startPlaybackLoop();
+}
+
+// Cancela una espera de ACK en curso (al parar/pausar antes de que arranque).
+function _cancelEsp32AckWait() {
+    _waitingEsp32Ack = false;
+    if (_esp32AckTimer) { clearTimeout(_esp32AckTimer); _esp32AckTimer = null; }
 }
 
 /** Obtiene (o reutiliza) el AudioContext. Intenta reutilizar el de MIDI.js. */
@@ -322,6 +367,7 @@ function _startPlaybackLoop() {
  * Pausa la reproducción conservando la posición.
  */
 export function pause() {
+    _cancelEsp32AckWait();
     if (!state.reproduciendo) return;
     state.reproduciendo = false;
     clearInterval(_playInterval);
@@ -341,6 +387,7 @@ export function pause() {
  * G2: limpia el interval de audio y envía STOP al ESP32.
  */
 export function stop() {
+    _cancelEsp32AckWait();
     state.reproduciendo     = false;
     state.autoAdvanceActive = false;
     clearInterval(_playInterval);
@@ -525,6 +572,13 @@ state.onBeatCallback = function(stepFromEsp32) {
         _emitStep(state.pasoActual);
         _autoScroll(state.pasoActual);
     }
+};
+
+// ── Sincronía de arranque: el ESP32 confirma 'playing' tras recibir el p; ─────
+// Los conectores (ws-connector.js / serial-connector.js) disparan este callback.
+// play() lo usa para arrancar el audio en el mismo instante que el ESP32.
+state.onEsp32PlayingCallback = function() {
+    _onEsp32Playing();
 };
 
 // ── Autoscroll ────────────────────────────────────────────────────────────────

@@ -6,7 +6,8 @@
 
 import { state } from './state.js';
 import { getUndoRedoStacks, setUndoRedoStacks } from './history.js';
-import { getSelectionState, setSelectionState } from './editor.js';
+import { historyPush } from './history.js';
+import { getSelectionState, setSelectionState, scheduleHarmonicAnalysis } from './editor.js';
 import { play, stop } from './playback.js';
 import { applyZoom, drawPianoRollWithPlayhead, toggleNewGridPanel, closeNewGridPanel, _enableMeasureButtons } from './piano-roll.js';
 import { drawTimelineRuler, _updateAbBtn } from './timeline-ruler.js';
@@ -376,6 +377,10 @@ function _tabRender() {
         el.appendChild(closeBtn);
         list.appendChild(el);
     });
+
+    // El botón «Fusionar izq.» solo tiene sentido si hay un tab a la izquierda.
+    const mergeBtn = document.getElementById('mergeLeftBtn');
+    if (mergeBtn) mergeBtn.disabled = (_activeTabIdx <= 0);
 }
 
 // ── Helpers para el módulo raíz (midiGrid.js) ────────────────
@@ -412,6 +417,92 @@ export function tabUpdateActive({ name, isDirty } = {}, save = false) {
     if (name !== undefined)    t.name    = name;
     if (isDirty !== undefined) t.isDirty = isDirty;
     if (save) _tabSaveCurrent();
+}
+
+/** True si existe un tab inmediatamente a la izquierda del activo. */
+export function hasTabToLeft() {
+    return _activeTabIdx > 0;
+}
+
+/**
+ * Fusiona en el grid ACTIVO todas las notas del tab inmediatamente a la
+ * izquierda, conservando su step de origen (mismo instante temporal → las dos
+ * piezas quedan sincronizadas desde el inicio). En colisión note,step conserva
+ * la mayor velocity y duración, igual que la importación. Las notas añadidas
+ * quedan seleccionadas (como tras Shift+arrastre). Reversible con Ctrl+Z.
+ *
+ * @returns {{ added: number, merged: number }} notas nuevas y notas fusionadas
+ */
+export function mergeFromLeftTab() {
+    if (_activeTabIdx <= 0) return { added: 0, merged: 0 };
+    const src = _tabs[_activeTabIdx - 1];
+    if (!src || !src.gridData || !src.gridData.cells) return { added: 0, merged: 0 };
+
+    const srcCells = Object.entries(src.gridData.cells);
+    if (srcCells.length === 0) return { added: 0, merged: 0 };
+
+    historyPush();   // snapshot ANTES de fusionar → Ctrl+Z restaura
+
+    const newSel = new Set();
+    let added = 0, merged = 0;
+    let maxStep = state.totalSteps;
+
+    for (const [key, cell] of srcCells) {
+        const stepStr = key.slice(key.indexOf(',') + 1);
+        const step     = parseInt(stepStr, 10);
+        const duration = cell.duration || 1;
+        const velocity = cell.velocity || 0;
+
+        const prev = state.gridData.cells[key];
+        if (prev) {
+            // Colisión: conservar la mayor presencia (misma regla que el import).
+            prev.duration = Math.max(prev.duration, duration);
+            prev.velocity = Math.max(prev.velocity, velocity);
+            merged++;
+        } else {
+            state.gridData.cells[key] = { duration, velocity };
+            added++;
+        }
+        newSel.add(key);
+        if (step + duration > maxStep) maxStep = step + duration;
+    }
+
+    // Si el tab izquierdo era más largo, ampliar el grid para que quepan sus notas.
+    if (maxStep > state.totalSteps) state.totalSteps = maxStep;
+
+    // Filas: asegurar que las notas pegadas tengan su fila en noteRows, si no el
+    // render las omite. Recalcular el rango si alguna nota cae fuera.
+    _ensureRowsForCells(newSel);
+
+    // Dejar las notas añadidas seleccionadas (mismo estado que Shift+arrastre).
+    setSelectionState([...newSel], newSel.size > 0);
+
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawTimelineRuler();
+    scheduleHarmonicAnalysis();
+    tabMarkDirty();
+
+    return { added, merged };
+}
+
+/**
+ * Asegura que state.noteRows cubra las notas de las claves dadas; si alguna cae
+ * fuera del rango actual, reconstruye noteRows como rango contiguo [min,max].
+ */
+function _ensureRowsForCells(keys) {
+    if (state.noteRows.length === 0) return;
+    let lo = state.noteRows[0];
+    let hi = state.noteRows[state.noteRows.length - 1];
+    let changed = false;
+    for (const key of keys) {
+        const note = parseInt(key.slice(0, key.indexOf(',')), 10);
+        if (note < lo) { lo = note; changed = true; }
+        if (note > hi) { hi = note; changed = true; }
+    }
+    if (changed) {
+        state.noteRows = [];
+        for (let n = lo; n <= hi; n++) state.noteRows.push(n);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => { _tabRender(); });

@@ -145,6 +145,7 @@ function _openSocket() {
         }
         if (data.state === 'playing') {
             console.log('[ESP32] Reproduciendo');
+            if (typeof state.onEsp32PlayingCallback === 'function') state.onEsp32PlayingCallback();
             return;
         }
         if (data.state === 'stopped') {

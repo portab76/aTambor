@@ -13,7 +13,10 @@ let _serialReadRunning  = false;
 let _serialReadyTimeout = null;
 
 const _SERIAL_LOG_MAX = 60000;
-export var _serialLog = '';
+// El log de serie vive en window._serialLog para que la ventana hija del Log
+// (que lo lee vía window.opener._serialLog) siempre vea el valor en vivo.
+// No usar una var de módulo: un primitivo reasignado no propaga a la ventana hija.
+if (typeof window._serialLog !== 'string') window._serialLog = '';
 
 export async function initSerial() {
     if (!navigator.serial) {
@@ -93,11 +96,11 @@ async function _serialReadLoop() {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
 
-                _serialLog += trimmed + '\n';
-                if (_serialLog.length > _SERIAL_LOG_MAX) {
-                    _serialLog = _serialLog.slice(_serialLog.length - _SERIAL_LOG_MAX);
-                    const nl = _serialLog.indexOf('\n');
-                    if (nl >= 0) _serialLog = _serialLog.slice(nl + 1);
+                window._serialLog += trimmed + '\n';
+                if (window._serialLog.length > _SERIAL_LOG_MAX) {
+                    window._serialLog = window._serialLog.slice(window._serialLog.length - _SERIAL_LOG_MAX);
+                    const nl = window._serialLog.indexOf('\n');
+                    if (nl >= 0) window._serialLog = window._serialLog.slice(nl + 1);
                 }
 
                 try {
@@ -107,6 +110,7 @@ async function _serialReadLoop() {
                         if (typeof state.onBeatCallback === 'function') state.onBeatCallback(data.step);
                     } else if (data.state === 'playing') {
                         console.log('[Serial] Reproduciendo');
+                        if (typeof state.onEsp32PlayingCallback === 'function') state.onEsp32PlayingCallback();
                     } else if (data.state === 'stopped') {
                         console.log('[Serial] Detenido');
                         if (typeof state.onStoppedCallback === 'function') state.onStoppedCallback();

@@ -70,12 +70,19 @@ export const state = {
     _clipboardFragment: null,  // { length, cells: [{relStep, note, duration, velocity}] }
 
     // --- LED strip WS2812B — modo de color y Synthesia ---
-    ledColorMode: 'octava',  // 'rainbow' | 'octava' | 'calor' | 'blanco'
+    // 'grid' = cada LED copia el color de su nota en el editor (incl. Interpretar).
+    // Los otros modos ('rainbow'|'octava'|'calor'|'blanco') siguen soportados en
+    // esp32-sequencer.js pero ya no hay UI para elegirlos (combo eliminado).
+    ledColorMode: 'grid',
     ledAdvanceMs: 0,         // ms de anticipación LED Synthesia (0 = desactivado)
 
     // --- Vista previa de interpretación (Fase 5) ---
     interpretPreviewActive: false,  // true = pintar relevance fusionada por color
     interpretPreviewData:   null,   // Map "note,step" → relevance [0,1] | null
+
+    // --- Limpieza de notas por relevancia (umbral sobre la barra de color) ---
+    cleanThreshold: 0.5,    // posición del slider [0,1]; corta por el color de la nota
+    cleanInvert:    false,  // false = borrar lado frío (rel<umbral); true = lado cálido
 
     // --- Heat map (Motor de Atención) — alimenta interpretación, LEDs y compresor ---
     heatMapData:   null,   // Map "note,step" → heatScore [0,1] | null = sin calcular

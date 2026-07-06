@@ -648,15 +648,8 @@
                 <!-- LEDs -->
                 <div>
                     <div style="font-size:9px;color:#4a4a70;letter-spacing:1px;margin-bottom:6px;">LEDS</div>
-                    <select id="ledColorSelect" title="Color de los LEDs WS2812B"
-                            onchange="state.ledColorMode=this.value"
-                            style="width:100%;background:var(--c-control);color:var(--c-text2);border:1px solid var(--c-border3);
-                                   border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;margin-bottom:8px;">
-                        <option value="rainbow">Arcoíris</option>
-                        <option value="octava" selected>Octava</option>
-                        <option value="calor">Calor</option>
-                        <option value="blanco">Blanco</option>
-                    </select>
+                    <!-- Los LEDs se pintan siempre con el color de cada nota en el grid
+                         (state.ledColorMode = 'grid', fijado en state.js). -->
                     <label title="Anticipación LED Synthesia: el LED rojo se enciende N ms antes del golpe"
                            style="font-size:11px;color:#888;display:flex;align-items:center;gap:6px;">
                         <span>Avance:</span>
@@ -721,6 +714,8 @@
             title="Mostrar/ocultar carril de velocidades">Vel.</button>
 <button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
     <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
+    <button id="mergeLeftBtn" onclick="mergeFromLeftTabUI()"
+            title="Añadir al tab actual todas las notas del tab de la izquierda, sincronizadas en el mismo tiempo. Quedan seleccionadas. Ctrl+Z revierte." disabled>⤵ Fusionar izq.</button>
 
     <div class="toolbar-sep"></div>
 
@@ -756,8 +751,8 @@
         <option value="wifi">WiFi</option>
         <option value="serial">Serie</option>
     </select>
-    <input id="esp32IpInput" value="192.168.1.128"
-           title="IP del ESP32"
+    <input id="esp32IpInput" value="192.168.4.1"
+           title="IP del ESP32 (AP propio: 192.168.4.1)"
            style="width:110px;background:var(--c-deep);color:var(--c-text2);border:1px solid var(--c-border3);
                   border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
     <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32">Conectar</button>
@@ -1370,13 +1365,35 @@
             ↺ Resetear
         </button>
     </div>
-    <!-- ── Leyenda de colores del grid (referencia del Paso 1) ── -->
-    <div class="iw-sub" style="margin-top:14px;">Color de cada nota = su importancia</div>
+    <!-- ── PASO 3 · Limpiar notas por importancia ── -->
+    <div class="iw-step">PASO 3 · Limpiar partitura</div>
+    <div class="iw-guide">Borra las notas a un lado del umbral según su color. Útil tras comprimir a una octava. Ctrl+Z lo revierte.</div>
+
+    <!-- Barra de gradiente = escala del umbral (mismos colores que el grid) -->
     <div style="height:12px;border-radius:3px;border:1px solid var(--c-border2);
                 background:linear-gradient(to right,
                     rgb(15,30,120), rgb(10,130,140), rgb(60,200,50), rgb(255,140,0), rgb(255,30,0));"></div>
-    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--c-text3);margin:2px 0 6px;">
+    <!-- Slider de umbral alineado bajo la barra -->
+    <input type="range" min="0" max="1" step="0.01" id="cleanThreshold"
+           oninput="onCleanThresholdSlider(this)"
+           style="width:100%;margin:2px 0 0;accent-color:#ddd;">
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--c-text3);margin:0 0 4px;">
         <span>Relleno</span><span>Media</span><span>Clave</span>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:6px;margin:4px 0;font-size:11px;color:var(--c-text3);">
+        <input type="checkbox" id="cleanInvert" onchange="onCleanInvertToggle(this)" style="accent-color:#ff8844;">
+        Invertir (borrar las notas clave en vez del relleno)
+    </label>
+
+    <div style="display:flex;gap:6px;align-items:center;margin:8px 0 2px;">
+        <button id="cleanNotesBtn" onclick="cleanNotesFromPanel(this)"
+                title="Borra del grid las notas del lado seleccionado del umbral. Ctrl+Z para revertir."
+                style="flex:1;padding:7px 8px;font-size:12px;font-weight:600;
+                       border-radius:5px;border:1px solid #6a6a8a;background:var(--c-control);color:var(--c-text2);cursor:pointer;">
+            🧹 Limpiar notas
+        </button>
+        <span id="cleanCount" style="flex-shrink:0;font-size:10px;color:var(--c-text3);width:78px;text-align:right;"></span>
     </div>
 </div>
 

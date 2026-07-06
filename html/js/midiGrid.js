@@ -44,6 +44,7 @@ import {
 import {
     applyInterpretationToGrid, refreshInterpretPreview,
     setWeight, setRange, resetWeightsAndRanges, WEIGHTS, RANGE,
+    notesToCleanByRelevance, cleanByRelevance,
 } from './interpretation.js';
 
 // ── Fila de acordes / panel armónico ─────────────────────────
@@ -65,7 +66,7 @@ import { historyPush, historyUndo, historyRedo, historyClear } from './history.j
 import {
     initCanvasEvents, copyFragment, pasteFragment, moveSelection,
     deleteFragment, selectionDelete, selectionCopy, selectionClear,
-    _updateFragmentButtons, getSelectionState,
+    _updateFragmentButtons, getSelectionState, scheduleHarmonicAnalysis,
 } from './editor.js';
 
 // ── Persistencia / recientes ─────────────────────────────────
@@ -78,6 +79,7 @@ import {
 import {
     tabSwitch, tabNew, tabNewWithDialog, tabClose, tabMarkFileLoaded, tabMarkDirty,
     tabSaveCurrent, tabRender, tabPushPreloaded, tabNextIndex, tabUpdateActive,
+    mergeFromLeftTab, hasTabToLeft,
 } from './tabs.js';
 
 // ── Tema ─────────────────────────────────────────────────────
@@ -687,6 +689,15 @@ function _enableAllButtons() {
     const chordPanelBtn = document.getElementById('chordPanelBtn');
     if (chordPanelBtn) chordPanelBtn.disabled = false;
 
+    // Compresor a motores (mismo criterio que enableInstrumentSelection al cargar MIDI)
+    const comprimirLabel    = document.getElementById('comprimirLabel');
+    const comprimirCheckbox = document.getElementById('comprimirCheckbox');
+    if (comprimirLabel) {
+        comprimirLabel.style.opacity = '1';
+        comprimirLabel.style.cursor  = 'pointer';
+    }
+    if (comprimirCheckbox) comprimirCheckbox.disabled = false;
+
     // Selector de nivel armónico
     const viewSel = document.getElementById('viewLevelSelect');
     if (viewSel) {
@@ -822,8 +833,10 @@ async function toggleInterpretWeights() {
     if (show) {
         panel.style.display = 'block';
         _syncWeightSliders();
+        _syncCleanControls();
         if (btn) btn.classList.add('btn-active');
         await _enableInterpretPreview();
+        _refreshCleanCount();   // tras calcular la preview ya hay scores
     } else {
         panel.style.display = 'none';
         if (btn) btn.classList.remove('btn-active');
@@ -846,6 +859,14 @@ function _syncWeightSliders() {
     set('rArtFloor', RANGE.artFloor); set('rArtCeil', RANGE.artCeil);
 }
 
+/** Refleja state.cleanThreshold / cleanInvert en sus controles del panel. */
+function _syncCleanControls() {
+    const thr = document.getElementById('cleanThreshold');
+    if (thr) thr.value = state.cleanThreshold;
+    const inv = document.getElementById('cleanInvert');
+    if (inv) inv.checked = state.cleanInvert;
+}
+
 /** Slider de peso → actualiza WEIGHTS, etiqueta y vista previa. */
 async function onWeightSlider(name, el) {
     setWeight(name, parseFloat(el.value));
@@ -855,6 +876,7 @@ async function onWeightSlider(name, el) {
         await refreshInterpretPreview();
         drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
     }
+    _refreshCleanCount();   // el recoloreado cambia qué notas caen del corte
 }
 
 /** Slider de rango → actualiza RANGE y etiqueta (no afecta a la vista previa). */
@@ -876,6 +898,101 @@ async function resetInterpretWeights(btn) {
         const prev = btn.textContent;
         btn.textContent = '✓';
         setTimeout(() => { btn.textContent = prev; }, 900);
+    }
+    _refreshCleanCount();   // el recoloreado puede cambiar cuántas caen del corte
+}
+
+// ── PASO 3: limpieza de notas por umbral de relevancia ───────────
+
+/** Refresca el contador "se borrarán N / M" según el umbral e invertir actuales. */
+function _refreshCleanCount() {
+    const span = document.getElementById('cleanCount');
+    if (!span) return;
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        span.textContent = '';
+        return;
+    }
+    const { doomed, total } = notesToCleanByRelevance({
+        threshold: state.cleanThreshold,
+        invert:    state.cleanInvert,
+    });
+    span.textContent = `−${doomed.size} / ${total}`;
+    span.style.color = doomed.size > 0 ? '#ff8866' : 'var(--c-text3)';
+}
+
+/** Slider de umbral → guarda la posición y refresca el contador. */
+function onCleanThresholdSlider(el) {
+    state.cleanThreshold = parseFloat(el.value);
+    _refreshCleanCount();
+}
+
+/** Checkbox "Invertir" → guarda el lado a borrar y refresca el contador. */
+function onCleanInvertToggle(el) {
+    state.cleanInvert = !!el.checked;
+    _refreshCleanCount();
+}
+
+/**
+ * Botón «🧹 Limpiar notas»: borra del grid las notas del lado condenado del
+ * umbral. Reversible con Ctrl+Z. Reanaliza la armonía y redibuja todo.
+ */
+function cleanNotesFromPanel(btn) {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        console.warn('[clean] grid vacío — nada que limpiar');
+        return;
+    }
+
+    historyPush();  // snapshot ANTES de borrar → Ctrl+Z restaura
+    const { removed, total } = cleanByRelevance({
+        threshold: state.cleanThreshold,
+        invert:    state.cleanInvert,
+    });
+
+    if (removed === 0) {
+        historyUndo();  // revertir el push vacío
+        console.warn('[clean] sin notas en el lado del umbral');
+        return;
+    }
+
+    console.log(`[clean] borradas ${removed} de ${total} notas ` +
+        `(umbral ${state.cleanThreshold.toFixed(2)}${state.cleanInvert ? ', invertido' : ''}; Ctrl+Z revierte)`);
+
+    // Reanálisis armónico (debounced) sobre el grid ya adelgazado
+    scheduleHarmonicAnalysis();
+
+    // Refrescar vista previa de color (el score cambió) + grid + carril + contador
+    if (state.interpretPreviewActive) refreshInterpretPreview();
+    drawPianoRollWithPlayhead(state.reproduciendo ? state.pasoActual : -1);
+    drawVelocityLane();
+    _refreshCleanCount();
+
+    if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = `✓ −${removed}`;
+        setTimeout(() => { btn.textContent = prev; }, 1100);
+    }
+}
+
+/**
+ * Botón «⤵ Fusionar izq.»: añade al tab activo las notas del tab de la
+ * izquierda, sincronizadas en el mismo tiempo. Quedan seleccionadas. Ctrl+Z.
+ */
+function mergeFromLeftTabUI() {
+    if (!hasTabToLeft()) {
+        console.warn('[merge] no hay tab a la izquierda');
+        return;
+    }
+    const { added, merged } = mergeFromLeftTab();
+    if (added === 0 && merged === 0) {
+        console.warn('[merge] el tab izquierdo no tiene notas');
+        return;
+    }
+    console.log(`[merge] +${added} notas añadidas, ${merged} fusionadas (Ctrl+Z revierte)`);
+    const btn = document.getElementById('mergeLeftBtn');
+    if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = `✓ +${added}`;
+        setTimeout(() => { btn.textContent = prev; }, 1100);
     }
 }
 
@@ -909,6 +1026,8 @@ button:hover{background:#2a2a55;color:#fff;}
   <span style="font-size:10px;color:#44aaff;">Serie (COM)</span>
   <button onclick="autoScroll=!autoScroll;this.textContent=autoScroll?'▼ Auto':'— Fijo'">▼ Auto</button>
   <button onclick="window.opener._serialLog='';prev='';document.getElementById('L').textContent=''">🗑 Limpiar</button>
+  <button onclick="setWifi()" title="Conecta el ESP32 a una red WiFi" style="border-color:#44aa66;color:#aaffaa;">＋ WiFi</button>
+  <button onclick="resetWifi()" title="Borra la red WiFi del ESP32 y lo reinicia en modo AP" style="border-color:#aa4444;color:#ffaaaa;">⟳ Reset WiFi</button>
 </div>
 <pre id="L"></pre>
 <div id="cmd">
@@ -927,13 +1046,35 @@ function u(){
     if(log.startsWith(prev)){l.textContent+=log.slice(prev.length);}else{l.textContent=log;}
     prev=log;
     if(autoScroll)l.scrollTop=l.scrollHeight;
-  }catch(e){}
+  }catch(e){
+    document.getElementById('L').textContent='⚠ Sin conexión con la ventana principal de midiGrid.';
+  }
 }
 function sendCmd(){
   var inp=document.getElementById('cmdInput');
   var cmd=inp.value.trim();
   if(!cmd)return;
   try{window.opener.sendCommand(cmd);inp.select();}catch(e){alert('Sin conexión con la ventana principal.');}
+}
+function resetWifi(){
+  if(!confirm('¿Resetear la WiFi del ESP32?\\n\\nBorrará la red guardada y reiniciará en modo AP (midiGrid-Setup / 192.168.4.1).\\n\\nTras esto tendrás que reconectar tu dispositivo a la red "midiGrid-Setup".'))return;
+  try{
+    window.opener.sendCommand('R;');
+    alert('Comando enviado por serie. El ESP32 se reiniciará en modo AP (midiGrid-Setup / 192.168.4.1).');
+  }catch(e){alert('Sin conexión con la ventana principal de midiGrid.');}
+}
+function setWifi(){
+  var ssid=prompt('Nombre de la red WiFi (SSID) a la que conectar el ESP32:');
+  if(ssid===null||ssid.trim()==='')return;
+  ssid=ssid.trim();
+  if(ssid.indexOf('|')!==-1||ssid.indexOf(';')!==-1){alert('El SSID no puede contener los caracteres "|" ni ";".');return;}
+  var pass=prompt('Contraseña de "'+ssid+'" (deja vacío si es abierta):')||'';
+  if(pass.indexOf('|')!==-1||pass.indexOf(';')!==-1){alert('La contraseña no puede contener los caracteres "|" ni ";".');return;}
+  if(!confirm('El ESP32 guardará "'+ssid+'" y se reiniciará para conectar.\\n\\nSi conecta, tomará una IP de esa red (míralo en el monitor serie).\\nSi falla, volverá al AP midiGrid-Setup (192.168.4.1).'))return;
+  try{
+    window.opener.sendCommand('W '+ssid+'|'+pass+';');
+    alert('Comando enviado por serie. El ESP32 se reiniciará; revisa el monitor serie para ver la nueva IP.');
+  }catch(e){alert('Sin conexión con la ventana principal de midiGrid.');}
 }
 setInterval(u,300);u();
 <\/script></body></html>`);
@@ -954,6 +1095,8 @@ setInterval(u,300);u();
   <span style="font-size:10px;color:#556;">${ip}</span>
   <button onclick="autoScroll=!autoScroll;this.textContent=autoScroll?'▼ Auto':'— Fijo'">▼ Auto</button>
   <button onclick="document.getElementById('L').textContent='';seen=''">🗑 Limpiar</button>
+  <button onclick="setWifi()" title="Conecta el ESP32 a una red WiFi" style="border-color:#44aa66;color:#aaffaa;">＋ WiFi</button>
+  <button onclick="resetWifi()" title="Borra la red WiFi del ESP32 y lo reinicia en modo AP" style="border-color:#aa4444;color:#ffaaaa;">⟳ Reset WiFi</button>
 </div>
 <pre id="L"></pre>
 <div id="cmd">
@@ -971,13 +1114,37 @@ function u(){
     if(d.startsWith(seen)){l.textContent+=d.slice(seen.length);}else{l.textContent=d;}
     seen=d;
     if(autoScroll)l.scrollTop=l.scrollHeight;
-  }).catch(function(){});
+  }).catch(function(e){
+    var l=document.getElementById('L');
+    l.textContent='⚠ Sin conexión con ${ip}/logs\\n'+(e&&e.message?e.message:'')+'\\n\\nComprueba que el ESP32 esté encendido y accesible en esa IP.';
+    seen='';
+  });
 }
 function sendCmd(){
   var inp=document.getElementById('cmdInput');
   var cmd=inp.value.trim();
   if(!cmd)return;
   try{window.opener.sendCommand(cmd);inp.select();}catch(e){alert('Sin conexión con la ventana principal.');}
+}
+function resetWifi(){
+  if(!confirm('¿Resetear la WiFi del ESP32?\\n\\nBorrará la red guardada y reiniciará en modo AP (midiGrid-Setup / 192.168.4.1).\\n\\nTras esto tendrás que reconectar tu dispositivo a la red "midiGrid-Setup".'))return;
+  fetch('http://${ip}/resetwifi').then(function(r){return r.text();}).then(function(t){
+    alert(t||'ESP32 reiniciando en modo AP.\\nConéctate a la red "midiGrid-Setup" y usa 192.168.4.1');
+  }).catch(function(){
+    alert('No se pudo contactar con ${ip}/resetwifi.\\nSi ya se reinició, conéctate a "midiGrid-Setup" (192.168.4.1).');
+  });
+}
+function setWifi(){
+  var ssid=prompt('Nombre de la red WiFi (SSID) a la que conectar el ESP32:');
+  if(ssid===null||ssid.trim()==='')return;
+  var pass=prompt('Contraseña de "'+ssid.trim()+'" (deja vacío si es abierta):')||'';
+  if(!confirm('El ESP32 guardará "'+ssid.trim()+'" y se reiniciará para conectar.\\n\\nSi conecta, tomará una IP de esa red (míralo en el monitor serie).\\nSi falla, volverá al AP midiGrid-Setup (192.168.4.1).'))return;
+  var url='http://${ip}/setwifi?ssid='+encodeURIComponent(ssid.trim())+'&pass='+encodeURIComponent(pass);
+  fetch(url).then(function(r){return r.text();}).then(function(t){
+    alert(t||'Red guardada. ESP32 reiniciando...');
+  }).catch(function(){
+    alert('No se pudo contactar con ${ip}/setwifi.\\nSi ya se reinició, revisa el monitor serie para ver la nueva IP.');
+  });
 }
 setInterval(u,600);u();
 <\/script></body></html>`);
@@ -1170,6 +1337,7 @@ Object.assign(window, {
     calcularHeatScores, _refreshHeatMap, calcularBreathingPoints,
     applyInterpretFromPanel, toggleInterpretWeights, resetInterpretWeights,
     onWeightSlider, onRangeSlider,
+    onCleanThresholdSlider, onCleanInvertToggle, cleanNotesFromPanel,
 
     // acordes
     drawChordRow, toggleChordPanel, onChordBlockClick, _selectChordAtStep,
@@ -1194,6 +1362,7 @@ Object.assign(window, {
 
     // tabs
     tabSwitch, tabNew, tabNewWithDialog, tabClose, tabMarkFileLoaded, tabMarkDirty,
+    mergeFromLeftTabUI,
 
     // tema / transposición
     setTheme, toggleTheme, toggleTransposePanel, _sliderRange,

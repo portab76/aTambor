@@ -327,6 +327,54 @@ export async function applyInterpretationToGrid(opts = {}) {
 }
 
 // ============================================================
+// Limpieza por relevancia — reductor de densidad
+// ============================================================
+//
+// Reutiliza el MISMO score de buildInterpretation() que pinta el color de cada
+// nota en la vista previa, de modo que el corte se hace sobre el color visible:
+// mover un slider del Paso 1 recolorea las notas y, a la vez, mueve el corte.
+//
+// El umbral `threshold` es la posición del slider sobre la barra de gradiente
+// [0,1]. Por defecto se borran las notas del lado FRÍO (relevance < threshold,
+// los azules de la izquierda). Con `invert` se borran las del lado CÁLIDO
+// (relevance >= threshold, los rojos de la derecha) — útil para quedarse solo
+// con el relleno/acompañamiento.
+
+/**
+ * Calcula qué celdas caerían bajo el corte SIN mutar el grid. Pura: sirve para
+ * el contador "se borrarán N de M" y para el borrado real.
+ * @returns {{ doomed: Set<string>, total: number }}
+ */
+export function notesToCleanByRelevance({ threshold = 0.5, invert = false } = {}) {
+    const map   = buildInterpretation();
+    const cells = state.gridData?.cells || {};
+    const doomed = new Set();
+    let total = 0;
+    for (const key of Object.keys(cells)) {
+        total++;
+        const rel = map.get(key);
+        if (rel === undefined) continue;        // sin score → se conserva
+        const cold = rel < threshold;           // lado izquierdo de la barra
+        if (invert ? !cold : cold) doomed.add(key);
+    }
+    return { doomed, total };
+}
+
+/**
+ * Borra del grid las notas del lado condenado del umbral. Destructivo; el caller
+ * registra historial antes (Ctrl+Z restaura). Tras llamar, invalida el cache de
+ * interpretación y conviene reanalizar la armonía.
+ * @returns {{ removed: number, total: number }}
+ */
+export function cleanByRelevance({ threshold = 0.5, invert = false } = {}) {
+    const { doomed, total } = notesToCleanByRelevance({ threshold, invert });
+    const cells = state.gridData?.cells || {};
+    for (const key of doomed) delete cells[key];
+    if (doomed.size > 0) invalidate();   // el score cambió: cache caduca
+    return { removed: doomed.size, total };
+}
+
+// ============================================================
 // Fase 5 — soporte de UI (vista previa por color + sliders)
 // ============================================================
 

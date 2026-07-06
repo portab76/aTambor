@@ -20,6 +20,12 @@ export const HIT_MS     = 80;   // duración del golpe (solenoide extendido)
 export const RETRACT_MS = 150;  // duración de la retracción (vuelta al neutro)
 // Total mínimo de tiempo que consume un golpe: HIT_MS + RETRACT_MS = 230 ms
 
+// Longitud real del strip en el firmware (Esp32.2.ino define NUM_LEDS 60).
+// El JS declara NUM_LEDS = 61 (C1–B5 inclusive); capamos al valor físico del
+// firmware para no enviar índices fuera de rango que rechazaría. Se usa el
+// literal (no NUM_LEDS) para no depender del orden de init de imports.
+const LED_STRIP_LEN = 60;
+
 // ── F1 — buildFullSequence ────────────────────────────────────
 /**
  * Recorre gridData.cells completo y genera el string de comandos
@@ -87,7 +93,7 @@ export function buildLedMappingCmd(motorMap) {
     for (const m of motorMap) {
         if (m.motor >= 99) continue;
         const ledIdx = ledForNote(m.note);  // posición física del motor, sin offset
-        if (ledIdx < 0 || ledIdx >= NUM_LEDS) continue;
+        if (ledIdx < 0 || ledIdx >= LED_STRIP_LEN) continue;
         const { hue, sat } = _ledHueSat(m, ledIdx, noteAvgHeat);
         cmd += `L ${m.motor} ${ledIdx} ${hue} ${sat};\n`;
     }
@@ -150,6 +156,10 @@ function _buildSequence(motorMap, startStep, endStep) {
     const byMotor = {};
     let   hasCellsInRange = false;
 
+    // Notas SIN motor asignado (o muteadas): no mueven ningún servo, pero SÍ
+    // encienden su LED durante la reproducción. ledByIdx[ledIdx] = [{step,duration,note}]
+    const ledOnly = {};
+
     for (const [key, cell] of Object.entries(state.gridData.cells)) {
         const [noteStr, stepStr] = key.split(',');
         const step = parseInt(stepStr);
@@ -161,7 +171,23 @@ function _buildSequence(motorMap, startStep, endStep) {
         const midiNote = parseInt(noteStr);
         const offset   = state.transposeOffset || 0;
         const cfg      = motorMap ? motorMap.find(m => m.note === midiNote - offset) : null;
-        if (!cfg || cfg.muted) continue;
+
+        if (!cfg || cfg.muted) {
+            // Sin motor (o muteada) → encender solo el LED de la nota.
+            // El LED va por la posición física de la nota MIDI real (con offset
+            // aplicado, como se toca), no por la del motor.
+            const ledIdx = ledForNote(midiNote);
+            if (ledIdx >= 0 && ledIdx < LED_STRIP_LEN) {
+                (ledOnly[ledIdx] ??= []).push({
+                    step: step - startStep,
+                    duration: cell.duration,
+                    note: midiNote,
+                    velocity: cell.velocity,
+                    key                      // "midiNote,absStep" para modo 'grid'/Interpretar
+                });
+            }
+            continue;
+        }
 
         if (!byMotor[cfg.motor]) {
             byMotor[cfg.motor] = { cfg, events: [] };
@@ -174,7 +200,8 @@ function _buildSequence(motorMap, startStep, endStep) {
         });
     }
 
-    if (Object.keys(byMotor).length === 0 && !hasCellsInRange) return '';
+    if (Object.keys(byMotor).length === 0 &&
+        Object.keys(ledOnly).length === 0 && !hasCellsInRange) return '';
 
     // ── Generar instrucciones por motor ───────────────────────
     let cmd = 'e;\n';
@@ -194,12 +221,55 @@ function _buildSequence(motorMap, startStep, endStep) {
     // LED index = posición física del motor en el strip (m.note, sin offset).
     // El offset solo afecta qué motor toca qué nota MIDI, no dónde está la tecla física.
     if (motorMap) {
+        const offset = state.transposeOffset || 0;
         for (const m of motorMap) {
             if (m.motor >= 99) continue;
             const ledIdx = ledForNote(m.note);
-            if (ledIdx < 0 || ledIdx >= NUM_LEDS) continue;
-            const { hue, sat } = _ledHueSat(m, ledIdx, null);
+            if (ledIdx < 0 || ledIdx >= LED_STRIP_LEN) continue;
+            // Contexto para el modo 'grid': nota real (con offset) + velocity/key
+            // de la primera ocurrencia de este motor en el grid (representativa).
+            let ctx = null;
+            const grp = byMotor[m.motor];
+            if (grp && grp.events.length) {
+                const ev = grp.events[0];
+                ctx = { note: m.note + offset, key: ev.heatKey, velocity: ev.velocity };
+            }
+            const { hue, sat } = _ledHueSat(m, ledIdx, noteAvgHeat, ctx);
             cmd += `L ${m.motor} ${ledIdx} ${hue} ${sat};\n`;
+        }
+    }
+
+    // ── LEDs de notas SIN motor ───────────────────────────────
+    // Para cada LED usado: color (K) + pares de eventos on/off (k). Se fusionan
+    // los intervalos solapados del mismo LED para no apagarlo mientras otra nota
+    // que comparte esa posición sigue sonando.
+    for (const [ledIdxStr, occs] of Object.entries(ledOnly)) {
+        const ledIdx = parseInt(ledIdxStr);
+
+        // Color del LED según el modo activo, usando la primera ocurrencia
+        // (los modos octava/calor/rainbow dependen de la nota/posición; el modo
+        // 'grid' además usa velocity/key para replicar el color exacto del grid).
+        const o0  = occs[0];
+        const ctx = { note: o0.note, key: o0.key, velocity: o0.velocity };
+        const { hue, sat } = _ledHueSat({ note: o0.note }, ledIdx, noteAvgHeat, ctx);
+        cmd += `K ${ledIdx} ${hue} ${sat};\n`;
+
+        // Fusionar intervalos [startMs, endMs) solapados
+        const intervals = occs
+            .map(o => ({ on: o.step * stepMs, off: (o.step + o.duration) * stepMs }))
+            .sort((a, b) => a.on - b.on);
+        const merged = [];
+        for (const iv of intervals) {
+            const last = merged[merged.length - 1];
+            if (last && iv.on <= last.off) {
+                last.off = Math.max(last.off, iv.off);
+            } else {
+                merged.push({ ...iv });
+            }
+        }
+        for (const iv of merged) {
+            cmd += `k ${Math.round(iv.on)} ${ledIdx} 1;\n`;
+            cmd += `k ${Math.round(iv.off)} ${ledIdx} 0;\n`;
         }
     }
 
@@ -289,11 +359,74 @@ function _buildSequence(motorMap, startStep, endStep) {
     return cmd;
 }
 
+// ── Color "como el grid" ─────────────────────────────────────
+// Réplica de la lógica de piano-roll.js (_drawNotes): color de octava con
+// brillo por velocity, o color de relevancia cuando la vista previa de
+// Interpretar está activa. Devuelve [r,g,b] 0-255, el MISMO color que ve el
+// usuario en el grid, para poder pintarlo en el LED.
+const _GRID_OCT_RGB = {
+    1: [255, 102, 102], 2: [255, 153, 68], 3: [221, 221, 68],
+    4: [ 68, 221,  68], 5: [ 68, 136, 255], 6: [187, 102, 255],
+};
+const _GRID_HEAT_STOPS = [
+    [15, 30, 120], [10, 130, 140], [60, 200, 50], [255, 140, 0], [255, 30, 0],
+];
+function _gridHeatRGB(heat) {
+    const t   = Math.max(0, Math.min(1, heat));
+    const seg = t * (_GRID_HEAT_STOPS.length - 1);
+    const lo  = Math.floor(seg);
+    const hi  = Math.min(lo + 1, _GRID_HEAT_STOPS.length - 1);
+    const f   = seg - lo;
+    return [
+        Math.round(_GRID_HEAT_STOPS[lo][0] + (_GRID_HEAT_STOPS[hi][0] - _GRID_HEAT_STOPS[lo][0]) * f),
+        Math.round(_GRID_HEAT_STOPS[lo][1] + (_GRID_HEAT_STOPS[hi][1] - _GRID_HEAT_STOPS[lo][1]) * f),
+        Math.round(_GRID_HEAT_STOPS[lo][2] + (_GRID_HEAT_STOPS[hi][2] - _GRID_HEAT_STOPS[lo][2]) * f),
+    ];
+}
+function noteGridRGB(note, key, velocity) {
+    const oct          = Math.max(1, Math.min(6, Math.floor(note / 12) - 1));
+    const [or, og, ob] = _GRID_OCT_RGB[oct];
+    // Interpretar activo → color por relevancia fusionada (igual que la vista previa)
+    if (state.interpretPreviewActive && state.interpretPreviewData) {
+        const rel = state.interpretPreviewData.get(key) ?? 0.5;
+        return _gridHeatRGB(rel);
+    }
+    // Modo normal → color de octava con brillo por velocity (0.20 → 1.0)
+    const bright = 0.20 + (velocity / 127) * 0.80;
+    return [Math.round(or * bright), Math.round(og * bright), Math.round(ob * bright)];
+}
+
+// RGB (0-255) → HSV de FastLED (hue 0-255, sat 0-255). value se ignora (el
+// firmware fija V=220); si RGB es puro negro devolvemos sat 0 para no perder
+// la nota (un LED negro no se vería).
+function _rgbToHsvFastLED(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    let h = 0;
+    if (d !== 0) {
+        if (max === r)      h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else                h = (r - g) / d + 4;
+        h *= 60;
+        if (h < 0) h += 360;
+    }
+    const s = max === 0 ? 0 : d / max;
+    return { hue: Math.round(h / 360 * 255) & 0xFF, sat: Math.round(s * 255) };
+}
+
 // ── _ledHueSat — color FastLED (hue 0-255, sat 0-255) por modo ──
 // Hue sigue la escala HSV de FastLED: 0=rojo, 85=verde, 128=cian, 160=azul, 213=magenta
-function _ledHueSat(motorEntry, ledIdx, noteAvgHeat) {
-    const mode = state.ledColorMode || 'rainbow';
+// ctx (opcional): { note, key, velocity } — necesario para el modo 'grid'.
+function _ledHueSat(motorEntry, ledIdx, noteAvgHeat, ctx) {
+    const mode = state.ledColorMode || 'grid';
     switch (mode) {
+        case 'grid': {
+            // Color exacto del grid (incluye Interpretar), convertido a HSV.
+            const note = ctx?.note ?? motorEntry.note;
+            const [r, g, b] = noteGridRGB(note, ctx?.key, ctx?.velocity ?? 100);
+            return _rgbToHsvFastLED(r, g, b);
+        }
         case 'octava': {
             // Colores por octava: rojo→naranja→amarillo→verde→cian→azul→violeta
             const oct  = Math.floor(motorEntry.note / 12) - 1;

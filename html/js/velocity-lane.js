@@ -7,6 +7,7 @@ import { state } from './state.js';
 import { historyPush } from './history.js';
 import { _OCT_RGB, drawPianoRollWithPlayhead } from './piano-roll.js';
 import { tabMarkDirty } from './tabs.js';
+import { velGridToEsp32, velMaxGridForNote } from './motor-map.js';
 
 let velLaneActive = false;  // oculto por defecto; se muestra al pulsar velLaneBtn
 const _VEL_LANE_H = 64;
@@ -137,7 +138,7 @@ export function drawVelocityLane() {
             ctx2.setLineDash([]);
             ctx2.fillStyle = 'rgba(255,220,0,0.9)';
             ctx2.font      = '9px monospace';
-            ctx2.fillText(`${refVel}`, 3, refY - 2);
+            ctx2.fillText(`${velGridToEsp32(refVel)}`, 3, refY - 2);  // mostrar en escala ESP32 1-100
             ctx2.restore();
         }
     }
@@ -190,18 +191,27 @@ function _scaleAllVelocities(targetVel) {
         for (const [key, orig] of _velAllSnapshot) {
             const cell = state.gridData.cells[key];
             if (!cell) continue;
-            cell.velocity = Math.max(0, Math.min(127, Math.round(orig * factor)));
+            cell.velocity = _clampVelForKey(key, Math.round(orig * factor));
             changed = true;
         }
     } else {
         for (const key of _velAllSnapshot.keys()) {
             const cell = state.gridData.cells[key];
             if (!cell) continue;
-            cell.velocity = targetVel;
+            cell.velocity = _clampVelForKey(key, targetVel);
             changed = true;
         }
     }
     return changed;
+}
+
+// Acota una velocity (escala grid) al techo físico del motor que toca esa nota,
+// para que ninguna edición masiva rebase el velMax parametrizado y fuerce el
+// solenoide. El suelo es 0 (silencio permitido); el techo es velMaxGridForNote.
+function _clampVelForKey(key, vel) {
+    const note = parseInt(key.slice(0, key.indexOf(',')), 10);
+    const hi   = velMaxGridForNote(note);
+    return Math.max(0, Math.min(hi, vel));
 }
 
 function _editVelAtStep(step, vel) {
@@ -211,7 +221,7 @@ function _editVelAtStep(step, vel) {
         const [noteStr, stepStr] = key.split(',');
         if (parseInt(stepStr) !== step) continue;
         if (!_cellInFragment(parseInt(noteStr), step, frag)) continue;
-        cell.velocity = vel;
+        cell.velocity = _clampVelForKey(key, vel);   // no rebasar el velMax del motor
         changed = true;
     }
     return changed;
