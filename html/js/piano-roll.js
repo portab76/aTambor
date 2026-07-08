@@ -327,6 +327,17 @@ export function drawNoteLabels() {
     const lCtx = labelsCanvas.getContext('2d');
     lCtx.clearRect(0, 0, _LABEL_W, h);
 
+    // Color arcoíris por octava: Do1=rojo → Do6=violeta (según tema claro/oscuro activo)
+    const FALLBACK_OCTAVE_COLORS = {
+        1: { bg: '#2a0a0a', stripe: '#8b1a1a', text: '#ff6666' },
+        2: { bg: '#2a1a0a', stripe: '#8b4a1a', text: '#ff9944' },
+        3: { bg: '#2a2a0a', stripe: '#7a7a1a', text: '#dddd44' },
+        4: { bg: '#0a2a0a', stripe: '#1a6a1a', text: '#44dd44' },
+        5: { bg: '#0a1a2a', stripe: '#1a4a8b', text: '#4488ff' },
+        6: { bg: '#1a0a2a', stripe: '#4a1a8b', text: '#bb66ff' },
+    };
+    const OCTAVE_COLORS = (window.CANVAS_THEME && window.CANVAS_THEME.octaveColors) || FALLBACK_OCTAVE_COLORS;
+
     for (let i = 0; i < state.noteRows.length; i++) {
         const note    = state.noteRows[i];
         const y       = i * state.rowHeight;
@@ -335,15 +346,6 @@ export function drawNoteLabels() {
         const octave  = Math.floor(note / 12) - 1;
         const name    = _NOTE_NAMES[note % 12];
 
-        // Color arcoíris por octava: Do1=rojo → Do6=violeta
-        const OCTAVE_COLORS = {
-            1: { bg: '#2a0a0a', stripe: '#8b1a1a', text: '#ff6666' },  // rojo
-            2: { bg: '#2a1a0a', stripe: '#8b4a1a', text: '#ff9944' },  // naranja
-            3: { bg: '#2a2a0a', stripe: '#7a7a1a', text: '#dddd44' },  // amarillo
-            4: { bg: '#0a2a0a', stripe: '#1a6a1a', text: '#44dd44' },  // verde
-            5: { bg: '#0a1a2a', stripe: '#1a4a8b', text: '#4488ff' },  // azul
-            6: { bg: '#1a0a2a', stripe: '#4a1a8b', text: '#bb66ff' },  // violeta
-        };
         const oct = Math.max(1, Math.min(6, octave));
         const col = OCTAVE_COLORS[oct] || OCTAVE_COLORS[4];
 
@@ -383,7 +385,7 @@ export function drawNoteLabels() {
             lCtx.fillStyle = col.text;
             lCtx.fillText(isC ? `C${octave}` : name, _LABEL_W - 4, y + state.rowHeight * 0.32);
             lCtx.font      = `bold ${halfSize}px monospace`;
-            lCtx.fillStyle = '#ffcc44';
+            lCtx.fillStyle = col.text;
             lCtx.fillText(`m:${motorCfg.motor}`, _LABEL_W - 4, y + state.rowHeight * 0.72);
         } else {
             lCtx.font      = isC ? `bold ${fontSize}px monospace` : `${fontSize}px monospace`;

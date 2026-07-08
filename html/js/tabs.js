@@ -206,17 +206,6 @@ function _tabRestoreFrom(t) {
         if (i === t.selectedChannel) opt.selected = true;
         instrumentSelect.appendChild(opt);
     });
-    instrumentSelect.disabled = !hasGrid && !t.midiData;
-    loadInstrumentBtn.disabled = (t.selectedChannel === null);
-
-    const openAllBtn = document.getElementById('openAllInstrumentsBtn');
-    if (openAllBtn) {
-        const chCount = instrumentSelect
-            ? instrumentSelect.querySelectorAll('option[value]:not([value=""])').length
-            : 0;
-        openAllBtn.disabled = chCount < 2;
-    }
-
     // ── Piano roll ──
     if (hasGrid) {
         applyZoom(t.stepWidth, t.rowHeight);
@@ -378,9 +367,6 @@ function _tabRender() {
         list.appendChild(el);
     });
 
-    // El botón «Fusionar izq.» solo tiene sentido si hay un tab a la izquierda.
-    const mergeBtn = document.getElementById('mergeLeftBtn');
-    if (mergeBtn) mergeBtn.disabled = (_activeTabIdx <= 0);
 }
 
 // ── Helpers para el módulo raíz (midiGrid.js) ────────────────

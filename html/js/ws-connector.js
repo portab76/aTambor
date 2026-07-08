@@ -237,8 +237,9 @@ export function closeWebSocket() {
 // ── UI de estado ──────────────────────────────────────────────
 
 export function _setWsStatus(status, message) {
-    const dot = document.getElementById('esp32StatusDot');
-    const lbl = document.getElementById('esp32StatusLabel');  // opcional
+    const dot  = document.getElementById('esp32StatusDot');
+    const dot2 = document.getElementById('esp32StatusDot2');  // dot duplicado dentro del modal
+    const lbl  = document.getElementById('esp32StatusLabel');
 
     const MAP = {
         connected:    { color: '#44dd88', text: 'ESP32 conectado'    },
@@ -248,8 +249,14 @@ export function _setWsStatus(status, message) {
     };
     const s    = MAP[status] || MAP.disconnected;
     const text = message || s.text;
-    if (dot) dot.style.color = s.color;
-    if (lbl) lbl.textContent = text;
+    if (dot)  dot.style.color  = s.color;
+    if (dot2) dot2.style.color = s.color;
+    if (lbl)  lbl.textContent  = text;
+
+    // Conexión establecida → cerrar el modal automáticamente
+    if (status === 'connected' && typeof window.toggleEsp32Modal === 'function') {
+        window.toggleEsp32Modal(false);
+    }
 }
 
 /** Muestra u oculta el botón "Reintentar" de reconexión manual. */

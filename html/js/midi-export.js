@@ -162,14 +162,13 @@ export function buildMidiBytes() {
 // ── Punto de entrada público ──────────────────────────────────
 
 /**
- * Nombre base por defecto para exportar MIDI (sin extensión). Refleja si la
- * casilla 🤖 Comprimir estaba activa al construir el grid: sufijo _motores
- * frente a _export.
+ * Nombre base por defecto para exportar MIDI (sin extensión). Los tabs creados
+ * con 🤖 Comprimir llevan el sufijo _motores en currentMidiFileName y se
+ * respeta; el resto recibe _export.
  */
 export function defaultMidiExportName() {
-    const comprimir = document.getElementById('comprimirCheckbox')?.checked;
-    const baseName  = (state.currentMidiFileName || 'composicion').replace(/\.midi?$/i, '');
-    return comprimir ? `${baseName}_motores` : `${baseName}_export`;
+    const baseName = (state.currentMidiFileName || 'composicion').replace(/\.midi?$/i, '');
+    return baseName.endsWith('_motores') ? baseName : `${baseName}_export`;
 }
 
 /** Sanea un nombre de archivo (caracteres ilegales, espacios, vacío). */

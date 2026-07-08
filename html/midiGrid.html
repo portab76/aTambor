@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -575,7 +575,7 @@
                        white-space:nowrap;line-height:1.4;"
                 onmouseover="this.style.borderColor='#3a3a6a'"
                 onmouseout="this.style.borderColor='transparent'">
-            🎹 PianoRoll
+            🎹 Piano<span style="color:#5f5fae;font-weight:normal;">Roll</span> 🤖
             <span id="appMenuArrow" style="font-size:8px;transition:transform .22s;display:inline-block;">▾</span>
         </button>
 
@@ -593,13 +593,15 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
                     <button id="newGridBtn" onclick="tabNewWithDialog();closeAppMenu()"
                             title="Nuevo grid vacío" class="menu-btn">📄 Nuevo</button>
-                    <button onclick="openMMLImportModal();closeAppMenu()"
-                            title="Importar MML" class="menu-btn">🎼 MML</button>
-                    <button id="saveProjectBtn" title="Guardar proyecto como JSON" class="menu-btn">💾 Guardar</button>
-                    <button id="loadProjectBtn" title="Cargar proyecto JSON" class="menu-btn">📂 Cargar</button>
-                    <button id="exportMidiMenuBtn" onclick="promptExportMidi();closeAppMenu()" disabled
+                    <button onclick="document.getElementById('midiFileInput').click();closeAppMenu()"
+                            title="Abrir archivo MIDI" class="menu-btn">🎵 Abrir (.mid)</button>
+                    <button id="saveProjectBtn" title="Guardar proyecto como JSON" class="menu-btn">💾 Guardar (.json)</button>
+                    <button id="loadProjectBtn" title="Cargar proyecto JSON" class="menu-btn">📂 Cargar (.json)</button>
+                    <button id="exportMidiMenuBtn" onclick="promptExportMidi();closeAppMenu()"
                             title="Exportar composición como archivo .mid compatible con cualquier DAW"
-                            class="menu-btn" style="color:#88cc88;border-color:#336633;">⬇ Export .mid</button>
+                            class="menu-btn">⬇ Export .mid</button>
+                    <button onclick="openMMLImportModal();closeAppMenu()"
+                            title="Importar notación MML" class="menu-btn">🎼 Cargar MML</button>
                 </div>
                 <!-- Recientes -->
                 <button onclick="toggleRecentInMenu()" class="menu-btn"
@@ -611,13 +613,13 @@
 
                 <!-- Fila: compases + ayuda -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
-                    <button onclick="showHelpModal();closeAppMenu()"
-                            title="Atajos y controles" class="menu-btn" style="text-align:center;">
-                        ❓ Ayuda
-                    </button>
                     <button id="themeToggleBtn" onclick="toggleTheme()"
                             title="Cambiar tema claro/oscuro" class="menu-btn" style="text-align:center;">
                         ☀️ Claro
+                    </button>
+                    <button onclick="showHelpModal();closeAppMenu()"
+                            title="Atajos y controles" class="menu-btn" style="text-align:center;">
+                        ❓ Ayuda
                     </button>
                 </div>
 
@@ -663,103 +665,78 @@
             </div>
         </div>
     </div>
+
     <!-- inputs ocultos de archivo (sin posición visual) -->
     <input type="file" id="midiFileInput" accept=".mid,.midi" style="display:none;">
-    <button onclick="document.getElementById('midiFileInput').click()"
-            title="Abrir archivo MIDI">🎵</button>
     <input type="file" id="loadProjectInput" accept=".json" style="display:none;">
 
 
-    <!-- ── Canal ── -->
-    <select id="instrumentSelect" disabled style="font-size:11px;height:26px;padding:0 4px;max-width:160px;">
+    <!-- ── Canal · Mostrar · Todos · Comprimir · Interpretar ── -->
+    <select id="instrumentSelect" style="font-size:11px;height:26px;padding:0 4px;max-width:160px;">
         <option value="">-- Canal --</option>
     </select>
+    <button id="loadInstrumentBtn" title="Mostrar el grid del canal seleccionado">Mostrar</button>
+    <button id="openAllInstrumentsBtn"
+            title="Abrir cada canal del MIDI en un tab separado (Ctrl+Shift+A)"
+            onclick="openAllInstruments()">Todos</button>
+    <button id="comprimirBtn" onclick="comprimirTabActual()"
+            title="Comprimir la partitura del tab activo a las teclas físicas del Motor Map — crea un tab nuevo con la versión comprimida (el original no se toca)">Comprimir</button>
+    <button id="interpretWeightsBtn" onclick="toggleInterpretWeights()"
+            title="Interpretar: pinta las notas por relevancia (azul=relleno → rojo=clave) y ajusta la firma expresiva. Aplica los cambios al grid desde el panel.">Interpretar</button>
+    <button id="activeNotesBtn" title="Notas activas del instrumento">Notas</button>
 
     <div class="toolbar-sep"></div>
 
-    <!-- ── mostrar grid ── -->
-    <button id="loadInstrumentBtn" disabled title="Mostrar el grid del canal seleccionado">Mostrar</button>
-<label id="comprimirLabel"
-       title="Comprimir notas a las octavas de los motores configurados en el Motor Map"
-       style="font-size:11px;color:#666688;display:flex;align-items:center;gap:4px;
-              cursor:default;white-space:nowrap;border:1px solid #2a2a4a;border-radius:4px;
-              padding:2px 7px;background:#1a1a2e;opacity:0.4;flex-shrink:0;">
-    <input type="checkbox" id="comprimirCheckbox" disabled
-           style="cursor:pointer;accent-color:#ff8844;">
-    🤖 Comprimir
-</label>
-    <button id="openAllInstrumentsBtn" disabled
-            title="Abrir cada canal del MIDI en un tab separado (Ctrl+Shift+A)"
-            onclick="openAllInstruments()">Todos</button>
- 
-    <button id="abLoopBtn" onclick="toggleLoopAB()" disabled
-            title="Activa modo A→B: clic en regla para marcar inicio y fin del fragmento">A→B</button>
+    <!-- ── Fusionar izq. · Acordes · Tempo · A-B ── -->
+    <button id="mergeLeftBtn" onclick="mergeFromLeftTabUI()"
+            title="Añadir al tab actual todas las notas del tab de la izquierda, sincronizadas en el mismo tiempo. Quedan seleccionadas. Ctrl+Z revierte.">Fusionar izq.</button>
+    <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes">Acordes</button>
+    <button id="tempoEditBtn" onclick="toggleTempoEditMode()"
+            title="Activar edición del mapa de tempo: clic en la regla para añadir/editar puntos de BPM">Tempo</button>
+    <button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
+    <button id="abLoopBtn" onclick="toggleLoopAB()"
+            title="Activa modo A→B: clic en regla para marcar inicio y fin del fragmento">A-B</button>
 
+    <div class="toolbar-sep"></div>
+
+    <!-- ── Play · Stop ── -->
+    <button id="playBtn"  class="btn-transport" title="Play">▶</button>
+    <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
+    <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
+           title="Tempo de reproducción"
+           style="width:50px;background:var(--c-deep);color:var(--c-text);border:1px solid var(--c-border);
+                  border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
+
+    <div class="toolbar-sep"></div>
 
     <!-- ── Zoom ── -->
     <span class="tb-group-label">Zoom</span>
     <button class="btn-narrow" onclick="zoom(-1)" title="Reducir zoom">−</button>
     <span id="zoomLabel"
-          style="font-size:10px;color:#aaa;min-width:26px;text-align:center;white-space:nowrap;flex-shrink:0;">8</span>
+          style="display:none;font-size:10px;color:#aaa;min-width:26px;text-align:center;white-space:nowrap;flex-shrink:0;">8</span>
     <button class="btn-narrow" onclick="zoom(+1)" title="Aumentar zoom">+</button>
-
-
-        <div class="toolbar-sep"></div>
-
-    <!-- ── Herramientas ── -->
-    <button id="activeNotesBtn" title="Notas activas del instrumento" disabled>Notas</button>
-    <button id="interpretWeightsBtn" onclick="toggleInterpretWeights()"
-            title="Interpretar: pinta las notas por relevancia (azul=relleno → rojo=clave) y ajusta la firma expresiva. Aplica los cambios al grid desde el panel.">🎵 Interpretar</button>
-    <button id="velLaneBtn" onclick="toggleVelocityLane()"
-            title="Mostrar/ocultar carril de velocidades">Vel.</button>
-<button id="motorEscalaBtn" onclick="toggleMotorEscalaPanel()" title="Motor Map + Escala de transposición">Motor</button>
-    <button id="chordPanelBtn" onclick="toggleChordPanel()" title="Panel de acordes" disabled>Acordes</button>
-    <button id="mergeLeftBtn" onclick="mergeFromLeftTabUI()"
-            title="Añadir al tab actual todas las notas del tab de la izquierda, sincronizadas en el mismo tiempo. Quedan seleccionadas. Ctrl+Z revierte." disabled>⤵ Fusionar izq.</button>
 
     <div class="toolbar-sep"></div>
 
-
-
-
-    <!-- ── Transporte ── -->
-    <button id="playBtn"  class="btn-transport" disabled title="Play">▶</button>
-    <button id="stopBtn"  class="btn-transport" title="Stop">⏹</button>
-            
-            <label for="bpmInput" style="font-size:10px;color:#555580;white-space:nowrap;">BPM</label>
-            <input type="number" id="bpmInput" min="20" max="400" step="1" value="120"
-            title="Tempo de reproducción"
-            style="width:50px;background:var(--c-deep);color:var(--c-text);border:1px solid var(--c-border);
-                  border-radius:4px;padding:2px 4px;font-size:12px;text-align:center;flex-shrink:0;">
-            <button id="tempoEditBtn" onclick="toggleTempoEditMode()"
-                    title="Activar edición del mapa de tempo: clic en la regla para añadir/editar puntos de BPM">♩ Tempo</button>
-
-
-<!-- ── Segmento A→B ── -->
-    <button id="copyFragBtn"   onclick="copyFragment()"    disabled title="Copiar la selección rectangular o el fragmento A→B">⎘</button>
-    <button id="pasteFragBtn"  onclick="pasteFragment()"   disabled title="Pegar en el playhead (Ctrl+V). Las notas pegadas quedan seleccionadas: arrástralas o usa las flechas (←→ pasos · ↑↓ semitonos · Shift+↑↓ octava) para recolocarlas.">⎗</button>
-    <button id="deleteFragBtn" onclick="deleteFragment()"   disabled title="Eliminar la selección rectangular, o el fragmento A→B (desplazando)">✕</button>
+    <!-- ── Copiar · Pegar · Borrar ── -->
+    <button id="copyFragBtn"   onclick="copyFragment()"    title="Copiar la selección rectangular o el fragmento A→B">Copiar</button>
+    <button id="pasteFragBtn"  onclick="pasteFragment()"   title="Pegar en el playhead (Ctrl+V). Las notas pegadas quedan seleccionadas: arrástralas o usa las flechas (←→ pasos · ↑↓ semitonos · Shift+↑↓ octava) para recolocarlas.">Pegar</button>
+    <button id="deleteFragBtn" onclick="deleteFragment()"   title="Eliminar la selección rectangular, o el fragmento A→B (desplazando)">Borrar</button>
 
     <div class="toolbar-sep"></div>
 
     <!-- ── ESP32 ── -->
-    <span class="tb-group-label">ESP32</span>
-    <select id="connModeSelect" title="Modo de conexión"
-            onchange="_onConnModeChange()"
-            style="font-size:10px;background:var(--c-control);color:var(--c-text2);border:1px solid var(--c-border3);
-                   border-radius:4px;padding:2px 4px;flex-shrink:0;">
+    <button id="esp32MenuBtn" onclick="toggleEsp32Modal()" title="Configurar conexión con el ESP32">
+        ESP32
+        <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;margin-left:4px;">●</span>
+    </button>
+    <button id="esp32LogBtnBar" onclick="openEsp32LogWindow()" title="Ver log detallado de la conexión ESP32">Log</button>
+
+    <!-- inputs ocultos, siguen existiendo para que ws-connector.js/_connectEsp32 los lean -->
+    <select id="connModeSelect" style="display:none;">
         <option value="wifi">WiFi</option>
         <option value="serial">Serie</option>
     </select>
-    <input id="esp32IpInput" value="192.168.4.1"
-           title="IP del ESP32 (AP propio: 192.168.4.1)"
-           style="width:110px;background:var(--c-deep);color:var(--c-text2);border:1px solid var(--c-border3);
-                  border-radius:4px;padding:2px 5px;font-size:11px;flex-shrink:0;">
-    <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32">Conectar</button>
-    <span id="esp32StatusDot" style="font-size:14px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
-    <button id="esp32RetryBtn" onclick="retryWebSocket()" title="Reintentar la conexión con el ESP32"
-            style="display:none;font-size:11px;background:#5a2a2a;border-color:#aa4444;color:#ffcccc;">↻ Reintentar</button>
-    <button id="esp32LogBtn" onclick="openEsp32LogWindow()" title="Ver log ESP32">Log</button>
 
 
 </div>
@@ -768,6 +745,67 @@
 <div id="statusBar" style="position:fixed;bottom:8px;right:12px;text-align:right;
      pointer-events:none;z-index:9000;line-height:1.5;">
     <span id="streamingBuffer" style="font-size:11px;font-family:monospace;display:none;"></span>
+</div>
+
+<!-- ══ Modal ESP32 — conexión ══ -->
+<div id="esp32Modal" style="display:none;position:fixed;inset:0;background:#00000099;
+     z-index:99999;align-items:center;justify-content:center;" onclick="if(event.target===this)toggleEsp32Modal(false)">
+    <div style="background:#1e1e32;border:1px solid #5a5aaa;border-radius:10px;
+                width:380px;max-width:92vw;overflow-y:auto;
+                font-family:'Segoe UI',sans-serif;font-size:13px;color:#ddd;
+                box-shadow:0 12px 40px #00000099;">
+
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:12px 16px;background:#2a2a48;border-radius:10px 10px 0 0;
+                    border-bottom:1px solid #3a3a5a;">
+            <span style="font-size:14px;font-weight:bold;color:#fff;">Conexión ESP32</span>
+            <button onclick="toggleEsp32Modal(false)"
+                    style="background:none;border:none;color:#888;font-size:18px;
+                           cursor:pointer;padding:2px 8px;border-radius:4px;"
+                    onmouseover="this.style.background='#aa3333';this.style.color='#fff'"
+                    onmouseout="this.style.background='none';this.style.color='#888'">✕</button>
+        </div>
+
+        <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+
+            <!-- Modo de conexión: dos checkboxes excluyentes -->
+            <div style="display:flex;gap:16px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                    <input type="checkbox" id="connModeWifiCheck" checked
+                           onchange="_onConnModeCheckChange('wifi')" style="accent-color:#7a7aff;">
+                    WiFi
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                    <input type="checkbox" id="connModeSerialCheck"
+                           onchange="_onConnModeCheckChange('serial')" style="accent-color:#7a7aff;">
+                    Serie (USB)
+                </label>
+            </div>
+
+            <!-- IP (solo modo WiFi) -->
+            <label id="esp32IpLabel" style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:#999;">
+                IP del ESP32 <span style="opacity:.6;">(AP propio: 192.168.4.1)</span>
+                <input id="esp32IpInput" value="192.168.4.1"
+                       style="background:var(--c-deep);color:var(--c-text2);border:1px solid var(--c-border3);
+                              border-radius:4px;padding:5px 8px;font-size:12px;">
+            </label>
+
+            <!-- Conectar -->
+            <button id="connectBtn" onclick="_connectEsp32()" title="Conectar con ESP32"
+                    style="padding:7px;font-size:12px;">Conectar</button>
+
+            <!-- Estado en vivo: conectando / reintentos / error -->
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#151528;
+                        border:1px solid #2a2a44;border-radius:6px;font-size:11px;">
+                <span id="esp32StatusDot2" style="font-size:13px;line-height:1;color:#dd4444;flex-shrink:0;">●</span>
+                <span id="esp32StatusLabel" style="color:#aaa;">Desconectado</span>
+            </div>
+
+            <button id="esp32RetryBtn" onclick="retryWebSocket()" title="Reintentar la conexión con el ESP32"
+                    style="display:none;font-size:11px;background:#5a2a2a;border-color:#aa4444;color:#ffcccc;">↻ Reintentar</button>
+        </div>
+    </div>
 </div>
 
 <!-- ══ Modal de Ayuda ══ -->
@@ -836,7 +874,7 @@
                     <tr><td class="help-key">📄 Nuevo</td><td>Crear grid vacío — elige nº de compases (1–16) y BPM inicial</td></tr>
                     <tr><td class="help-key">🎵 Abrir MIDI</td><td>Importar archivo .mid / .midi · también arrastrar directamente a la ventana (abre en nuevo tab si hay contenido)</td></tr>
                     <tr><td class="help-key">🎼 MML</td><td>Importar partitura en formato Music Macro Language (texto compacto)</td></tr>
-                    <tr><td class="help-key">⬇ .mid</td><td><strong>Exportar a MIDI estándar</strong> — genera archivo .mid Tipo 1 compatible con Ableton, Logic, MuseScore, Cubase y cualquier DAW. Incluye mapa de tempo y transposición activa · abre un diálogo para <strong>poner nombre al archivo</strong> (nombre por defecto con sufijo <code>_motores</code> si 🤖 Comprimir está activo, si no <code>_export</code>)</td></tr>
+                    <tr><td class="help-key">⬇ .mid</td><td><strong>Exportar a MIDI estándar</strong> — genera archivo .mid Tipo 1 compatible con Ableton, Logic, MuseScore, Cubase y cualquier DAW. Incluye mapa de tempo y transposición activa · abre un diálogo para <strong>poner nombre al archivo</strong> (nombre por defecto con sufijo <code>_motores</code> en los tabs creados con 🤖 Comprimir, si no <code>_export</code>)</td></tr>
                     <tr><td class="help-key">💾 Guardar</td><td>Exportar proyecto completo como JSON (incluye análisis armónico, mapa de tempo y marcadores) · abre un diálogo para <strong>poner nombre al archivo</strong> antes de descargar (Enter confirma, Esc cancela)</td></tr>
                     <tr><td class="help-key">📂 Cargar</td><td>Importar proyecto JSON guardado previamente</td></tr>
                     <tr><td class="help-key">Archivos recientes</td><td>Los últimos 10 proyectos JSON se recuerdan en el menú · muestra tiempo transcurrido desde la última vez</td></tr>
@@ -909,7 +947,7 @@
                 <table class="help-table">
                     <tr><td class="help-key">Notas</td><td>Panel flotante con todas las notas únicas presentes en el grid</td></tr>
                     <tr><td class="help-key">Vel.</td><td>Muestra / oculta el carril de velocidades (oculto por defecto)</td></tr>
-                    <tr><td class="help-key">🤖 Comprimir</td><td>Casilla junto a <strong>Mostrar</strong>: al construir el grid de un canal, remapea cada nota a la nota física más cercana del Motor Map — concentra la pieza en las teclas que el robot puede tocar. La octava destino se pondera con el heat map (o una octava por defecto si no hay análisis). Se habilita al cargar un MIDI con canales y se resetea con cada archivo nuevo. Al exportar con la casilla activa, el MIDI lleva el sufijo <code>_motores.mid</code></td></tr>
+                    <tr><td class="help-key">🤖 Comprimir</td><td>Botón junto a <strong>Mostrar</strong>: comprime la partitura del <strong>tab activo</strong> (incluidas las ediciones manuales) a las teclas físicas del Motor Map y abre el resultado en un <strong>tab nuevo 🤖</strong> — el original queda intacto. La octava destino se pondera con el heat map y las colisiones se resuelven por atención. Se habilita al construir un grid con notas. El tab comprimido exporta con el sufijo <code>_motores.mid</code></td></tr>
                     <tr><td class="help-key">Calor</td><td>Colorea el piano roll por importancia estructural mediante el Motor de Atención (softmax 4D): rojo = nota dominante · azul = subordinada</td></tr>
                     <tr><td class="help-key">Motor</td><td>Abre el panel unificado Motor Map + Escala de transposición</td></tr>
                     <tr><td class="help-key">Motor Map</td><td>Tabla nota MIDI → motor físico · mute por fila silencia audio y ESP32 · permite test, export e import JSON</td></tr>
@@ -1433,7 +1471,7 @@
                         <div id="transposeValueLabel" style="font-size:14px;font-weight:600;color:#aac;
                              min-width:46px;text-align:center;background:#111;border:1px solid #3a3a5a;
                              border-radius:4px;padding:3px 6px;">0</div>
-                        <button class="tp-quick-btn" onclick="_tpShift(0,true)" style="color:#88ffaa;border-color:#336633;">↺</button>
+                        <button class="tp-quick-btn" onclick="_tpShift(0,true)" style="border-color:#336633;">↺</button>
                         <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#aaaacc;
                                        white-space:nowrap;cursor:pointer;border:1px solid #3a3a5a;border-radius:4px;
                                        padding:2px 7px;background:#1a1a2e;"

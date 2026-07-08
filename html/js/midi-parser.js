@@ -140,17 +140,6 @@ export function enableInstrumentSelection() {
     instrumentSelect.disabled = false;
     loadInstrumentBtn.disabled = false;
 
-    const openAllBtn = document.getElementById('openAllInstrumentsBtn');
-    if (openAllBtn) openAllBtn.disabled = (channels.size < 2);
-
-    // Habilitar el label y el checkbox del compresor
-    const comprimirLabel    = document.getElementById('comprimirLabel');
-    const comprimirCheckbox = document.getElementById('comprimirCheckbox');
-    if (comprimirLabel) {
-        comprimirLabel.style.opacity = '1';
-        comprimirLabel.style.cursor  = 'pointer';
-    }
-    if (comprimirCheckbox) {
-        comprimirCheckbox.disabled = false;
-    }
+    // Nota: el botón 🤖 Comprimir se habilita al construir un grid
+    // (_enableChannelButtons en midiGrid.js), no al cargar el MIDI.
 }

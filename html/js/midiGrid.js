@@ -222,12 +222,6 @@ document.body.addEventListener('drop', (e) => {
 // ---- Gestión de UI tras parsear un MIDI (resultado de loadMIDIFile) ----
 // loadMIDIFile solo puebla el estado y devuelve datos; aquí actualizamos el DOM.
 function _applyMidiLoadResult(result) {
-    // Reset del checkbox compresor al cargar un nuevo MIDI
-    const _cCb = document.getElementById('comprimirCheckbox');
-    const _cLb = document.getElementById('comprimirLabel');
-    if (_cCb) { _cCb.checked = false; _cCb.disabled = true; }
-    if (_cLb) { _cLb.style.opacity = '0.4'; _cLb.style.cursor = 'default'; }
-
     if (!result || result.error) {
         debugDiv.innerHTML = `<strong>Error al parsear MIDI:</strong> ${result?.error ?? 'desconocido'}`;
         return result;
@@ -337,32 +331,13 @@ function _showChordRowLoading() {
  * @param {boolean} [opts.async=true] usar el worker (true) o análisis síncrono (false)
  * @returns {Promise<Object|null>} resuelve con el análisis aplicado
  */
-function _buildChannelGrid(ch, { async = true } = {}) {
-    // ── Compresión a motores ────────────────────────────────
-    const _comprimir = document.getElementById('comprimirCheckbox')?.checked;
-    let _rawEventsOrig = null;
-    if (_comprimir && MOTOR_MAP.length > 0) {
-        // Heatmap PRE-compresión: se calcula del grid ORIGINAL y se conserva para
-        // que la compresión decida colisiones por atención y para poder comparar
-        // antes/después. Se construye el grid original una vez aquí.
-        buildGridFromChannel(ch);
-        const heatPre = (state.gridData && Object.keys(state.gridData.cells).length > 0)
-            ? calcularHeatScores(state.gridData.cells, state.noteRows)
-            : null;
-        state.heatMapDataPreCompresion = heatPre;
-
-        _rawEventsOrig = state.rawEvents;
-        state.rawEvents = comprimirAMotores(state.rawEvents, ch, MOTOR_MAP, heatPre);
-    } else {
-        state.heatMapDataPreCompresion = null;
-    }
+function _buildChannelGrid(ch, { async = true, keepHeatPre = false } = {}) {
+    // La compresión a motores ya no ocurre aquí: la hace comprimirTabActual(),
+    // que crea un tab nuevo con los rawEvents ya comprimidos y conserva el
+    // heatmap pre-compresión (keepHeatPre) para la comparación antes/después.
+    if (!keepHeatPre) state.heatMapDataPreCompresion = null;
 
     buildGridFromChannel(ch);
-
-    if (_rawEventsOrig !== null) {
-        state.rawEvents = _rawEventsOrig;
-        _rawEventsOrig  = null;
-    }
 
     historyClear();
     state.pasoActual = 0;
@@ -412,6 +387,63 @@ function _setupChannelTab(ch, snap, { name, async = false } = {}) {
     });
     enableInstrumentSelection();
     return _buildChannelGrid(ch, { async });
+}
+
+/**
+ * 🤖 Comprime la partitura del tab ACTIVO a las teclas físicas del Motor Map
+ * y abre el resultado en un TAB NUEVO (el original queda intacto).
+ *
+ * Trabaja sobre el grid actual (state.gridData), no sobre los rawEvents del
+ * MIDI original: así la compresión incluye las ediciones manuales y también
+ * funciona en grids creados a mano. El heatmap pre-compresión guía las
+ * colisiones y se conserva para la comparación antes/después.
+ */
+function comprimirTabActual() {
+    if (!state.gridData || Object.keys(state.gridData.cells).length === 0) {
+        console.warn('[comprimir] El tab activo no tiene notas');
+        return null;
+    }
+    if (MOTOR_MAP.length === 0) {
+        console.warn('[comprimir] No hay motores en el Motor Map');
+        return null;
+    }
+
+    const ch  = state.selectedChannel ?? 0;
+    const tps = (state.ppqn || 96) / 4;   // ticks por semicorchea
+
+    // Heatmap del grid ACTUAL (pre-compresión)
+    const heatPre = calcularHeatScores(state.gridData.cells, state.noteRows);
+
+    // rawEvents sintéticos desde el grid actual (incluye ediciones manuales)
+    const evts = [];
+    for (const [key, cell] of Object.entries(state.gridData.cells)) {
+        const [note, step] = key.split(',').map(Number);
+        evts.push({ type: 'noteOn',  tick: step * tps,                   note, velocity: cell.velocity, channel: ch });
+        evts.push({ type: 'noteOff', tick: (step + cell.duration) * tps, note, velocity: 0,             channel: ch });
+    }
+    // Orden temporal; a tick igual, los noteOff van antes (liberan la tecla)
+    evts.sort((a, b) => a.tick - b.tick ||
+        (a.type === b.type ? 0 : (a.type === 'noteOff' ? -1 : 1)));
+
+    const comprimidos = comprimirAMotores(evts, ch, MOTOR_MAP, heatPre);
+
+    // Tab nuevo con la partitura comprimida
+    const snap     = _captureSnapshot();
+    const baseName = (state.currentMidiFileName || 'composicion').replace(/\.midi?$/i, '');
+    tabPushPreloaded({
+        ...snap,
+        rawEvents:           comprimidos,
+        totalTicks:          Math.max(snap.totalTicks || 0, ...evts.map(e => e.tick)),
+        midiData:            null,   // ya no representa el archivo original
+        currentMidiFileName: baseName.endsWith('_motores') ? baseName : baseName + '_motores',
+        selectedChannel:     ch,
+        name: '🤖 ' + (baseName.length > 12 ? baseName.slice(0, 12) + '…' : baseName),
+    });
+    enableInstrumentSelection();
+
+    // Conservar el heat pre-compresión para la comparación antes/después
+    state.heatMapDataPreCompresion = heatPre;
+    return _buildChannelGrid(ch, { keepHeatPre: true });
 }
 
 // ---- Cargar instrumento y mostrar grid ----
@@ -688,15 +720,6 @@ function _enableAllButtons() {
     document.getElementById('activeNotesBtn').disabled = false;
     const chordPanelBtn = document.getElementById('chordPanelBtn');
     if (chordPanelBtn) chordPanelBtn.disabled = false;
-
-    // Compresor a motores (mismo criterio que enableInstrumentSelection al cargar MIDI)
-    const comprimirLabel    = document.getElementById('comprimirLabel');
-    const comprimirCheckbox = document.getElementById('comprimirCheckbox');
-    if (comprimirLabel) {
-        comprimirLabel.style.opacity = '1';
-        comprimirLabel.style.cursor  = 'pointer';
-    }
-    if (comprimirCheckbox) comprimirCheckbox.disabled = false;
 
     // Selector de nivel armónico
     const viewSel = document.getElementById('viewLevelSelect');
@@ -1282,7 +1305,7 @@ function openAllInstruments() {
     tabSwitch(startIdx);   // activa el primer tab nuevo
 }
 
-// ---- Conexión ESP32 (handlers de la barra) ──────────────────
+// ---- Conexión ESP32 (modal) ──────────────────────────────────
 function _connectEsp32() {
     const mode = document.getElementById('connModeSelect').value;
     if (mode === 'serial') {
@@ -1292,17 +1315,36 @@ function _connectEsp32() {
     }
 }
 
-function _onConnModeChange() {
-    const mode    = document.getElementById('connModeSelect').value;
-    const ipInput = document.getElementById('esp32IpInput');
-    const logBtn  = document.getElementById('esp32LogBtn');
-    ipInput.style.display = mode === 'wifi' ? '' : 'none';
-    logBtn.style.display  = '';
-    // Desconectar el canal anterior al cambiar de modo
-    if (mode === 'serial') closeWebSocket();
-    if (mode === 'wifi')   closeSerial();
-    // Resetear offset del panel Escala al cambiar de modo
-    _tpSlider(0);
+/**
+ * Los dos checkboxes WiFi/Serie del modal ESP32 son mutuamente excluyentes
+ * (se comportan como radios). Al cambiar, actualiza el select oculto
+ * #connModeSelect (que sigue siendo la fuente de verdad para _connectEsp32,
+ * openEsp32LogWindow, etc.) y desconecta el canal anterior.
+ */
+function _onConnModeCheckChange(mode) {
+    const wifiCk   = document.getElementById('connModeWifiCheck');
+    const serialCk = document.getElementById('connModeSerialCheck');
+    if (mode === 'wifi')   serialCk.checked = false;
+    if (mode === 'serial') wifiCk.checked   = false;
+    // Ninguno marcado tras destildar el activo → forzar el otro (excluyente, no vacío)
+    if (!wifiCk.checked && !serialCk.checked) {
+        if (mode === 'wifi') serialCk.checked = true; else wifiCk.checked = true;
+    }
+    const finalMode = wifiCk.checked ? 'wifi' : 'serial';
+
+    document.getElementById('connModeSelect').value = finalMode;
+    document.getElementById('esp32IpLabel').style.display = finalMode === 'wifi' ? '' : 'none';
+
+    if (finalMode === 'serial') closeWebSocket();
+    if (finalMode === 'wifi')   closeSerial();
+    _tpSlider(0);   // resetear offset del panel Escala al cambiar de modo
+}
+
+/** Abre/cierra el modal de conexión ESP32. */
+function toggleEsp32Modal(show) {
+    const m = document.getElementById('esp32Modal');
+    const open = show !== undefined ? show : (m.style.display !== 'flex');
+    m.style.display = open ? 'flex' : 'none';
 }
 
 // ============================================================
@@ -1379,8 +1421,8 @@ Object.assign(window, {
 
     // entry-point local
     openAllInstruments, openEsp32LogWindow, showHelpModal, closeHelpModal,
-    toggleMotorEscalaPanel, _connectEsp32, _onConnModeChange,
-    toggleAppMenu, closeAppMenu,
+    toggleMotorEscalaPanel, _connectEsp32, _onConnModeCheckChange, toggleEsp32Modal,
+    toggleAppMenu, closeAppMenu, comprimirTabActual,
 });
 
 // ============================================================

@@ -22,6 +22,16 @@ const THEMES = {
             playhead: 'rgba(255,230,0,0.9)',
             deepBg:   '#0d0d1c',   // fondo profundo (regla, minimap)
             deepLine: '#1a1a3a',   // líneas tenues sobre el fondo profundo
+
+            // Columna de etiquetas de notas (noteLabelsCanvas): arcoíris por octava
+            octaveColors: {
+                1: { bg: '#2a0a0a', stripe: '#8b1a1a', text: '#ff6666' },  // rojo
+                2: { bg: '#2a1a0a', stripe: '#8b4a1a', text: '#ff9944' },  // naranja
+                3: { bg: '#2a2a0a', stripe: '#7a7a1a', text: '#dddd44' },  // amarillo
+                4: { bg: '#0a2a0a', stripe: '#1a6a1a', text: '#44dd44' },  // verde
+                5: { bg: '#0a1a2a', stripe: '#1a4a8b', text: '#4488ff' },  // azul
+                6: { bg: '#1a0a2a', stripe: '#4a1a8b', text: '#bb66ff' },  // violeta
+            },
         },
 
         // Patches de inline styles que CSS variables no pueden alcanzar
@@ -46,6 +56,16 @@ const THEMES = {
             playhead: 'rgba(220,80,0,0.85)',
             deepBg:   '#dde0ee',   // fondo profundo claro (regla, minimap)
             deepLine: '#c0c4d8',   // líneas tenues sobre el fondo profundo claro
+
+            // Columna de etiquetas de notas (noteLabelsCanvas): arcoíris por octava, versión clara
+            octaveColors: {
+                1: { bg: '#ffe0e0', stripe: '#e08888', text: '#a02020' },  // rojo
+                2: { bg: '#ffe8d0', stripe: '#e0a868', text: '#a05a10' },  // naranja
+                3: { bg: '#fbf6c8', stripe: '#c8c060', text: '#807410' },  // amarillo
+                4: { bg: '#dcf0dc', stripe: '#78c078', text: '#206020' },  // verde
+                5: { bg: '#d8e6fa', stripe: '#7098d8', text: '#204090' },  // azul
+                6: { bg: '#ecdcf8', stripe: '#a878d0', text: '#5a2090' },  // violeta
+            },
         },
 
         inline: {
@@ -60,7 +80,7 @@ const THEMES = {
 // Paleta viva — el canvas la lee en cada redraw
 window.CANVAS_THEME = { ...THEMES.dark.canvas };
 
-let _currentTheme = 'dark';
+let _currentTheme = 'light';
 
 // ── Aplicar tema ─────────────────────────────────────────────
 export function setTheme(name) {
@@ -115,7 +135,7 @@ export function toggleTheme() {
 
 // ── Inicializar al cargar ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    let saved = 'dark';
-    try { saved = localStorage.getItem('midiGrid_theme') || 'dark'; } catch (_) {}
+    let saved = 'light';
+    try { saved = localStorage.getItem('midiGrid_theme') || 'light'; } catch (_) {}
     setTheme(saved);
 });
